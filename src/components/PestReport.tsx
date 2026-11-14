@@ -327,6 +327,43 @@ export const PestReport: React.FC<PestReportProps> = ({
           </div>
         </div>
 
+        {/* DETAILED CROP DAMAGE & HARVEST IMPACT ANALYSIS */}
+        {isTreatmentAllowed && (report.aiInferredDamage || report.potentialYieldLossRange) && (
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-red-50/80 via-amber-50/70 to-orange-50/80 border border-amber-300/80 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center space-x-2 text-amber-900 font-extrabold text-sm sm:text-base">
+                <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0" />
+                <span>
+                  {lang === 'or' ? 'କୀଟ ଦ୍ୱାରା ଫସଲ କ୍ଷତିର ବିସ୍ତୃତ ଆକଳନ' : 'Crop Damage & Harvest Impact Analysis'}
+                </span>
+              </div>
+              {report.potentialYieldLossRange && (
+                <span className="px-2.5 py-1 rounded-lg bg-red-100 text-red-800 text-xs font-black border border-red-200">
+                  {lang === 'or' ? 'କ୍ଷତି ଆଶଙ୍କା: ' : 'Yield Loss Risk: '}{report.potentialYieldLossRange}
+                </span>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+              {lang === 'or' ? (report.aiInferredDamageOr || report.aiInferredDamage) : report.aiInferredDamage}
+            </p>
+            {knowledge.keySymptomsEn && knowledge.keySymptomsEn.length > 0 && (
+              <div className="pt-2 border-t border-amber-200/60">
+                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
+                  {lang === 'or' ? 'ପ୍ରମୁଖ କ୍ଷତି ଲକ୍ଷଣ (Field Damage Signs):' : 'Key Diagnostic Symptoms & Signs:'}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {(lang === 'or' ? knowledge.keySymptomsOr : knowledge.keySymptomsEn).map((sym, idx) => (
+                    <div key={idx} className="flex items-start space-x-1.5 text-xs text-slate-700">
+                      <span className="text-amber-600 font-bold">•</span>
+                      <span>{sym}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* OBSERVATIONAL EVIDENCE vs AI LIMITATIONS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">

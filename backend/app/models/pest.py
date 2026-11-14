@@ -92,6 +92,10 @@ class PestAnalysisResponse(BaseModel):
     farmer_district: str = "bargarh"
     is_sample_scan: bool = False
     
+    # Detailed crop damage and impact analysis
+    crop_damage_analysis: Optional[str] = None
+    crop_damage_analysis_or: Optional[str] = None
+
     # Backwards compatibility layer for legacy components
     identification: Optional[PestIdentification] = None
     ai_inferred_damage_en: Optional[str] = None

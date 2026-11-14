@@ -49,6 +49,10 @@ class GeminiVisionProvider(BasePestDetector):
         if not quality.is_clear and not forced_pest_id:
             return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
 
+        # If forced_pest_id is provided (benchmark / sample verification mode)
+        if forced_pest_id:
+            return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
+
         # If no Gemini API key configured, use honest baseline fallback
         if not settings.GEMINI_API_KEY:
             return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
@@ -88,6 +92,8 @@ class GeminiVisionProvider(BasePestDetector):
                 '  "crop": "Rice" | "Other" | "None",\n'
                 '  "life_stage": "Adult" | "Larva" | "Nymph" | "Egg" | "Unknown",\n'
                 '  "reason": "Clear explanation of the determination based strictly on visible features",\n'
+                '  "crop_damage_analysis": "Comprehensive scientific explanation of how this insect attacks the crop: feeding mechanism, specific plant tissues affected, visible field symptoms (e.g. hopperburn, dead hearts, whiteheads, leaf scraping, defoliation), vector risks, and estimated yield loss impact.",\n'
+                '  "crop_damage_analysis_or": "ଓଡ଼ିଆରେ ଫସଲ କ୍ଷତିର ବିସ୍ତୃତ ବର୍ଣ୍ଣନା (କୀଟ କିପରି ଫସଲକୁ ନଷ୍ଟ କରେ ଏବଂ କେତେ ପ୍ରତିଶତ କ୍ଷତି କରିପାରେ)",\n'
                 '  "limitations": ["limitation 1", "limitation 2"],\n'
                 '  "needs_better_image": boolean,\n'
                 '  "treatment_allowed": boolean (MUST BE false unless status is IDENTIFIED and pest is one of the 5 supported rice pests),\n'
@@ -185,6 +191,9 @@ class GeminiVisionProvider(BasePestDetector):
                 immediate_actions_en = ["Please upload a photograph of a rice crop or agricultural pest."]
                 immediate_actions_or = ["ଦୟାକରି ଧାନ ଫସଲ କିମ୍ବା କୀଟର ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ।"]
 
+            crop_damage_analysis = parsed.get("crop_damage_analysis")
+            crop_damage_analysis_or = parsed.get("crop_damage_analysis_or")
+
             return PestAnalysisResponse(
                 scan_id=scan_id,
                 created_at=now,
@@ -200,6 +209,10 @@ class GeminiVisionProvider(BasePestDetector):
                 crop_id=crop_id,
                 life_stage=parsed.get("life_stage", "Unknown"),
                 reason=parsed.get("reason", "Analysis completed via multimodal vision evaluation."),
+                crop_damage_analysis=crop_damage_analysis,
+                crop_damage_analysis_or=crop_damage_analysis_or,
+                ai_inferred_damage_en=crop_damage_analysis or (knowledge.get("key_symptoms_en", [""])[0] if pest_id else None),
+                ai_inferred_damage_or=crop_damage_analysis_or or (knowledge.get("key_symptoms_or", [""])[0] if pest_id else None),
                 limitations=parsed.get("limitations", []),
                 needs_better_image=bool(parsed.get("needs_better_image", False)),
                 treatment_allowed=treatment_allowed,

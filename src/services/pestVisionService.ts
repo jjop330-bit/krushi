@@ -187,15 +187,18 @@ RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:
   "pestId": "bph" | "stem_borer" | "leaf_folder" | "rice_hispa" | "armyworm" | "beneficial_spider" | null,
   "confidence": number between 0 and 100 or null,
   "visualEvidence": ["observable anatomical or damage feature 1", "feature 2"],
+  "crop": "Rice" | "Other" | "None",
   "lifeStage": "Adult" | "Larva" | "Nymph" | "Egg" | "Unknown",
   "reason": "Clear explanation of the determination based strictly on visible features",
+  "cropDamageAnalysis": "Comprehensive scientific explanation of how this insect damages the crop, plant organs attacked (e.g. xylem/phloem sap at tiller base, stem pith boring, leaf folding, chlorophyll scraping), specific field symptoms (hopperburn, dead hearts, whiteheads), vector risks, and estimated yield loss impact.",
+  "cropDamageAnalysisOr": "ଓଡ଼ିଆରେ ଫସଲ କ୍ଷତିର ବିସ୍ତୃତ ବର୍ଣ୍ଣନା (କୀଟ କିପରି ଫସଲକୁ ନଷ୍ଟ କରେ ଏବଂ କେତେ ପ୍ରତିଶତ କ୍ଷତି କରିପାରେ)",
   "limitations": ["limitation 1"],
   "needsBetterImage": boolean,
   "treatmentAllowed": boolean (MUST BE false unless status is IDENTIFIED and pest is one of the 5 supported rice pests),
   "expertReviewRecommended": boolean
 }`;
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
     const payload = {
       contents: [
@@ -267,14 +270,14 @@ RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:
       observedVisualFeatures: parsed.visualEvidence || [
         `Observed visual features analyzed against ICAR-NRRI reference morphology.`
       ],
-      aiInferredDamage: treatmentAllowed ? knowledge.potentialDamagePercent : 'Cannot be determined without confirmed species identification.',
-      aiInferredDamageOr: treatmentAllowed ? knowledge.keySymptomsOr[0] : 'କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କ୍ଷତିର ଆକଳନ ସମ୍ଭବ ନୁହେଁ।',
+      aiInferredDamage: (treatmentAllowed && (parsed.cropDamageAnalysis || parsed.crop_damage_analysis)) || (treatmentAllowed ? knowledge.potentialDamagePercent : 'Cannot be determined without confirmed species identification.'),
+      aiInferredDamageOr: (treatmentAllowed && (parsed.cropDamageAnalysisOr || parsed.crop_damage_analysis_or)) || (treatmentAllowed ? knowledge.keySymptomsOr[0] : 'କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କ୍ଷତିର ଆକଳନ ସମ୍ଭବ ନୁହେଁ।'),
       severityAssessment: treatmentAllowed ? (pestId === 'bph' || pestId === 'armyworm' ? 'Severe' : 'Moderate') : 'Low',
       potentialYieldLossRange: treatmentAllowed ? knowledge.potentialDamagePercent : 'Assessment suspended',
       immediateActionsEn: treatmentAllowed ? knowledge.immediateNextStepsEn : ['Do not spray chemical pesticides without species confirmation.'],
       immediateActionsOr: treatmentAllowed ? knowledge.immediateNextStepsOr : ['କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।'],
       expertReviewRequired: !treatmentAllowed || Boolean(parsed.expertReviewRecommended),
-      sourceModel: 'gemini-1.5-flash',
+      sourceModel: 'gemini-3.5-flash' as any,
       isSampleScan: false,
       farmerDistrict,
       followUpScans: []

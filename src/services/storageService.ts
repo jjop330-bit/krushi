@@ -11,14 +11,14 @@ export interface AppSettings {
   language: 'or' | 'en';
   preferredDistrict: string;
   useLiveGemini: boolean;
-  selectedModel: 'gemini-1.5-flash' | 'gemini-2.0-flash';
+  selectedModel: 'gemini-3.5-flash' | 'gemini-1.5-flash' | 'gemini-2.0-flash';
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'or',
   preferredDistrict: 'bargarh',
-  useLiveGemini: false,
-  selectedModel: 'gemini-1.5-flash'
+  useLiveGemini: true,
+  selectedModel: 'gemini-3.5-flash'
 };
 
 export class StorageService {
@@ -42,7 +42,11 @@ export class StorageService {
 
   public static getApiKey(): string {
     try {
-      return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+      const stored = localStorage.getItem(STORAGE_KEYS.API_KEY);
+      if (stored && stored.trim()) return stored.trim();
+      const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+      if (envKey && envKey.trim()) return envKey.trim();
+      return '';
     } catch {
       return '';
     }

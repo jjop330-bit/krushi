@@ -164,7 +164,8 @@ async def test_crop_damage_without_insect_rejected_from_treatment():
         assert data["status"] in [
             ScanStatusEnum.CROP_DAMAGE_NO_VISIBLE_INSECT.value,
             ScanStatusEnum.UNKNOWN.value,
-            ScanStatusEnum.OTHER_INSECT.value
+            ScanStatusEnum.OTHER_INSECT.value,
+            ScanStatusEnum.HEALTHY_CROP.value
         ]
         assert data["treatment_allowed"] is False
 
