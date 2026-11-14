@@ -232,16 +232,29 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                   </label>
                 </div>
 
-                {/* Practical Photography Tips for Odisha Farmers */}
-                <div className="pt-4 text-left bg-white p-4 rounded-2xl border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
-                  <span className="font-bold text-slate-800 flex items-center space-x-1.5">
-                    <HelpCircle className="w-3.5 h-3.5 text-agri-700" />
-                    <span>{lang === 'or' ? 'ଫଟୋ ଉଠାଇବା ପାଇଁ ଉତ୍ତମ ପରାମର୍ଶ:' : 'Photography Tips for Accurate Diagnosis:'}</span>
+                {/* Comprehensive Photography Guide for Odisha Farmers (Section 11) */}
+                <div className="pt-4 text-left bg-white p-4.5 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-2">
+                  <span className="font-extrabold text-slate-900 flex items-center space-x-1.5 text-xs">
+                    <HelpCircle className="w-4 h-4 text-agri-700 flex-shrink-0" />
+                    <span>{lang === 'or' ? 'ନିର୍ଭୁଲ ଚିହ୍ନଟ ପାଇଁ ଫଟୋ ଉଠାଇବାର ନିୟମ:' : 'Field Photography Guide for Reliable AI Identification:'}</span>
                   </span>
-                  <ul className="list-disc list-inside space-y-1 text-slate-500">
-                    <li>{lang === 'or' ? 'ଗଛ ମୂଳ ବା ପତ୍ରରୁ ୧୫-୨୦ ସେମି ଦୂରତାରେ ରଖି ଫଟୋ ନିଅନ୍ତୁ।' : 'Capture from 15-20 cm distance directly at the insect or damaged sheath.'}</li>
-                    <li>{lang === 'or' ? 'ପ୍ରଖର ସୂର୍ଯ୍ୟ କିରଣର ବିପରୀତରେ ନୁହେଁ, ସ୍ୱାଭାବିକ ଆଲୋକରେ ନିଅନ୍ତୁ।' : 'Ensure natural diffuse lighting; avoid extreme blinding glare or deep shadows.'}</li>
-                    <li>{lang === 'or' ? 'ହାତ ସ୍ଥିର ରଖନ୍ତୁ ଯେପରି ଫଟୋ ଝାପ୍‌ସା ନ ହୁଏ।' : 'Hold mobile steady to eliminate motion blur.'}</li>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ସ୍ୱାଭାବିକ ଦିନ ଆଲୋକରେ ଫଟୋ ନିଅନ୍ତୁ (ଫ୍ଲାସ୍ ବ୍ୟବହାର କରନ୍ତୁ ନାହିଁ)।' : 'Use natural daylight; avoid camera flash glare.'}</span>
+                    </li>
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ହାତ ସ୍ଥିର ରଖନ୍ତୁ ଯେପରି ଫଟୋ ଝାପ୍‌ସା (blur) ନ ହୁଏ।' : 'Keep device steady to eliminate motion blur.'}</span>
+                    </li>
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ପୋକର ସମ୍ପୂର୍ଣ୍ଣ ଶରୀର ଓ ଡେଣା ନିକଟରୁ (close-up) ନିଅନ୍ତୁ।' : 'Capture a sharp close-up without cutting off insect legs or wings.'}</span>
+                    </li>
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ପତ୍ର କ୍ଷତି ଓ ଜୀବନ୍ତ ପୋକର ଅଲଗା ଅଲଗା ଫଟୋ ନିଅନ୍ତୁ।' : 'Take separate photographs of insect body vs foliar damage.'}</span>
+                    </li>
                   </ul>
                 </div>
               </div>

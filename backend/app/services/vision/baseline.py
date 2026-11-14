@@ -10,14 +10,18 @@ from app.models.pest import (
     PestIdEnum,
     SeverityEnum,
     CertaintyTierEnum,
-    AlternativeDiagnosis
+    AlternativeDiagnosis,
+    ScanStatusEnum
 )
 
 class VerifiedExpertBaselineProvider(BasePestDetector):
     """
     Verified ICAR-NRRI & OUAT baseline provider.
-    Used as an offline reference benchmark, for local testing,
-    and as a safe fallback when external cloud vision APIs are unconfigured or unavailable.
+    Used for offline reference benchmark evaluation, verified sample testing,
+    and safe rejection when external cloud vision APIs are unconfigured or unavailable.
+    
+    CRITICAL RULE: Never invents or defaults arbitrary new uploads to 'bph' or any pest.
+    Explicit rejection, honest uncertainty, and zero fabricated treatment recommendations.
     """
     
     async def analyze(
@@ -28,99 +32,292 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
         forced_pest_id: Optional[str] = None
     ) -> PestAnalysisResponse:
         quality = validate_image_bytes(image_bytes)
+        scan_id = f"scan-{uuid.uuid4().hex[:12]}"
+        now = int(time.time() * 1000)
         
-        # If photograph quality failed, return uncertain diagnosis immediately for safety
-        if not quality.is_clear and not forced_pest_id:
-            knowledge = get_pest_knowledge("uncertain")
+        # Check for image corruption / unreadable bytes
+        if quality.lighting_score == 0 and quality.sharpness_score == 0 and not forced_pest_id:
             return PestAnalysisResponse(
-                scan_id=f"scan-{uuid.uuid4().hex[:12]}",
-                created_at=int(time.time() * 1000),
+                scan_id=scan_id,
+                created_at=now,
+                status=ScanStatusEnum.ERROR,
+                common_name="Corrupted / Unreadable File",
+                common_name_or="ତ୍ରୁଟିପୂର୍ଣ୍ଣ ଫାଇଲ୍",
+                scientific_name=None,
+                pest_id=None,
+                confidence=None,
+                confidence_type=None,
+                visual_evidence=[],
+                crop=crop_id,
                 crop_id=crop_id,
+                life_stage="Unknown",
+                reason=quality.warning_message_en or "The uploaded file could not be parsed as a valid image.",
+                limitations=["File header or byte stream corrupted."],
+                needs_better_image=True,
+                treatment_allowed=False,
+                expert_review_recommended=False,
                 quality_assessment=quality,
+                severity_assessment=SeverityEnum.LOW,
+                immediate_actions_en=["Re-upload an intact photograph in JPG, PNG, or WEBP format."],
+                immediate_actions_or=["ଦୟାକରି ଏକ ସଠିକ JPG, PNG କିମ୍ବା WEBP ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ।"],
+                source_model="expert-verified-baseline",
+                farmer_district=farmer_district,
+                is_sample_scan=False,
                 identification=PestIdentification(
                     pest_id=PestIdEnum.UNCERTAIN,
+                    common_name_en="Corrupted File",
+                    common_name_or="ତ୍ରୁଟିପୂର୍ଣ୍ଣ ଫାଇଲ୍",
+                    confidence=None,
+                    certainty_tier=CertaintyTierEnum.UNCERTAIN
+                )
+            )
+
+        # Check for unclear, blurry, or extreme lighting conditions
+        if not quality.is_clear and not forced_pest_id:
+            return PestAnalysisResponse(
+                scan_id=scan_id,
+                created_at=now,
+                status=ScanStatusEnum.UNCLEAR_IMAGE,
+                common_name="Unclear Image",
+                common_name_or="ଅସ୍ପଷ୍ଟ ଫଟୋ",
+                scientific_name=None,
+                pest_id=None,
+                confidence=None,
+                confidence_type=None,
+                visual_evidence=[],
+                crop=crop_id,
+                crop_id=crop_id,
+                life_stage="Unknown",
+                reason=quality.warning_message_en or "Photograph lacks sufficient micro-detail or contrast for species-level entomological identification.",
+                limitations=[
+                    "Pixel contrast is below the threshold required to differentiate abdominal patterns or wing veins.",
+                    "Diagnostic morphological features are obscured by blur or improper lighting."
+                ],
+                needs_better_image=True,
+                treatment_allowed=False,
+                expert_review_recommended=True,
+                quality_assessment=quality,
+                severity_assessment=SeverityEnum.LOW,
+                potential_yield_loss_range="Assessment suspended pending clearer photograph",
+                immediate_actions_en=[
+                    "Do not apply pesticides without confirming the pest.",
+                    "Retake photograph in bright natural light, holding camera steady.",
+                    "Capture close-up of both the insect and the affected rice plant parts."
+                ],
+                immediate_actions_or=[
+                    "କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।",
+                    "ପର୍ଯ୍ୟାପ୍ତ ସୂର୍ଯ୍ୟାଲୋକରେ କ୍ୟାମେରା ସ୍ଥିର ରଖି ପୁଣି ଫଟୋ ଉଠାନ୍ତୁ।",
+                    "ଗଛର ଆକ୍ରାନ୍ତ ଅଂଶ ଓ ପୋକର ସ୍ପଷ୍ଟ ନିକଟବର୍ତ୍ତୀ (close-up) ଫଟୋ ନିଅନ୍ତୁ।"
+                ],
+                source_model="expert-verified-baseline",
+                farmer_district=farmer_district,
+                is_sample_scan=False,
+                identification=PestIdentification(
+                    pest_id=PestIdEnum.UNCERTAIN,
+                    common_name_en="Unclear Image",
+                    common_name_or="ଅସ୍ପଷ୍ଟ ଫଟୋ",
+                    confidence=None,
+                    certainty_tier=CertaintyTierEnum.UNCERTAIN
+                )
+            )
+
+        # Handle known benchmark / forced sample evaluation
+        if forced_pest_id and forced_pest_id in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm", "beneficial_spider", "healthy_paddy"]:
+            knowledge = get_pest_knowledge(forced_pest_id)
+            
+            # Non-pest cases
+            if forced_pest_id == "healthy_paddy":
+                return PestAnalysisResponse(
+                    scan_id=scan_id,
+                    created_at=now,
+                    status=ScanStatusEnum.HEALTHY_CROP,
+                    common_name=knowledge["common_name_en"],
+                    common_name_or=knowledge["common_name_or"],
+                    scientific_name=knowledge["scientific_name"],
+                    pest_id="healthy_paddy",
+                    confidence=95.0,
+                    confidence_type="benchmark_reference",
+                    visual_evidence=[
+                        "Erect, healthy vegetative canopy with intact leaf blades.",
+                        "No chlorotic streaking, dead hearts, or white heads observed.",
+                        "Normal chlorophyll pigmentation."
+                    ],
+                    crop="Rice",
+                    crop_id=crop_id,
+                    life_stage="Vegetative / Tillering",
+                    reason="Crop foliage displays uniform healthy morphology with zero diagnostic signs of insect feeding or lodging.",
+                    limitations=["Continuous scouting advised during humid weather."],
+                    needs_better_image=False,
+                    treatment_allowed=False,  # Absolutely NO treatment for healthy crop!
+                    expert_review_recommended=False,
+                    quality_assessment=quality,
+                    severity_assessment=SeverityEnum.LOW,
+                    immediate_actions_en=knowledge["immediate_next_steps_en"],
+                    immediate_actions_or=knowledge["immediate_next_steps_or"],
+                    source_model="expert-verified-baseline",
+                    farmer_district=farmer_district,
+                    is_sample_scan=True,
+                    identification=PestIdentification(
+                        pest_id=PestIdEnum.HEALTHY_PADDY,
+                        common_name_en=knowledge["common_name_en"],
+                        common_name_or=knowledge["common_name_or"],
+                        scientific_name=knowledge["scientific_name"],
+                        local_name=knowledge["local_odisha_name"],
+                        confidence=95,
+                        certainty_tier=CertaintyTierEnum.HIGH
+                    )
+                )
+
+            if forced_pest_id == "beneficial_spider":
+                return PestAnalysisResponse(
+                    scan_id=scan_id,
+                    created_at=now,
+                    status=ScanStatusEnum.OTHER_INSECT,  # Beneficial natural enemy
+                    common_name=knowledge["common_name_en"],
+                    common_name_or=knowledge["common_name_or"],
+                    scientific_name=knowledge["scientific_name"],
+                    pest_id="beneficial_spider",
+                    confidence=92.0,
+                    confidence_type="benchmark_reference",
+                    visual_evidence=[
+                        "Distinct radiating ocular pattern and cephalothorax carapace stripes.",
+                        "Spiny legs adapted for active cursorial hunting across the water surface.",
+                        "Absence of chewing mouthparts on plant tissue."
+                    ],
+                    crop="Rice",
+                    crop_id=crop_id,
+                    life_stage="Adult female / male hunter",
+                    reason="Specimen identified as Lycosa pseudoannulata (Wolf Spider), a vital natural predator of brown planthoppers and leaf folders. NOT A CROP PEST.",
+                    limitations=["Presence indicates natural biological control is active in the canopy."],
+                    needs_better_image=False,
+                    treatment_allowed=False,  # Absolutely NO pesticide spraying for beneficial predators!
+                    expert_review_recommended=False,
+                    quality_assessment=quality,
+                    severity_assessment=SeverityEnum.LOW,
+                    immediate_actions_en=knowledge["immediate_next_steps_en"],
+                    immediate_actions_or=knowledge["immediate_next_steps_or"],
+                    source_model="expert-verified-baseline",
+                    farmer_district=farmer_district,
+                    is_sample_scan=True,
+                    identification=PestIdentification(
+                        pest_id=PestIdEnum.BENEFICIAL_SPIDER,
+                        common_name_en=knowledge["common_name_en"],
+                        common_name_or=knowledge["common_name_or"],
+                        scientific_name=knowledge["scientific_name"],
+                        local_name=knowledge["local_odisha_name"],
+                        confidence=92,
+                        certainty_tier=CertaintyTierEnum.HIGH
+                    )
+                )
+
+            # Verified supported pest
+            severity_map = {
+                "bph": SeverityEnum.SEVERE,
+                "armyworm": SeverityEnum.SEVERE,
+                "stem_borer": SeverityEnum.MODERATE,
+                "leaf_folder": SeverityEnum.MODERATE,
+                "rice_hispa": SeverityEnum.MODERATE
+            }
+            conf_map = {
+                "bph": (91.0, "Nymphs and macropterous adults clustered at stem base with visible honeydew secretion."),
+                "stem_borer": (91.0, "Bore holes at stem internodes with central whorl drying ('dead heart')."),
+                "leaf_folder": (88.0, "Longitudinally rolled leaf blades fastened by silk threads with scraped white stripes."),
+                "rice_hispa": (87.0, "Adult with characteristic dorsal spines creating parallel white feeding streaks."),
+                "armyworm": (90.0, "Smooth-bodied caterpillar with distinct lateral stripes feeding gregariously on foliage.")
+            }
+            conf, vis_feat = conf_map.get(forced_pest_id, (85.0, "Typical morphological characteristics."))
+            
+            return PestAnalysisResponse(
+                scan_id=scan_id,
+                created_at=now,
+                status=ScanStatusEnum.IDENTIFIED,
+                common_name=knowledge["common_name_en"],
+                common_name_or=knowledge["common_name_or"],
+                scientific_name=knowledge["scientific_name"],
+                pest_id=forced_pest_id,
+                confidence=conf,
+                confidence_type="benchmark_reference",
+                visual_evidence=[vis_feat, f"Diagnostic signs consistent with {knowledge['key_symptoms_en'][0]}."],
+                crop="Rice",
+                crop_id=crop_id,
+                life_stage="Larval / Nymph / Adult observed",
+                reason=f"Specimen visual characteristics match authoritative ICAR-NRRI reference morphology for {knowledge['scientific_name']}.",
+                limitations=["Field-wide economic threshold (ETL) must be determined by sampling 20 random hills."],
+                needs_better_image=False,
+                treatment_allowed=True,
+                expert_review_recommended=False,
+                quality_assessment=quality,
+                severity_assessment=severity_map.get(forced_pest_id, SeverityEnum.MODERATE),
+                potential_yield_loss_range=knowledge["potential_damage_percent"],
+                immediate_actions_en=knowledge["immediate_next_steps_en"],
+                immediate_actions_or=knowledge["immediate_next_steps_or"],
+                source_model="expert-verified-baseline",
+                farmer_district=farmer_district,
+                is_sample_scan=True,
+                identification=PestIdentification(
+                    pest_id=PestIdEnum(forced_pest_id),
                     common_name_en=knowledge["common_name_en"],
                     common_name_or=knowledge["common_name_or"],
                     scientific_name=knowledge["scientific_name"],
                     local_name=knowledge["local_odisha_name"],
-                    confidence=34,
-                    certainty_tier=CertaintyTierEnum.UNCERTAIN
+                    confidence=int(conf),
+                    certainty_tier=CertaintyTierEnum.HIGH
                 ),
-                alternative_possibilities=[
-                    AlternativeDiagnosis(pest_id="bph", name_en="Brown Planthopper", name_or="ମାଟିଆ ଗୁଣ୍ଡି ପୋକ", confidence=28),
-                    AlternativeDiagnosis(pest_id="leaf_folder", name_en="Rice Leaf Folder", name_or="ପତ୍ରମୋଡ଼ା ପୋକ", confidence=22)
-                ],
-                observed_visual_features=[
-                    "Image lacks micro-level sharpness to distinguish dorsal setae or wing venation.",
-                    "Lighting contrast is below the statistical threshold for entomological validation."
-                ],
-                ai_inferred_damage_en="Damage cannot be reliably quantified from this photograph.",
-                ai_inferred_damage_or="ଏହି ଫଟୋରୁ କ୍ଷତିର ସଠିକ ପରିମାଣ ଆକଳନ ସମ୍ଭବ ନୁହେଁ।",
-                severity_assessment=SeverityEnum.LOW,
-                potential_yield_loss_range="Assessment suspended pending clearer photograph",
-                immediate_actions_en=knowledge["immediate_next_steps_en"],
-                immediate_actions_or=knowledge["immediate_next_steps_or"],
-                expert_review_required=True,
-                source_model="expert-verified-baseline",
-                is_sample_scan=False,
-                farmer_district=farmer_district
+                ai_inferred_damage_en=knowledge["potential_damage_percent"],
+                ai_inferred_damage_or=knowledge["key_symptoms_or"][0]
             )
 
-        # Select target pest
-        target_pest = forced_pest_id if forced_pest_id in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm", "beneficial_spider", "healthy_paddy"] else "bph"
-        knowledge = get_pest_knowledge(target_pest)
-
-        # Confidence and alternatives
-        confidence_map = {
-            "bph": (94, [AlternativeDiagnosis(pest_id="uncertain", name_en="White-backed Planthopper", name_or="ଧଳା ପିଠିଆ ଗୁଣ୍ଡି ପୋକ", confidence=5)]),
-            "stem_borer": (92, [AlternativeDiagnosis(pest_id="armyworm", name_en="Pink Stem Borer", name_or="ଗୋଲାପୀ କାଣ୍ଡ ବିନ୍ଧା ପୋକ", confidence=6)]),
-            "leaf_folder": (91, [AlternativeDiagnosis(pest_id="rice_hispa", name_en="Rice Caseworm", name_or="ଧାନ ନଳୀ ପୋକ", confidence=7)]),
-            "rice_hispa": (89, [AlternativeDiagnosis(pest_id="leaf_folder", name_en="Blue Beetle", name_or="ନୀଳ ପତ୍ରଭୋଜୀ ପୋକ", confidence=8)]),
-            "armyworm": (93, [AlternativeDiagnosis(pest_id="stem_borer", name_en="Cutworm", name_or="ଚାରା କାଟୁଆ ପୋକ", confidence=5)]),
-            "beneficial_spider": (96, []),
-            "healthy_paddy": (98, [])
-        }
-
-        conf, alternatives = confidence_map.get(target_pest, (88, []))
-        
-        severity_map = {
-            "bph": SeverityEnum.SEVERE,
-            "armyworm": SeverityEnum.SEVERE,
-            "stem_borer": SeverityEnum.MODERATE,
-            "leaf_folder": SeverityEnum.MODERATE,
-            "rice_hispa": SeverityEnum.MODERATE,
-            "beneficial_spider": SeverityEnum.LOW,
-            "healthy_paddy": SeverityEnum.LOW
-        }
-
+        # ARBITRARY UPLOAD WITHOUT LIVE GEMINI API KEY
+        # Must NEVER default to 'bph' or invent a fake classification.
+        # Report honest status: UNKNOWN / OFFLINE_REJECTION with zero treatment allowed.
         return PestAnalysisResponse(
-            scan_id=f"scan-{uuid.uuid4().hex[:12]}",
-            created_at=int(time.time() * 1000),
-            crop_id=crop_id,
-            quality_assessment=quality,
-            identification=PestIdentification(
-                pest_id=PestIdEnum(target_pest),
-                common_name_en=knowledge["common_name_en"],
-                common_name_or=knowledge["common_name_or"],
-                scientific_name=knowledge["scientific_name"],
-                local_name=knowledge["local_odisha_name"],
-                confidence=conf,
-                certainty_tier=CertaintyTierEnum.HIGH if conf >= 85 else CertaintyTierEnum.MODERATE
-            ),
-            alternative_possibilities=alternatives,
-            observed_visual_features=[
-                f"Direct Image Observation: Specific color morphology matching {knowledge['scientific_name']}.",
-                f"Damage Pattern: {knowledge['key_symptoms_en'][0]}",
-                "Plant Sheath Condition: Correlates with regional Kharif surveillance data."
+            scan_id=scan_id,
+            created_at=now,
+            status=ScanStatusEnum.UNKNOWN,
+            common_name="Unidentified Agricultural Subject",
+            common_name_or="ଅନିର୍ଦ୍ଧାରିତ କୃଷି ବିଷୟବସ୍ତୁ",
+            scientific_name=None,
+            pest_id=None,
+            confidence=None,
+            confidence_type=None,
+            visual_evidence=[
+                "Image uploaded in local/offline development mode.",
+                "Automated neural inference requires configured GEMINI_API_KEY."
             ],
-            ai_inferred_damage_en=knowledge["potential_damage_percent"],
-            ai_inferred_damage_or=knowledge["key_symptoms_or"][0],
-            severity_assessment=severity_map.get(target_pest, SeverityEnum.MODERATE),
-            potential_yield_loss_range=knowledge["potential_damage_percent"],
-            immediate_actions_en=knowledge["immediate_next_steps_en"],
-            immediate_actions_or=knowledge["immediate_next_steps_or"],
-            expert_review_required=target_pest == "uncertain" or conf < 75,
+            crop=crop_id,
+            crop_id=crop_id,
+            life_stage="Unknown",
+            reason=(
+                "The system is currently operating in Verified Expert Baseline Mode without live vision API connectivity. "
+                "To prevent false identifications, Krushi Mitra AI refuses to guess or force arbitrary uploads into one of the 5 rice pests."
+            ),
+            limitations=[
+                "Automated species-level vision classification is disabled offline for unreferenced uploads.",
+                "Pesticide recommendation is strictly suppressed to protect crop health and farmer finances."
+            ],
+            needs_better_image=False,
+            treatment_allowed=False,  # CRITICAL: Suppress treatment
+            expert_review_recommended=True,
+            quality_assessment=quality,
+            severity_assessment=SeverityEnum.LOW,
+            potential_yield_loss_range="Cannot be assessed without species confirmation",
+            immediate_actions_en=[
+                "Do not apply synthetic pesticides without confirmed species diagnosis.",
+                "Inspect plants for live insects, leaf folds, or stem discoloration.",
+                "Configure GEMINI_API_KEY for live AI identification or consult your local KVK scientist."
+            ],
+            immediate_actions_or=[
+                "କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି ରାସାୟନିକ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ।",
+                "ନିକଟସ୍ଥ କୃଷି ବିଜ୍ଞାନ କେନ୍ଦ୍ର (KVK) କିମ୍ବା କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।"
+            ],
             source_model="expert-verified-baseline",
-            is_sample_scan=True,
-            farmer_district=farmer_district
+            farmer_district=farmer_district,
+            is_sample_scan=False,
+            identification=PestIdentification(
+                pest_id=PestIdEnum.UNCERTAIN,
+                common_name_en="Unidentified Subject",
+                common_name_or="ଅନିର୍ଦ୍ଧାରିତ ବିଷୟବସ୍ତୁ",
+                confidence=None,
+                certainty_tier=CertaintyTierEnum.UNCERTAIN
+            )
         )

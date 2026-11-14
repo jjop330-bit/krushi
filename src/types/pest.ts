@@ -12,6 +12,17 @@ export type CropId = 'paddy' | 'maize' | 'tomato' | 'brinjal' | 'chilli' | 'grou
 
 export type SeverityLevel = 'Low' | 'Moderate' | 'Severe' | 'Critical';
 
+export type ScanStatus = 
+  | 'IDENTIFIED'
+  | 'OTHER_INSECT'
+  | 'NO_INSECT'
+  | 'HEALTHY_CROP'
+  | 'CROP_DAMAGE_NO_VISIBLE_INSECT'
+  | 'UNCLEAR_IMAGE'
+  | 'NON_AGRICULTURAL_IMAGE'
+  | 'UNKNOWN'
+  | 'ERROR';
+
 export interface BiologicalControlMethod {
   titleEn: string;
   titleOr: string;
@@ -87,6 +98,18 @@ export interface ScanReport {
   createdAt: number;
   cropId: CropId;
   imageUri: string;
+  
+  // Strict Scientific Status & Gating
+  status?: ScanStatus;
+  treatmentAllowed?: boolean;
+  confidenceType?: string | null;
+  visualEvidence?: string[];
+  limitations?: string[];
+  needsBetterImage?: boolean;
+  reason?: string;
+  referenceImageUri?: string;
+  referenceAttribution?: string;
+  
   imageQualityAssessment: {
     isClear: boolean;
     lightingScore: number; // 0-100
@@ -98,7 +121,7 @@ export interface ScanReport {
     commonNameEn: string;
     commonNameOr: string;
     scientificName: string;
-    confidence: number; // 0-100
+    confidence: number | null; // null if uncalibrated/uncertain
     certaintyTier: 'high' | 'moderate' | 'uncertain';
   };
   alternativePossibilities: Array<{

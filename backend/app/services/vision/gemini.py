@@ -15,13 +15,20 @@ from app.models.pest import (
     PestIdEnum,
     SeverityEnum,
     CertaintyTierEnum,
-    AlternativeDiagnosis
+    AlternativeDiagnosis,
+    ScanStatusEnum
 )
 
 class GeminiVisionProvider(BasePestDetector):
     """
-    Secure server-side Gemini Vision API integration.
-    Enforces structured JSON extraction and validates results with Pydantic.
+    Two-Stage Server-Side Multimodal Vision Provider.
+    
+    STAGE 1: Subject screening (rejection of non-agricultural images, other insects,
+             healthy crops, damaged leaves without visible insects, unclear images).
+    STAGE 2: Strict species-level identification on candidate agricultural pests only.
+    
+    Adheres strictly to the rule: Never force one of the 5 pests.
+    Never enable pesticide treatment without confirmed identification.
     """
     
     def __init__(self):
@@ -35,12 +42,14 @@ class GeminiVisionProvider(BasePestDetector):
         forced_pest_id: Optional[str] = None
     ) -> PestAnalysisResponse:
         quality = validate_image_bytes(image_bytes)
+        scan_id = f"scan-{uuid.uuid4().hex[:12]}"
+        now = int(time.time() * 1000)
         
-        # If photograph quality failed, return uncertain diagnosis immediately
+        # Fast local pre-rejection for corrupted, blank, or heavily blurred captures
         if not quality.is_clear and not forced_pest_id:
             return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
 
-        # If no API key configured on server, fallback to verified baseline
+        # If no Gemini API key configured, use honest baseline fallback
         if not settings.GEMINI_API_KEY:
             return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
 
@@ -48,27 +57,41 @@ class GeminiVisionProvider(BasePestDetector):
             b64_data = base64.b64encode(image_bytes).decode("utf-8")
             
             system_prompt = (
-                "You are Krushi Mitra AI's senior agricultural entomologist for Odisha, India. "
-                "Analyze this rice crop photograph for insect pests. "
-                "Supported Odisha rice pests: "
-                "1. 'bph': Brown Planthopper (Nilaparvata lugens) "
-                "2. 'stem_borer': Yellow Stem Borer (Scirpophaga incertulas) "
-                "3. 'leaf_folder': Rice Leaf Folder (Cnaphalocrocis medinalis) "
-                "4. 'rice_hispa': Rice Hispa (Dicladispa armigera) "
-                "5. 'armyworm': Rice Armyworm / Ear-cutting caterpillar (Mythimna separata) "
-                "6. 'beneficial_spider': Lycosa pseudoannulata Wolf spider (beneficial predator - NOT A PEST) "
-                "7. 'healthy_paddy': Healthy rice plant without damage "
-                "8. 'uncertain': Inconclusive observation. "
-                "Respond ONLY with valid JSON conforming strictly to: "
-                "{"
-                '  "pest_id": "bph" | "stem_borer" | "leaf_folder" | "rice_hispa" | "armyworm" | "beneficial_spider" | "healthy_paddy" | "uncertain",'
-                '  "confidence": number between 0 and 100,'
-                '  "observed_visual_features": ["feature 1", "feature 2"],'
-                '  "ai_inferred_damage": "brief explanation",'
-                '  "severity_assessment": "Low" | "Moderate" | "Severe" | "Critical",'
-                '  "potential_yield_loss_range": "e.g. 20% - 40%",'
-                '  "alternative_possibilities": [{"pest_id": "leaf_folder", "name_en": "Rice Leaf Folder", "confidence": 15}],'
-                '  "expert_review_required": boolean'
+                "You are Krushi Mitra AI's senior agricultural entomologist and computer vision specialist for Odisha, India.\n"
+                "You analyze photographs uploaded by rice farmers to identify insect pests with extreme scientific rigor.\n\n"
+                "CRITICAL OPERATIONAL RULES:\n"
+                "1. DO NOT assume the photograph contains a rice pest.\n"
+                "2. DO NOT force an identification into our supported pests if it does not belong to them.\n"
+                "3. NON-AGRICULTURAL IMAGES (humans, selfies, cars, animals, furniture, everyday objects, buildings, indoor scenes) "
+                "MUST be classified as 'NON_AGRICULTURAL_IMAGE'.\n"
+                "4. HEALTHY CROPS without insects or visible damage MUST be classified as 'HEALTHY_CROP'.\n"
+                "5. CROP DAMAGE WITHOUT VISIBLE INSECTS (e.g. yellowing, leaf holes, spots with no insect present) "
+                "MUST be classified as 'CROP_DAMAGE_NO_VISIBLE_INSECT'. (Leaf damage alone cannot scientifically prove species identity).\n"
+                "6. INSECTS THAT ARE NOT ONE OF THE 5 SUPPORTED PESTS (e.g., ladybugs, butterflies, flies, dragonflies, bees, stinkbugs, "
+                "grasshoppers, or beneficial predators like Lycosa wolf spiders) MUST be classified as 'OTHER_INSECT'.\n"
+                "7. UNCLEAR / BLURRY IMAGES where diagnostic anatomy cannot be distinguished MUST be classified as 'UNCLEAR_IMAGE'.\n\n"
+                "THE 5 SUPPORTED ODISHA RICE PESTS ARE STRICTLY:\n"
+                "1. 'bph': Brown Planthopper (Nilaparvata lugens) - small brown sucking insect, macropterous/brachypterous, on stem base.\n"
+                "2. 'stem_borer': Yellow Stem Borer (Scirpophaga incertulas) - yellow/white moth with dark spot or larva inside stem creating dead heart/whitehead.\n"
+                "3. 'leaf_folder': Rice Leaf Folder (Cnaphalocrocis medinalis) - green caterpillar inside longitudinally folded leaf blade with white scrape marks.\n"
+                "4. 'rice_hispa': Rice Hispa (Dicladispa armigera) - small blue-black beetle with sharp dorsal spines scraping parallel white streaks.\n"
+                "5. 'armyworm': Rice Armyworm (Mythimna separata) - smooth striped caterpillar defoliating foliage or clipping panicles.\n\n"
+                "RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:\n"
+                "{\n"
+                '  "status": "IDENTIFIED" | "OTHER_INSECT" | "NO_INSECT" | "HEALTHY_CROP" | "CROP_DAMAGE_NO_VISIBLE_INSECT" | "UNCLEAR_IMAGE" | "NON_AGRICULTURAL_IMAGE" | "UNKNOWN",\n'
+                '  "pest_id": "bph" | "stem_borer" | "leaf_folder" | "rice_hispa" | "armyworm" | "beneficial_spider" | null,\n'
+                '  "common_name": "Common English Name or null",\n'
+                '  "scientific_name": "Scientific Name in italics or null",\n'
+                '  "confidence": number between 0 and 100 or null,\n'
+                '  "confidence_type": "model_raw" | null,\n'
+                '  "visual_evidence": ["observable anatomical or damage feature 1", "feature 2"],\n'
+                '  "crop": "Rice" | "Other" | "None",\n'
+                '  "life_stage": "Adult" | "Larva" | "Nymph" | "Egg" | "Unknown",\n'
+                '  "reason": "Clear explanation of the determination based strictly on visible features",\n'
+                '  "limitations": ["limitation 1", "limitation 2"],\n'
+                '  "needs_better_image": boolean,\n'
+                '  "treatment_allowed": boolean (MUST BE false unless status is IDENTIFIED and pest is one of the 5 supported rice pests),\n'
+                '  "expert_review_recommended": boolean\n'
                 "}"
             )
 
@@ -88,7 +111,7 @@ class GeminiVisionProvider(BasePestDetector):
                     }
                 ],
                 "generationConfig": {
-                    "temperature": 0.1,
+                    "temperature": 0.05,
                     "response_mime_type": "application/json"
                 }
             }
@@ -96,58 +119,109 @@ class GeminiVisionProvider(BasePestDetector):
             async with httpx.AsyncClient(timeout=25.0) as client:
                 response = await client.post(endpoint, json=payload)
                 if response.status_code != 200:
-                    # Fallback to verified baseline
                     return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
                 
                 resp_json = response.json()
                 raw_text = resp_json.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
                 parsed = json.loads(raw_text)
 
-            matched_id = parsed.get("pest_id", "uncertain")
-            if matched_id not in [p.value for p in PestIdEnum]:
-                matched_id = "uncertain"
+            # Validate Status
+            status_str = parsed.get("status", "UNKNOWN").upper()
+            if status_str not in [s.value for s in ScanStatusEnum]:
+                status_str = "UNKNOWN"
+            status = ScanStatusEnum(status_str)
+
+            # Extract fields
+            pest_id = parsed.get("pest_id")
+            if pest_id not in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm", "beneficial_spider"]:
+                pest_id = None
             
-            knowledge = get_pest_knowledge(matched_id)
-            confidence = int(parsed.get("confidence", 85))
+            raw_conf = parsed.get("confidence")
+            confidence = float(raw_conf) if isinstance(raw_conf, (int, float)) else None
+            
+            # STRICT TREATMENT GATING RULE (Section 9):
+            # Treatment is permitted ONLY if status == IDENTIFIED and pest_id is one of the 5 pests and confidence >= 70
+            treatment_allowed = False
+            if (
+                status == ScanStatusEnum.IDENTIFIED
+                and pest_id in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm"]
+                and confidence is not None
+                and confidence >= 70.0
+            ):
+                treatment_allowed = True
+
+            # If pest_id is recognized, obtain authoritative Odia and agronomic data
+            common_name_or = None
+            immediate_actions_en = []
+            immediate_actions_or = []
+            potential_damage = None
+            severity = SeverityEnum.LOW
+            
+            if pest_id:
+                knowledge = get_pest_knowledge(pest_id)
+                common_name_or = knowledge.get("common_name_or")
+                if treatment_allowed:
+                    immediate_actions_en = knowledge.get("immediate_next_steps_en", [])
+                    immediate_actions_or = knowledge.get("immediate_next_steps_or", [])
+                    potential_damage = knowledge.get("potential_damage_percent")
+                    if pest_id in ["bph", "armyworm"]:
+                        severity = SeverityEnum.SEVERE
+                    else:
+                        severity = SeverityEnum.MODERATE
+            elif status == ScanStatusEnum.HEALTHY_CROP:
+                common_name_or = "ସୁସ୍ଥ ଧାନ ଫସଲ"
+                immediate_actions_en = ["Continue regular scouting. No pesticide intervention required."]
+                immediate_actions_or = ["ନିୟମିତ ତଦାରଖ ଜାରି ରଖନ୍ତୁ। କୌଣସି କୀଟନାଶକର ଆବଶ୍ୟକତା ନାହିଁ।"]
+            elif status == ScanStatusEnum.OTHER_INSECT:
+                common_name_or = "ଅନ୍ୟ କୀଟ (କୃଷି ମିତ୍ର AI ରେ ଅସମର୍ଥିତ)"
+                immediate_actions_en = ["Do not spray broad-spectrum insecticides. Consult local KVK before taking action."]
+                immediate_actions_or = ["ବିନା ପରାମର୍ଶରେ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ। କୃଷି ବିଶେଷଜ୍ଞଙ୍କ ମତାମତ ନିଅନ୍ତୁ।"]
+            elif status == ScanStatusEnum.CROP_DAMAGE_NO_VISIBLE_INSECT:
+                common_name_or = "ପତ୍ର କ୍ଷତି (ପୋକ ଦୃଶ୍ୟମାନ ନୁହେଁ)"
+                immediate_actions_en = ["Examine leaf sheaths, stem base, and soil for live insects. Take a close-up photograph of any insects found."]
+                immediate_actions_or = ["ଗଛ ମୂଳ ଓ ପତ୍ର ସନ୍ଧିରେ ଜୀବନ୍ତ ପୋକ ଖୋଜନ୍ତୁ। ପୋକ ଦେଖାଗଲେ ତାର ନିକଟବର୍ତ୍ତୀ ଫଟୋ ନିଅନ୍ତୁ।"]
+            elif status == ScanStatusEnum.NON_AGRICULTURAL_IMAGE:
+                common_name_or = "ଅଣ-କୃଷି ଫଟୋ"
+                immediate_actions_en = ["Please upload a photograph of a rice crop or agricultural pest."]
+                immediate_actions_or = ["ଦୟାକରି ଧାନ ଫସଲ କିମ୍ବା କୀଟର ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ।"]
 
             return PestAnalysisResponse(
-                scan_id=f"scan-{uuid.uuid4().hex[:12]}",
-                created_at=int(time.time() * 1000),
+                scan_id=scan_id,
+                created_at=now,
+                status=status,
+                common_name=parsed.get("common_name"),
+                common_name_or=common_name_or,
+                scientific_name=parsed.get("scientific_name"),
+                pest_id=pest_id,
+                confidence=confidence,
+                confidence_type="model_raw" if confidence is not None else None,
+                visual_evidence=parsed.get("visual_evidence", []),
+                crop=parsed.get("crop", "Rice"),
                 crop_id=crop_id,
+                life_stage=parsed.get("life_stage", "Unknown"),
+                reason=parsed.get("reason", "Analysis completed via multimodal vision evaluation."),
+                limitations=parsed.get("limitations", []),
+                needs_better_image=bool(parsed.get("needs_better_image", False)),
+                treatment_allowed=treatment_allowed,
+                expert_review_recommended=bool(parsed.get("expert_review_recommended", not treatment_allowed)),
                 quality_assessment=quality,
-                identification=PestIdentification(
-                    pest_id=PestIdEnum(matched_id),
-                    common_name_en=knowledge["common_name_en"],
-                    common_name_or=knowledge["common_name_or"],
-                    scientific_name=knowledge["scientific_name"],
-                    local_name=knowledge["local_odisha_name"],
-                    confidence=confidence,
-                    certainty_tier=CertaintyTierEnum.HIGH if confidence >= 80 else CertaintyTierEnum.MODERATE
-                ),
-                alternative_possibilities=[
-                    AlternativeDiagnosis(
-                        pest_id=alt.get("pest_id", "uncertain"),
-                        name_en=alt.get("name_en", alt.get("pest_id")),
-                        name_or=get_pest_knowledge(alt.get("pest_id", "uncertain"))["common_name_or"],
-                        confidence=int(alt.get("confidence", 10))
-                    )
-                    for alt in parsed.get("alternative_possibilities", [])
-                ],
-                observed_visual_features=parsed.get("observed_visual_features", [
-                    f"Characteristic morphological patterns corresponding to {knowledge['scientific_name']}."
-                ]),
-                ai_inferred_damage_en=parsed.get("ai_inferred_damage", knowledge["potential_damage_percent"]),
-                ai_inferred_damage_or=knowledge["key_symptoms_or"][0],
-                severity_assessment=SeverityEnum(parsed.get("severity_assessment", "Moderate")),
-                potential_yield_loss_range=parsed.get("potential_yield_loss_range", knowledge["potential_damage_percent"]),
-                immediate_actions_en=knowledge["immediate_next_steps_en"],
-                immediate_actions_or=knowledge["immediate_next_steps_or"],
-                expert_review_required=parsed.get("expert_review_required", confidence < 75),
+                severity_assessment=severity,
+                potential_yield_loss_range=potential_damage,
+                immediate_actions_en=immediate_actions_en,
+                immediate_actions_or=immediate_actions_or,
                 source_model=settings.GEMINI_MODEL,
+                farmer_district=farmer_district,
                 is_sample_scan=False,
-                farmer_district=farmer_district
+                identification=PestIdentification(
+                    pest_id=PestIdEnum(pest_id) if pest_id else PestIdEnum.UNCERTAIN,
+                    common_name_en=parsed.get("common_name") or "Uncertain",
+                    common_name_or=common_name_or or "ଅନିଶ୍ଚିତ",
+                    scientific_name=parsed.get("scientific_name"),
+                    confidence=int(confidence) if confidence is not None else None,
+                    certainty_tier=CertaintyTierEnum.HIGH if (confidence and confidence >= 80) else CertaintyTierEnum.UNCERTAIN
+                )
             )
 
-        except Exception:
-            # Safe, transparent fallback to verified baseline
+        except Exception as e:
+            # Fallback to verified baseline in case of parsing / network error
             return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)

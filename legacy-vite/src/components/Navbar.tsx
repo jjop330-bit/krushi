@@ -41,15 +41,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const t = ODIA_TRANSLATIONS[lang];
 
   const navItems = [
-    { id: 'dashboard', label: t.navHome, icon: Sprout },
-    { id: 'scanner', label: t.navScanner, icon: Scan, highlight: true },
-    { id: 'report', label: t.navReport, icon: FileText, disabled: !hasActiveReport },
-    { id: 'treatment', label: t.navTreatment, icon: ShieldAlert, disabled: !hasActiveReport },
-    { id: 'assistant', label: t.navAssistant, icon: Mic },
-    { id: 'map', label: t.navMap, icon: MapPin },
-    { id: 'followup', label: t.navFollowUp, icon: CalendarCheck },
-    { id: 'crops', label: t.navCropLibrary, icon: Wheat },
-    { id: 'expert', label: t.navExpertPortal, icon: UserCheck }
+    { id: 'dashboard', label: t.navHome, shortLabel: lang === 'or' ? 'ମୁଖ୍ୟ' : 'Home', icon: Sprout },
+    { id: 'scanner', label: t.navScanner, shortLabel: lang === 'or' ? 'ସ୍କାନର' : 'Scanner', icon: Scan, highlight: true },
+    { id: 'report', label: t.navReport, shortLabel: lang === 'or' ? 'ରିପୋର୍ଟ' : 'Report', icon: FileText, disabled: !hasActiveReport },
+    { id: 'treatment', label: t.navTreatment, shortLabel: lang === 'or' ? 'ଉପଚାର' : 'Treatment', icon: ShieldAlert, disabled: !hasActiveReport },
+    { id: 'assistant', label: t.navAssistant, shortLabel: lang === 'or' ? 'ଭଏସ୍' : 'Voice', icon: Mic },
+    { id: 'map', label: t.navMap, shortLabel: lang === 'or' ? 'ମାନଚିତ୍ର' : 'Map', icon: MapPin },
+    { id: 'followup', label: t.navFollowUp, shortLabel: lang === 'or' ? 'ଯାଞ୍ଚ' : 'Follow-Up', icon: CalendarCheck },
+    { id: 'crops', label: t.navCropLibrary, shortLabel: lang === 'or' ? 'ଫସଲ' : 'Crops', icon: Wheat },
+    { id: 'expert', label: t.navExpertPortal, shortLabel: lang === 'or' ? 'ବିଶେଷଜ୍ଞ' : 'Expert', icon: UserCheck }
   ];
 
   const handleNavClick = (id: string) => {
@@ -117,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center space-x-0.5 xl:space-x-1.5 flex-1 justify-center mx-2 xl:mx-4">
+          <nav className="hidden lg:flex items-center space-x-0.5 xl:space-x-1.5 flex-1 justify-center mx-1.5 xl:mx-4 overflow-hidden">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;
@@ -137,7 +137,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 xl:w-4 xl:h-4 flex-shrink-0 ${isActive ? 'text-lime-300' : ''}`} />
-                  <span>{item.label}</span>
+                  <span className="hidden xl:inline">{item.label}</span>
+                  <span className="inline xl:hidden">{item.shortLabel || item.label}</span>
                 </button>
               );
             })}
