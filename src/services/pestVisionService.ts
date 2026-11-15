@@ -387,7 +387,7 @@ export class PestVisionService {
     const base64Data = imageDataUrl.split(',')[1] || imageDataUrl;
     const mimeType = imageDataUrl.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg';
     const settings = StorageService.getSettings();
-    const activeModel = settings.selectedModel || 'gemini-1.5-flash';
+    const activeModel = settings.selectedModel || 'gemini-3.5-flash';
 
     const systemPrompt = `You are Krushi Mitra AI's senior agricultural entomologist and vision specialist for Odisha, India.
 Analyze this crop/insect photograph with extreme scientific rigor.
@@ -395,8 +395,8 @@ Analyze this crop/insect photograph with extreme scientific rigor.
 CRITICAL OPERATIONAL RULES:
 1. DO NOT assume the photograph contains a rice pest.
 2. NON-AGRICULTURAL IMAGES (humans, selfies, cars, animals, furniture, everyday objects, buildings, indoor scenes) MUST be classified as 'NON_AGRICULTURAL_IMAGE'.
-3. HEALTHY CROPS without insects or visible damage MUST be classified as 'HEALTHY_CROP'.
-4. CROP DAMAGE WITHOUT VISIBLE INSECTS (e.g. leaf yellowing, blast spots, borer holes with no insect visible) MUST be classified as 'CROP_DAMAGE_NO_VISIBLE_INSECT'. (Leaf damage alone does not prove insect identity).
+3. HEALTHY CROPS: Only pristine, green crops without insects and without lesions, spots, or pathology MUST be classified as 'HEALTHY_CROP'.
+4. CROP DAMAGE WITHOUT VISIBLE INSECTS: Foliage exhibiting pathology, fungal/bacterial lesions (e.g., rice blast spindle-shaped spots, brown spot, bacterial blight), insect feeding holes, yellowing, or necrosis where no insect specimen is visible MUST be classified as 'CROP_DAMAGE_NO_VISIBLE_INSECT'. Never classify diseased or spotted leaves as 'HEALTHY_CROP'!
 5. INSECTS THAT ARE NOT ONE OF THE 5 SUPPORTED PESTS (e.g., ladybugs, butterflies, flies, dragonflies, bees, stinkbugs, grasshoppers, or Lycosa wolf spiders) MUST be classified as 'OTHER_INSECT'.
 6. UNCLEAR / BLURRY IMAGES MUST be classified as 'UNCLEAR_IMAGE'.
 

@@ -90,9 +90,8 @@ class GeminiVisionProvider(BasePestDetector):
                 "2. DO NOT force an identification into our supported pests if it does not belong to them.\n"
                 "3. NON-AGRICULTURAL IMAGES (humans, selfies, cars, animals, furniture, everyday objects, buildings, indoor scenes) "
                 "MUST be classified as 'NON_AGRICULTURAL_IMAGE'.\n"
-                "4. HEALTHY CROPS without insects or visible damage MUST be classified as 'HEALTHY_CROP'.\n"
-                "5. CROP DAMAGE WITHOUT VISIBLE INSECTS (e.g. yellowing, leaf holes, spots with no insect present) "
-                "MUST be classified as 'CROP_DAMAGE_NO_VISIBLE_INSECT'. (Leaf damage alone cannot scientifically prove species identity).\n"
+                "4. HEALTHY CROPS: Only pristine, green crops without insects and without lesions, spots, or pathology MUST be classified as 'HEALTHY_CROP'.\n"
+                "5. CROP DAMAGE WITHOUT VISIBLE INSECTS: Foliage exhibiting pathology, fungal/bacterial lesions (e.g., rice blast spindle-shaped spots, brown spot, bacterial blight), insect feeding holes, yellowing, or necrosis where no insect specimen is visible MUST be classified as 'CROP_DAMAGE_NO_VISIBLE_INSECT'. Never classify diseased or spotted leaves as 'HEALTHY_CROP'!\n"
                 "6. INSECTS THAT ARE NOT ONE OF THE 5 SUPPORTED PESTS (e.g., ladybugs, butterflies, flies, dragonflies, bees, stinkbugs, "
                 "grasshoppers, or beneficial predators like Lycosa wolf spiders) MUST be classified as 'OTHER_INSECT'.\n"
                 "7. UNCLEAR / BLURRY IMAGES where diagnostic anatomy cannot be distinguished MUST be classified as 'UNCLEAR_IMAGE'.\n\n"
@@ -154,6 +153,9 @@ class GeminiVisionProvider(BasePestDetector):
                             err_detail += f": {err_json['error']['message']}"
                     except Exception:
                         err_detail += f": {response.text[:120]}"
+
+                    if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY in err_detail:
+                        err_detail = err_detail.replace(settings.GEMINI_API_KEY, "[REDACTED_KEY]")
 
                     # Return honest error report with ZERO fabricated diagnoses or treatments
                     return PestAnalysisResponse(
