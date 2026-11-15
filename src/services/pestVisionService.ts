@@ -211,18 +211,168 @@ export class PestVisionService {
       return this.buildUnclearReport(imageDataUrl, quality, farmerDistrict);
     }
 
-    // Check if live Gemini API is enabled and key exists
+    // 1. Attempt secure backend proxy if enabled and not forced benchmark sample
+    if (settings.useBackendProxy && !effectivePestId) {
+      try {
+        const backendResult = await this.tryAnalyzeViaBackend(imageDataUrl, cropId, farmerDistrict);
+        if (backendResult) {
+          return backendResult;
+        }
+      } catch (err) {
+        // Fall through to client direct mode if backend is not running
+      }
+    }
+
+    // 2. Client BYOK Gemini API call (Direct browser mode)
     if (apiKey && settings.useLiveGemini && !effectivePestId) {
       try {
         const liveResult = await this.callGeminiVisionApi(imageDataUrl, apiKey, quality, farmerDistrict);
         return liveResult;
       } catch (err: any) {
-        console.warn('Gemini API call failed or timed out. Falling back to Verified Expert Baseline.', err);
+        console.error('Gemini Vision API error:', err);
+        return this.buildErrorReport(imageDataUrl, quality, err.message || 'Gemini API call failed', farmerDistrict);
       }
     }
 
-    // Expert Baseline Provider (Default and Offline Demo Mode)
+    // 3. Deterministic Entomological Reference Mode (Offline / Pre-verified benchmark samples)
     return this.buildExpertBaselineReport(imageDataUrl, quality, effectivePestId, farmerDistrict);
+  }
+
+  /**
+   * Secure backend proxy call to prevent client-side key exposure
+   */
+  private static async tryAnalyzeViaBackend(
+    imageDataUrl: string,
+    cropId: CropId,
+    farmerDistrict: string
+  ): Promise<ScanReport | null> {
+    const settings = StorageService.getSettings();
+    const backendUrl = settings.backendUrl || 'http://localhost:8000/api/v1';
+
+    if (typeof fetch === 'undefined') return null;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    try {
+      const resp = await fetch(`${backendUrl}/pest/analyze-base64`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_base64: imageDataUrl,
+          crop_id: cropId,
+          farmer_district: farmerDistrict
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      return this.mapBackendResponseToScanReport(data, imageDataUrl);
+    } catch {
+      clearTimeout(timeoutId);
+      return null;
+    }
+  }
+
+  private static mapBackendResponseToScanReport(data: any, imageDataUrl: string): ScanReport {
+    const pestId: PestId = (data.pest_id as PestId) || 'uncertain';
+    const knowledge = PEST_KNOWLEDGE_BASE[pestId] || PEST_KNOWLEDGE_BASE.uncertain;
+    const confidence = typeof data.confidence === 'number' ? data.confidence : null;
+    const treatmentAllowed = Boolean(data.treatment_allowed);
+
+    return {
+      id: data.scan_id || `scan-${Date.now()}`,
+      createdAt: data.created_at || Date.now(),
+      cropId: (data.crop_id as CropId) || 'paddy',
+      imageUri: imageDataUrl,
+      status: (data.status as ScanStatus) || 'UNKNOWN',
+      treatmentAllowed,
+      confidenceType: data.confidence_type || null,
+      visualEvidence: data.visual_evidence || [],
+      limitations: data.limitations || [],
+      needsBetterImage: Boolean(data.needs_better_image),
+      reason: data.reason || 'Backend vision evaluation completed.',
+      imageQualityAssessment: {
+        isClear: Boolean(data.quality_assessment?.is_clear ?? true),
+        lightingScore: data.quality_assessment?.lighting_score ?? 85,
+        sharpnessScore: data.quality_assessment?.sharpness_score ?? 80,
+        warningMessage: data.quality_assessment?.warning_message_en
+      },
+      identification: {
+        pestId,
+        commonNameEn: data.common_name || (data.status === 'IDENTIFIED' ? knowledge.commonNameEn : 'Uncertain'),
+        commonNameOr: data.common_name_or || (data.status === 'IDENTIFIED' ? knowledge.commonNameOr : 'ଅନିଶ୍ଚିତ'),
+        scientificName: data.scientific_name || (data.status === 'IDENTIFIED' ? knowledge.scientificName : 'N/A'),
+        confidence,
+        certaintyTier: (confidence && confidence >= 80) ? 'high' : (confidence && confidence >= 60) ? 'moderate' : 'uncertain'
+      },
+      alternativePossibilities: [],
+      observedVisualFeatures: data.visual_evidence || [],
+      aiInferredDamage: data.crop_damage_analysis || data.ai_inferred_damage_en || (treatmentAllowed ? knowledge.potentialDamagePercent : 'Cannot be determined without confirmed species identification.'),
+      aiInferredDamageOr: data.crop_damage_analysis_or || data.ai_inferred_damage_or || (treatmentAllowed ? knowledge.keySymptomsOr[0] : 'କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କ୍ଷତିର ଆକଳନ ସମ୍ଭବ ନୁହେଁ।'),
+      severityAssessment: treatmentAllowed ? (pestId === 'bph' || pestId === 'armyworm' ? 'Severe' : 'Moderate') : 'Low',
+      potentialYieldLossRange: data.potential_yield_loss_range || (treatmentAllowed ? knowledge.potentialDamagePercent : 'Assessment suspended'),
+      immediateActionsEn: data.immediate_actions_en?.length ? data.immediate_actions_en : (treatmentAllowed ? knowledge.immediateNextStepsEn : ['Do not spray chemical pesticides without species confirmation.']),
+      immediateActionsOr: data.immediate_actions_or?.length ? data.immediate_actions_or : (treatmentAllowed ? knowledge.immediateNextStepsOr : ['କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।']),
+      expertReviewRequired: Boolean(data.expert_review_recommended),
+      sourceModel: data.source_model || 'gemini-1.5-flash',
+      isSampleScan: Boolean(data.is_sample_scan),
+      farmerDistrict: data.farmer_district || 'bargarh',
+      followUpScans: []
+    };
+  }
+
+  private static buildErrorReport(
+    imageDataUrl: string,
+    quality: ImageQualityCheck,
+    errorMessage: string,
+    farmerDistrict: string
+  ): ScanReport {
+    return {
+      id: `scan-${Date.now()}`,
+      createdAt: Date.now(),
+      cropId: 'paddy',
+      imageUri: imageDataUrl,
+      status: 'ERROR',
+      treatmentAllowed: false,
+      confidenceType: null,
+      visualEvidence: [],
+      limitations: [
+        'Cloud vision request failed. Check API key validity, model quota, or network connection.',
+        'Zero chemical pesticide treatments permitted during error states.'
+      ],
+      needsBetterImage: false,
+      reason: `Gemini API Error: ${errorMessage}`,
+      imageQualityAssessment: quality,
+      identification: {
+        pestId: 'uncertain',
+        commonNameEn: 'Vision API Error',
+        commonNameOr: 'AI ଭିଜନ ସେବା ତ୍ରୁଟି',
+        scientificName: 'N/A',
+        confidence: null,
+        certaintyTier: 'uncertain'
+      },
+      alternativePossibilities: [],
+      observedVisualFeatures: ['API request failed.'],
+      aiInferredDamage: 'Indeterminate due to API error',
+      aiInferredDamageOr: 'API ତ୍ରୁଟି କାରଣରୁ ଫସଲ କ୍ଷତିର ଆକଳନ ସମ୍ଭବ ନୁହେଁ।',
+      severityAssessment: 'Low',
+      potentialYieldLossRange: 'Assessment suspended',
+      immediateActionsEn: [
+        'Check your API key in settings or verify that your internet connection is active.',
+        'Do not apply synthetic pesticides without confirmed diagnosis.'
+      ],
+      immediateActionsOr: [
+        'ଦୟାକରି ଆପଣଙ୍କର API କି କିମ୍ବା ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ଯାଞ୍ଚ କରନ୍ତୁ।',
+        'କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।'
+      ],
+      expertReviewRequired: true,
+      sourceModel: 'gemini-1.5-flash',
+      isSampleScan: false,
+      farmerDistrict,
+      followUpScans: []
+    };
   }
 
   /**
@@ -364,7 +514,7 @@ RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:
       immediateActionsEn: treatmentAllowed ? knowledge.immediateNextStepsEn : ['Do not spray chemical pesticides without species confirmation.'],
       immediateActionsOr: treatmentAllowed ? knowledge.immediateNextStepsOr : ['କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।'],
       expertReviewRequired: !treatmentAllowed || Boolean(parsed.expertReviewRecommended),
-      sourceModel: (['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'].includes(activeModel) ? activeModel : 'gemini-1.5-flash') as any,
+      sourceModel: (['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'].includes(activeModel) ? activeModel : 'gemini-1.5-flash') as any,
       isSampleScan: false,
       farmerDistrict,
       followUpScans: []
@@ -612,9 +762,9 @@ RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:
       status: 'UNKNOWN',
       treatmentAllowed: false,
       needsBetterImage: false,
-      reason: 'The system is currently operating in Verified Expert Baseline Mode without live vision API connectivity. To prevent false identifications, Krushi Mitra AI refuses to guess or force arbitrary uploads into one of the 5 rice pests.',
-      visualEvidence: ['Offline baseline mode active', 'Live multimodal vision required for new unreferenced uploads'],
-      limitations: ['Automated species-level vision classification is disabled offline.'],
+      reason: 'The system is currently operating in Offline Entomological Knowledge-Base Mode without live vision API connectivity. To prevent false identifications, Krushi Mitra AI refuses to guess or force arbitrary uploads into one of the 5 rice pests.',
+      visualEvidence: ['Offline knowledge-base mode active', 'Live multimodal vision required for new unreferenced uploads'],
+      limitations: ['Automated species-level vision classification on arbitrary images requires active Gemini API or backend server connection.'],
       imageQualityAssessment: quality,
       identification: {
         pestId: 'uncertain',

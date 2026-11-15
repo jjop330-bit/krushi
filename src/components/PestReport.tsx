@@ -293,7 +293,7 @@ export const PestReport: React.FC<PestReportProps> = ({
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{t.confidenceLabel}: {confidence}%</span>
                 <span className="text-[10px] font-normal text-slate-500">
-                  ({report.confidenceType === 'benchmark_reference' ? 'Verified Reference' : 'AI Model Estimate'})
+                  ({report.confidenceType === 'benchmark_reference' ? 'Curated Reference Value' : 'LLM Self-Estimate (Uncalibrated)'})
                 </span>
               </div>
             ) : (

@@ -453,12 +453,13 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             crop_id=crop_id,
             life_stage="Unknown",
             reason=(
-                "The system is currently operating in Verified Expert Baseline Mode without live vision API connectivity. "
-                "To prevent false identifications, Krushi Mitra AI refuses to guess or force arbitrary uploads into one of the 5 rice pests."
+                "The system is currently operating in Offline Entomological Knowledge-Base Mode without live vision API connectivity. "
+                "No local convolutional neural networks or edge vision models are executed in this mode. "
+                "To prevent hazardous crop misdiagnosis, Krushi Mitra AI strictly refuses to guess or force arbitrary uploads into one of the 5 rice pests."
             ),
             limitations=[
-                "Automated species-level vision classification is disabled offline for unreferenced uploads.",
-                "Pesticide recommendation is strictly suppressed to protect crop health and farmer finances."
+                "Automated species-level vision classification on arbitrary photographs requires an active GEMINI_API_KEY.",
+                "Pesticide recommendation is strictly suppressed to protect crop health and prevent chemical misuse."
             ],
             needs_better_image=False,
             treatment_allowed=False,  # CRITICAL: Suppress treatment
@@ -486,3 +487,7 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
                 certainty_tier=CertaintyTierEnum.UNCERTAIN
             )
         )
+
+# Explicit alias to clarify architecture: deterministic reference knowledge base vs neural vision
+DeterministicKnowledgeBaseProvider = VerifiedExpertBaselineProvider
+

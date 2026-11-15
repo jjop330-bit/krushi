@@ -130,7 +130,58 @@ class GeminiVisionProvider(BasePestDetector):
             async with httpx.AsyncClient(timeout=25.0) as client:
                 response = await client.post(endpoint, json=payload)
                 if response.status_code != 200:
-                    return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
+                    err_detail = f"HTTP {response.status_code}"
+                    try:
+                        err_json = response.json()
+                        if "error" in err_json and "message" in err_json["error"]:
+                            err_detail += f": {err_json['error']['message']}"
+                    except Exception:
+                        err_detail += f": {response.text[:120]}"
+
+                    # Return honest error report with ZERO fabricated diagnoses or treatments
+                    return PestAnalysisResponse(
+                        scan_id=scan_id,
+                        created_at=now,
+                        status=ScanStatusEnum.ERROR,
+                        common_name=f"Gemini API Error ({response.status_code})",
+                        common_name_or=f"Gemini API ତ୍ରୁଟି ({response.status_code})",
+                        scientific_name=None,
+                        pest_id=None,
+                        confidence=None,
+                        confidence_type=None,
+                        visual_evidence=[],
+                        crop=crop_id,
+                        crop_id=crop_id,
+                        life_stage="Unknown",
+                        reason=f"Gemini Vision API request failed: {err_detail}",
+                        limitations=[
+                            f"Cloud vision endpoint returned status code {response.status_code}.",
+                            "Check GEMINI_API_KEY validity, model availability, and quota."
+                        ],
+                        needs_better_image=False,
+                        treatment_allowed=False,
+                        expert_review_recommended=True,
+                        quality_assessment=quality,
+                        severity_assessment=SeverityEnum.LOW,
+                        immediate_actions_en=[
+                            "Check your Gemini API key in backend/.env or settings.",
+                            "Consult local KVK or agricultural extension officer for manual diagnosis."
+                        ],
+                        immediate_actions_or=[
+                            "ଦୟାକରି ଆପଣଙ୍କର Gemini API କି ଏବଂ ଇଣ୍ଟରନେଟ୍ ଯାଞ୍ଚ କରନ୍ତୁ।",
+                            "ନିକଟସ୍ଥ କୃଷି ଅଧିକାରୀ କିମ୍ବା KVK ବୈଜ୍ଞାନିକଙ୍କ ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ।"
+                        ],
+                        source_model=settings.GEMINI_MODEL,
+                        farmer_district=farmer_district,
+                        is_sample_scan=False,
+                        identification=PestIdentification(
+                            pest_id=PestIdEnum.UNCERTAIN,
+                            common_name_en="API Error",
+                            common_name_or="API ତ୍ରୁଟି",
+                            confidence=None,
+                            certainty_tier=CertaintyTierEnum.UNCERTAIN
+                        )
+                    )
                 
                 resp_json = response.json()
                 raw_text = resp_json.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
@@ -247,5 +298,47 @@ class GeminiVisionProvider(BasePestDetector):
             )
 
         except Exception as e:
-            # Fallback to verified baseline in case of parsing / network error
-            return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
+            # If an API key was configured, return an honest diagnostic error rather than silently masking it
+            return PestAnalysisResponse(
+                scan_id=scan_id,
+                created_at=now,
+                status=ScanStatusEnum.ERROR,
+                common_name="Gemini Connection Error",
+                common_name_or="Gemini ସଂଯୋଗ ତ୍ରୁଟି",
+                scientific_name=None,
+                pest_id=None,
+                confidence=None,
+                confidence_type=None,
+                visual_evidence=[],
+                crop=crop_id,
+                crop_id=crop_id,
+                life_stage="Unknown",
+                reason=f"Gemini API communication or parsing error: {str(e)}",
+                limitations=[
+                    "Network error or invalid response format from Gemini API.",
+                    "No classification or pesticide recommendation can be made."
+                ],
+                needs_better_image=False,
+                treatment_allowed=False,
+                expert_review_recommended=True,
+                quality_assessment=quality,
+                severity_assessment=SeverityEnum.LOW,
+                immediate_actions_en=[
+                    "Verify your internet connection and GEMINI_API_KEY.",
+                    "Check server logs for detailed traceback."
+                ],
+                immediate_actions_or=[
+                    "ଆପଣଙ୍କର ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ଏବଂ API କି ଯାଞ୍ଚ କରନ୍ତୁ।",
+                    "ନିକଟସ୍ଥ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।"
+                ],
+                source_model=settings.GEMINI_MODEL,
+                farmer_district=farmer_district,
+                is_sample_scan=False,
+                identification=PestIdentification(
+                    pest_id=PestIdEnum.UNCERTAIN,
+                    common_name_en="Connection Error",
+                    common_name_or="ସଂଯୋଗ ତ୍ରୁଟି",
+                    confidence=None,
+                    certainty_tier=CertaintyTierEnum.UNCERTAIN
+                )
+            )

@@ -11,14 +11,18 @@ export interface AppSettings {
   language: 'or' | 'en';
   preferredDistrict: string;
   useLiveGemini: boolean;
-  selectedModel: 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'gemini-2.5-flash';
+  selectedModel: 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'gemini-1.5-pro' | 'gemini-2.5-flash';
+  useBackendProxy: boolean;
+  backendUrl: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'or',
   preferredDistrict: 'bargarh',
   useLiveGemini: true,
-  selectedModel: 'gemini-1.5-flash'
+  selectedModel: 'gemini-1.5-flash',
+  useBackendProxy: true,
+  backendUrl: 'http://localhost:8000/api/v1'
 };
 
 export class StorageService {
