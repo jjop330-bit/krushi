@@ -19,3 +19,16 @@ async def test_treatment_recommendations_endpoint():
         assert chem["cibrc_registered"] is True
         assert chem["phi_days"] > 0
         assert "Litres" in chem["water_volume_per_acre"]
+
+@pytest.mark.asyncio
+async def test_treatment_endpoint_locks_chemical_molecules_for_non_pests():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Non-pests, beneficial predators, and uncertain queries must NEVER return chemical molecules
+        non_pests = ["beneficial_spider", "healthy_paddy", "uncertain", "other_insect", "unknown_pest"]
+        for np in non_pests:
+            response = await client.get(f"/api/v1/treatments/{np}")
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["chemical_control"]) == 0, f"Non-target {np} must return 0 chemical molecules"
+            assert "Do NOT apply any chemical insecticide" in data["etl_condition_en"] or "No intervention" in data["etl_condition_en"] or "spiders" in data["etl_condition_en"]
