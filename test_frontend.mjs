@@ -89,3 +89,37 @@ test('Expert baseline report rules: Never default unclear or arbitrary image to 
   assert.notEqual(unknownReport.identification.pestId, 'bph', 'Arbitrary offline image must NEVER default to bph!');
   assert.equal(unknownReport.treatmentAllowed, false, 'Arbitrary offline image must NEVER have treatment allowed');
 });
+
+test('Bilingual UI Translation Parity: All Odia and English keys populated', async () => {
+  const { ODIA_TRANSLATIONS } = await import('./src/data/odiaTranslations.ts');
+  const enKeys = Object.keys(ODIA_TRANSLATIONS.en);
+  const orKeys = Object.keys(ODIA_TRANSLATIONS.or);
+
+  assert.equal(enKeys.length, orKeys.length, 'English and Odia translation dictionaries must have identical key counts');
+  for (const k of enKeys) {
+    assert.ok(ODIA_TRANSLATIONS.en[k], `Missing EN string for key: ${k}`);
+    assert.ok(ODIA_TRANSLATIONS.or[k], `Missing OR string for key: ${k}`);
+    if (k !== 'taglineOr' && k !== 'appName') {
+      assert.notEqual(ODIA_TRANSLATIONS.en[k], ODIA_TRANSLATIONS.or[k], `Odia text should be translated, not English echo for: ${k}`);
+    }
+  }
+});
+
+test('Pest-Specific ETL Standards: All 5 supported pests have authentic thresholds in EN and OR', () => {
+  const supported = ['bph', 'stem_borer', 'leaf_folder', 'rice_hispa', 'armyworm'];
+  for (const id of supported) {
+    const k = PEST_KNOWLEDGE_BASE[id];
+    assert.ok(k, `Pest ${id} must exist in knowledge base`);
+    assert.ok(k.economicThresholdLevelEn, `Missing English ETL for ${id}`);
+    assert.ok(k.economicThresholdLevelOr, `Missing Odia ETL for ${id}`);
+    assert.ok(k.economicThresholdLevelEn.length > 15, `ETL for ${id} too short to be authentic`);
+    assert.ok(k.chemicalControl.length > 0, `Pest ${id} must have registered chemical options`);
+    for (const chem of k.chemicalControl) {
+      assert.ok(chem.activeIngredient, 'Molecule must have active ingredient');
+      assert.ok(chem.dosagePerAcre, 'Molecule must specify per-acre dosage');
+      assert.ok(chem.phiDays >= 0, 'Molecule must specify Pre-Harvest Interval (PHI)');
+      assert.ok(chem.cibrcRegistered, 'Molecule must be CIBRC registered');
+    }
+  }
+});
+
