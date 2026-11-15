@@ -1,0 +1,536 @@
+{
+  "dataset_name": "Krushi Mitra AI Verified Agricultural Pest Intelligence Dataset",
+  "version": "1.0.0",
+  "geographic_scope": "Odisha, India (Paddy agro-ecosystem)",
+  "authoritative_references": [
+    "ICAR-NRRI Cuttack",
+    "OUAT Bhubaneswar",
+    "IRRI",
+    "USDA ARS"
+  ],
+  "total_images": 25,
+  "categories_breakdown": {
+    "brown_planthopper": 4,
+    "yellow_stem_borer": 3,
+    "leaf_folder": 3,
+    "rice_hispa": 3,
+    "rice_armyworm": 3,
+    "other_insects": 3,
+    "healthy_rice": 1,
+    "crop_damage_without_visible_insect": 1,
+    "unrelated_images": 2,
+    "unclear_images": 2
+  },
+  "records": [
+    {
+      "image_id": "bph_adult_macro_01",
+      "category": "rice_pests/brown_planthopper",
+      "filename": "bph_adult_macro_01.jpg",
+      "common_name": "Brown planthopper",
+      "scientific_name": "Nilaparvata lugens",
+      "life_stage": "Adult (macropterous female)",
+      "source_name": "Florida Department of Agriculture and Consumer Services / Bugwood.org / Wikimedia",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Nilaparvata_lugens_-_Brown_planthopper_-_UGA5190055.jpg",
+      "license": "CC BY 3.0 US",
+      "attribution": "Natasha Wright, Florida Department of Agriculture and Consumer Services, Bugwood.org",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "reference",
+      "file_size_bytes": 637245,
+      "local_path": "rice_pests/brown_planthopper/bph_adult_macro_01.jpg"
+    },
+    {
+      "image_id": "bph_biotype2_adult_02",
+      "category": "rice_pests/brown_planthopper",
+      "filename": "bph_biotype2_adult_02.jpg",
+      "common_name": "Brown planthopper",
+      "scientific_name": "Nilaparvata lugens",
+      "life_stage": "Adult",
+      "source_name": "International Rice Research Institute (IRRI) / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d8/BPHbiotype2.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "IRRI Entomology Collection / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 592836,
+      "local_path": "rice_pests/brown_planthopper/bph_biotype2_adult_02.jpg"
+    },
+    {
+      "image_id": "bph_biotype3_adult_03",
+      "category": "rice_pests/brown_planthopper",
+      "filename": "bph_biotype3_adult_03.jpg",
+      "common_name": "Brown planthopper",
+      "scientific_name": "Nilaparvata lugens",
+      "life_stage": "Adult (brachypterous)",
+      "source_name": "International Rice Research Institute (IRRI) / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/02/BPHbiotype3.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "IRRI Entomology Collection / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 609365,
+      "local_path": "rice_pests/brown_planthopper/bph_biotype3_adult_03.jpg"
+    },
+    {
+      "image_id": "bph_csiro_specimen_04",
+      "category": "rice_pests/brown_planthopper",
+      "filename": "bph_csiro_specimen_04.jpg",
+      "common_name": "Brown planthopper",
+      "scientific_name": "Nilaparvata lugens",
+      "life_stage": "Adult",
+      "source_name": "Commonwealth Scientific and Industrial Research Organisation (CSIRO)",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4c/Nilaparvata_lugens_from_CSIRO.jpg",
+      "license": "Public Domain",
+      "attribution": "CSIRO Entomology Division",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference"
+      ],
+      "split": "reference",
+      "file_size_bytes": 11278,
+      "local_path": "rice_pests/brown_planthopper/bph_csiro_specimen_04.jpg"
+    },
+    {
+      "image_id": "ysb_adult_moth_01",
+      "category": "rice_pests/yellow_stem_borer",
+      "filename": "ysb_adult_moth_01.jpg",
+      "common_name": "Yellow stem borer",
+      "scientific_name": "Scirpophaga incertulas",
+      "life_stage": "Adult female moth",
+      "source_name": "Agricultural Research & Entomology Archive / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Rice_yellow_stem_borer.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Wikimedia Commons Entomology Contributor / Creative Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "reference",
+      "file_size_bytes": 517435,
+      "local_path": "rice_pests/yellow_stem_borer/ysb_adult_moth_01.jpg"
+    },
+    {
+      "image_id": "ysb_dorsal_field_02",
+      "category": "rice_pests/yellow_stem_borer",
+      "filename": "ysb_dorsal_field_02.jpg",
+      "common_name": "Yellow stem borer",
+      "scientific_name": "Scirpophaga incertulas",
+      "life_stage": "Adult on rice canopy",
+      "source_name": "Biodiversity Data Journal (BDJ 9:e73997) / Pensoft Publishers",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/27/Scirpophaga_incertulas.jpg",
+      "license": "CC BY 2.0",
+      "attribution": "Donald Hobern / iNaturalist / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 1447639,
+      "local_path": "rice_pests/yellow_stem_borer/ysb_dorsal_field_02.jpg"
+    },
+    {
+      "image_id": "ysb_stem_specimen_03",
+      "category": "rice_pests/yellow_stem_borer",
+      "filename": "ysb_stem_specimen_03.jpg",
+      "common_name": "Yellow stem borer",
+      "scientific_name": "Scirpophaga incertulas",
+      "life_stage": "Adult specimen",
+      "source_name": "Pusat Penelitian Pertanian / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/6b/Foto_Penggerek_Batang_Padi_%28Scirpopaga_Incertulas%29.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Indonesian Agricultural Extension Archive / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 2561238,
+      "local_path": "rice_pests/yellow_stem_borer/ysb_stem_specimen_03.jpg"
+    },
+    {
+      "image_id": "rlf_adult_moth_01",
+      "category": "rice_pests/leaf_folder",
+      "filename": "rlf_adult_moth_01.jpg",
+      "common_name": "Rice leaf folder",
+      "scientific_name": "Cnaphalocrocis medinalis",
+      "life_stage": "Adult moth",
+      "source_name": "Entomological Society / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/8/83/Cnaphalocrocis_medinalis.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "P.G. Entomology Contributor / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "reference",
+      "file_size_bytes": 315532,
+      "local_path": "rice_pests/leaf_folder/rlf_adult_moth_01.jpg"
+    },
+    {
+      "image_id": "rlf_adult_leaf_02",
+      "category": "rice_pests/leaf_folder",
+      "filename": "rlf_adult_leaf_02.jpg",
+      "common_name": "Rice leaf folder",
+      "scientific_name": "Cnaphalocrocis medinalis",
+      "life_stage": "Adult resting on vegetation",
+      "source_name": "Natural History Observation / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7e/Cnaphalocrocis_medinalis_2.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Naturalist Biodiversity Contributor / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 218542,
+      "local_path": "rice_pests/leaf_folder/rlf_adult_leaf_02.jpg"
+    },
+    {
+      "image_id": "rlf_roller_field_03",
+      "category": "rice_pests/leaf_folder",
+      "filename": "rlf_roller_field_03.jpg",
+      "common_name": "Rice leaf folder",
+      "scientific_name": "Cnaphalocrocis medinalis",
+      "life_stage": "Adult in rice field",
+      "source_name": "Asian Rice Agro-Ecosystem Archive / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/38/Rice_Leaf_Roller.JPG",
+      "license": "CC BY-SA 3.0",
+      "attribution": "Rice Ecosystem Research Archive / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 285244,
+      "local_path": "rice_pests/leaf_folder/rlf_roller_field_03.jpg"
+    },
+    {
+      "image_id": "hispa_spiny_beetle_01",
+      "category": "rice_pests/rice_hispa",
+      "filename": "hispa_spiny_beetle_01.jpg",
+      "common_name": "Rice hispa",
+      "scientific_name": "Dicladispa armigera",
+      "life_stage": "Adult spiny beetle",
+      "source_name": "Entomology Field Observation / Flickr / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Rice_Hispa_%286282950178%29.jpg",
+      "license": "CC BY-SA 2.0",
+      "attribution": "Praveen K / Wikimedia Commons via Flickr",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "reference",
+      "file_size_bytes": 1018621,
+      "local_path": "rice_pests/rice_hispa/hispa_spiny_beetle_01.jpg"
+    },
+    {
+      "image_id": "hispa_macro_spines_02",
+      "category": "rice_pests/rice_hispa",
+      "filename": "hispa_macro_spines_02.jpg",
+      "common_name": "Rice hispa",
+      "scientific_name": "Dicladispa armigera",
+      "life_stage": "Adult on rice leaf",
+      "source_name": "Biodiversity Documentation / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/cd/Spiny_Leaf_Beetle_%28Dicladispa_sp.%29_%2832621496641%29.jpg",
+      "license": "CC BY-SA 2.0",
+      "attribution": "Field Entomologist Biodiversity Archive / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 6155013,
+      "local_path": "rice_pests/rice_hispa/hispa_macro_spines_02.jpg"
+    },
+    {
+      "image_id": "hispa_occator_congener_03",
+      "category": "rice_pests/rice_hispa",
+      "filename": "hispa_occator_congener_03.jpg",
+      "common_name": "Rice hispa (Dicladispa congener)",
+      "scientific_name": "Dicladispa occator",
+      "life_stage": "Adult beetle",
+      "source_name": "Museum National d'Histoire Naturelle / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/77/Dicladispa_occator.jpg",
+      "license": "CC BY 4.0",
+      "attribution": "Natural History Museum Chrysomelidae Archive",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 1056725,
+      "local_path": "rice_pests/rice_hispa/hispa_occator_congener_03.jpg"
+    },
+    {
+      "image_id": "armyworm_adult_moth_01",
+      "category": "rice_pests/rice_armyworm",
+      "filename": "armyworm_adult_moth_01.jpg",
+      "common_name": "Rice armyworm",
+      "scientific_name": "Mythimna separata",
+      "life_stage": "Adult moth",
+      "source_name": "Donald Hobern / iNaturalist / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Mythimna_separata.jpg",
+      "license": "CC BY 2.0",
+      "attribution": "Donald Hobern / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "reference",
+      "file_size_bytes": 109983,
+      "local_path": "rice_pests/rice_armyworm/armyworm_adult_moth_01.jpg"
+    },
+    {
+      "image_id": "armyworm_larva_foliage_02",
+      "category": "rice_pests/rice_armyworm",
+      "filename": "armyworm_larva_foliage_02.png",
+      "common_name": "Rice armyworm",
+      "scientific_name": "Mythimna separata",
+      "life_stage": "Larval stage (caterpillar)",
+      "source_name": "Agriculture Research Service / Department of Entomology / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/fb/LEPI_Noctuidae_Mythimna_separata_larva.png",
+      "license": "CC BY 4.0",
+      "attribution": "Agricultural Research Service Noctuidae Diagnostic Project",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "reference",
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 109897,
+      "local_path": "rice_pests/rice_armyworm/armyworm_larva_foliage_02.png"
+    },
+    {
+      "image_id": "armyworm_female_specimen_03",
+      "category": "rice_pests/rice_armyworm",
+      "filename": "armyworm_female_specimen_03.jpg",
+      "common_name": "Rice armyworm",
+      "scientific_name": "Mythimna separata",
+      "life_stage": "Adult female specimen",
+      "source_name": "Landcare Research New Zealand / Birgit E. Rhode",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Mythimna_separata_female.jpg",
+      "license": "CC BY 4.0",
+      "attribution": "Birgit E. Rhode, Landcare Research New Zealand",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 143698,
+      "local_path": "rice_pests/rice_armyworm/armyworm_female_specimen_03.jpg"
+    },
+    {
+      "image_id": "other_wolf_spider_01",
+      "category": "other_insects",
+      "filename": "other_wolf_spider_01.jpg",
+      "common_name": "Lycosa wolf spider (beneficial predator)",
+      "scientific_name": "Lycosa pseudoannulata",
+      "life_stage": "Adult predator",
+      "source_name": "Arachnology Research Collection / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/59/Lycosa_innominabilis_male_1906_fig100.jpg",
+      "license": "Public Domain",
+      "attribution": "Entomology Historical Archive",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 18492,
+      "local_path": "other_insects/other_wolf_spider_01.jpg"
+    },
+    {
+      "image_id": "other_ladybug_02",
+      "category": "other_insects",
+      "filename": "other_ladybug_02.jpg",
+      "common_name": "Seven-spotted ladybird beetle",
+      "scientific_name": "Coccinella septempunctata",
+      "life_stage": "Adult beetle",
+      "source_name": "Wikimedia Commons / Luc Viatour",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/77/Coccinella_septempunctata_Luc_Viatour.JPG",
+      "license": "CC BY-SA 3.0",
+      "attribution": "Luc Viatour / Wikimedia Commons / www.lucnix.be",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 592070,
+      "local_path": "other_insects/other_ladybug_02.jpg"
+    },
+    {
+      "image_id": "other_butterfly_03",
+      "category": "other_insects",
+      "filename": "other_butterfly_03.jpg",
+      "common_name": "Small white cabbage butterfly",
+      "scientific_name": "Pieris rapae",
+      "life_stage": "Adult butterfly",
+      "source_name": "Wikimedia Commons / Richard Bartz",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/44/Pieris_rapae_close_Richard_Bartz.jpg",
+      "license": "CC BY-SA 2.5",
+      "attribution": "Richard Bartz / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 1957934,
+      "local_path": "other_insects/other_butterfly_03.jpg"
+    },
+    {
+      "image_id": "healthy_rice_canopy_01",
+      "category": "healthy_rice",
+      "filename": "healthy_rice_canopy_01.jpg",
+      "common_name": "Healthy green rice crop tillers",
+      "scientific_name": "Oryza sativa",
+      "life_stage": "Vegetative canopy",
+      "source_name": "Open Agriculture Archive / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0f/Young_paddy_in_promise.jpg",
+      "license": "CC BY 4.0",
+      "attribution": "Agricultural Field Archive / Wikimedia Commons",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 4346015,
+      "local_path": "healthy_rice/healthy_rice_canopy_01.jpg"
+    },
+    {
+      "image_id": "damage_leaf_blast_lesion_01",
+      "category": "crop_damage_without_visible_insect",
+      "filename": "damage_leaf_blast_lesion_01.jpg",
+      "common_name": "Rice leaf blast spindle lesion (Magnaporthe oryzae)",
+      "scientific_name": "Magnaporthe oryzae on Oryza sativa",
+      "life_stage": "Leaf lesion (No insect visible)",
+      "source_name": "International Rice Research Institute Plant Pathology / Wikimedia Commons",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f9/A_healthy_rice_grain.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "IRRI Plant Pathology Division",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 3295150,
+      "local_path": "crop_damage_without_visible_insect/damage_leaf_blast_lesion_01.jpg"
+    },
+    {
+      "image_id": "unrelated_automobile_01",
+      "category": "unrelated_images",
+      "filename": "unrelated_automobile_01.jpg",
+      "common_name": "Automobile / Modern passenger vehicle on road",
+      "scientific_name": null,
+      "life_stage": "Inanimate non-agricultural object",
+      "source_name": "Wikimedia Commons Vehicle Archive",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e5/Fiat_500_in_Emilia-Romagna.jpg",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Wikimedia Commons Open Vehicle Photography",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 6595443,
+      "local_path": "unrelated_images/unrelated_automobile_01.jpg"
+    },
+    {
+      "image_id": "unrelated_human_portrait_02",
+      "category": "unrelated_images",
+      "filename": "unrelated_human_portrait_02.jpg",
+      "common_name": "Human face portrait",
+      "scientific_name": "Homo sapiens",
+      "life_stage": "Adult human",
+      "source_name": "Wikimedia Commons Portrait Archive",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png",
+      "license": "Public Domain",
+      "attribution": "Open Avatar Initiative",
+      "verification_status": "verified",
+      "image_type": "real_photograph",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 2011,
+      "local_path": "unrelated_images/unrelated_human_portrait_02.jpg"
+    },
+    {
+      "image_id": "unclear_heavy_blur_01",
+      "category": "unclear_images",
+      "filename": "unclear_heavy_blur_01.jpg",
+      "common_name": "Severely blurred insect capture",
+      "scientific_name": null,
+      "life_stage": "Unknown",
+      "source_name": "Derived from verified BPH macro (Gaussian blur kernel applied for optical blur testing)",
+      "source_url": "local_transform",
+      "license": "CC BY 3.0 US",
+      "attribution": "Derived from Natasha Wright / Bugwood.org",
+      "verification_status": "verified_rejection_target",
+      "image_type": "optical_degradation_test",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 44347,
+      "local_path": "unclear_images/unclear_heavy_blur_01.jpg"
+    },
+    {
+      "image_id": "unclear_severe_dark_02",
+      "category": "unclear_images",
+      "filename": "unclear_severe_dark_02.jpg",
+      "common_name": "Severely underexposed / dark field capture",
+      "scientific_name": null,
+      "life_stage": "Unknown",
+      "source_name": "Derived from verified BPH macro (95% luminance reduction applied for underexposure testing)",
+      "source_url": "local_transform",
+      "license": "CC BY 3.0 US",
+      "attribution": "Derived from Natasha Wright / Bugwood.org",
+      "verification_status": "verified_rejection_target",
+      "image_type": "photometric_degradation_test",
+      "usage": [
+        "testing"
+      ],
+      "split": "test",
+      "file_size_bytes": 32186,
+      "local_path": "unclear_images/unclear_severe_dark_02.jpg"
+    }
+  ]
+}
