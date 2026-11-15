@@ -58,12 +58,29 @@ class GeminiVisionProvider(BasePestDetector):
             return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
 
         try:
-            b64_data = base64.b64encode(image_bytes).decode("utf-8")
+            # Optimize payload size to prevent network read timeouts on massive photos
+            send_bytes = image_bytes
             mime_type = "image/jpeg"
             if image_bytes.startswith(b"\x89PNG"):
                 mime_type = "image/png"
             elif image_bytes.startswith(b"RIFF") and b"WEBP" in image_bytes[:16]:
                 mime_type = "image/webp"
+
+            if len(image_bytes) > 500_000:
+                try:
+                    from PIL import Image
+                    import io
+                    with Image.open(io.BytesIO(image_bytes)) as pil_img:
+                        if pil_img.width > 1200 or pil_img.height > 1200:
+                            pil_img.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+                            buf = io.BytesIO()
+                            pil_img.save(buf, format="JPEG", quality=85)
+                            send_bytes = buf.getvalue()
+                            mime_type = "image/jpeg"
+                except Exception:
+                    send_bytes = image_bytes
+
+            b64_data = base64.b64encode(send_bytes).decode("utf-8")
             
             system_prompt = (
                 "You are Krushi Mitra AI's senior agricultural entomologist and computer vision specialist for Odisha, India.\n"
@@ -127,7 +144,7 @@ class GeminiVisionProvider(BasePestDetector):
                 }
             }
 
-            async with httpx.AsyncClient(timeout=25.0) as client:
+            async with httpx.AsyncClient(timeout=50.0) as client:
                 response = await client.post(endpoint, json=payload)
                 if response.status_code != 200:
                     err_detail = f"HTTP {response.status_code}"

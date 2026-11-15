@@ -8,6 +8,7 @@ import {
   ArrowRight, 
   ExternalLink,
   ShieldAlert,
+  ShieldCheck,
   Sprout,
   HelpCircle,
   Camera,
@@ -393,6 +394,25 @@ export const PestReport: React.FC<PestReportProps> = ({
             )}
           </div>
         </div>
+
+        {/* EDUCATIONAL INTEGRATED PEST MANAGEMENT (IPM) & CONFIRMATION PROTOCOL */}
+        {isTreatmentAllowed && (
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-950 space-y-2">
+            <div className="flex items-center space-x-2 font-bold text-emerald-900">
+              <ShieldCheck className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+              <span>
+                {lang === 'or' 
+                  ? 'ସମନ୍ୱିତ କୀଟ ପରିଚାଳନା (IPM) ନିୟମାବଳୀ ଓ କ୍ଷେତ୍ର ଯାଞ୍ଚ ସତର୍କତା' 
+                  : 'Integrated Pest Management (IPM) & Field Scouting Advisory'}
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-900/90 leading-relaxed">
+              {lang === 'or'
+                ? 'ଏହି ଚିହ୍ନଟ AI ମଡେଲ ଆଧାରିତ ଏକ ସମ୍ଭାବ୍ୟ ନିରୀକ୍ଷଣ। କେବଳ ଏକ ଫଟୋ ଆଧାରରେ ରାସାୟନିକ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ। କ୍ଷେତରେ ୨୦ଟି ଧାନ ଗୁଚ୍ଛ (hills) ପରୀକ୍ଷା କରି କ୍ଷତିର ମାତ୍ରା (ETL) ନିର୍ଦ୍ଧାରଣ କରନ୍ତୁ ଏବଂ ନିକଟସ୍ଥ KVK ବିଶେଷଜ୍ଞ କିମ୍ବା କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।'
+                : 'This identification is an automated, suspected field diagnosis. Do not spray synthetic chemical pesticides solely based on photograph detection. Scout 20 random hills to confirm that insect density exceeds the Economic Threshold Level (ETL), and prioritize cultural/biological methods before chemical intervention.'}
+            </p>
+          </div>
+        )}
 
         {/* ACTION BUTTONS & TREATMENT GATING */}
         <div className="pt-4 flex flex-col sm:flex-row gap-3">

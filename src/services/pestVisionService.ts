@@ -514,7 +514,7 @@ RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:
       immediateActionsEn: treatmentAllowed ? knowledge.immediateNextStepsEn : ['Do not spray chemical pesticides without species confirmation.'],
       immediateActionsOr: treatmentAllowed ? knowledge.immediateNextStepsOr : ['କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।'],
       expertReviewRequired: !treatmentAllowed || Boolean(parsed.expertReviewRecommended),
-      sourceModel: (['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'].includes(activeModel) ? activeModel : 'gemini-1.5-flash') as any,
+      sourceModel: (['gemini-3.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'].includes(activeModel) ? activeModel : 'gemini-3.5-flash') as any,
       isSampleScan: false,
       farmerDistrict,
       followUpScans: []

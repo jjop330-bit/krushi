@@ -133,13 +133,13 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
             {lang === 'or' ? 'Gemini ମଡେଲ ଚୟନ' : 'Multimodal Vision Model'}
           </label>
           <select
-            value={settings.selectedModel || 'gemini-1.5-flash'}
+            value={settings.selectedModel || 'gemini-3.5-flash'}
             onChange={(e) => setSettings({ ...settings, selectedModel: e.target.value as any })}
             className="w-full bg-slate-50 p-3 rounded-2xl text-xs sm:text-sm border border-slate-300 font-medium focus:outline-none focus:border-agri-700"
           >
-            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended - Fast &amp; Reliable)</option>
-            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Next-Gen Multimodal Vision)</option>
-            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Visual Reasoning)</option>
+            <option value="gemini-3.5-flash">Gemini 3.5 Flash (Active Developer API Production Model)</option>
+            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (High-Speed Multimodal)</option>
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Legacy Model)</option>
           </select>
         </div>
 
