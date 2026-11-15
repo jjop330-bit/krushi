@@ -138,7 +138,7 @@ export interface ScanReport {
   immediateActionsEn: string[];
   immediateActionsOr: string[];
   expertReviewRequired: boolean;
-  sourceModel: 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'expert-verified-baseline';
+  sourceModel: 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'expert-verified-baseline';
   isSampleScan?: boolean;
   farmerDistrict?: string;
   farmerNotes?: string;

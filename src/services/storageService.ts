@@ -11,14 +11,14 @@ export interface AppSettings {
   language: 'or' | 'en';
   preferredDistrict: string;
   useLiveGemini: boolean;
-  selectedModel: 'gemini-3.5-flash' | 'gemini-1.5-flash' | 'gemini-2.0-flash';
+  selectedModel: 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'gemini-2.5-flash';
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'or',
   preferredDistrict: 'bargarh',
   useLiveGemini: true,
-  selectedModel: 'gemini-3.5-flash'
+  selectedModel: 'gemini-1.5-flash'
 };
 
 export class StorageService {
@@ -71,14 +71,20 @@ export class StorageService {
 
   public static saveReport(report: ScanReport): void {
     try {
-      const reports = this.getReports();
+      let reports = this.getReports();
       const existingIdx = reports.findIndex(r => r.id === report.id);
       if (existingIdx >= 0) {
         reports[existingIdx] = report;
       } else {
         reports.unshift(report);
       }
-      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+      try {
+        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+      } catch (quotaError) {
+        console.warn('Storage quota exceeded, pruning historical reports to keep latest 10...', quotaError);
+        reports = reports.slice(0, 10);
+        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
+      }
     } catch (e) {
       console.error('Failed to save report', e);
     }

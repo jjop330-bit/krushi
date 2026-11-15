@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     
     # AI Engine Configuration
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-3.5-flash"
+    GEMINI_MODEL: str = "gemini-1.5-flash"
     ACTIVE_VISION_PROVIDER: str = "gemini"  # "gemini" | "baseline" | "yolo"
     
     # Supabase Configuration (Optional - graceful fallback for local development)

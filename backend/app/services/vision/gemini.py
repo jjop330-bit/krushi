@@ -59,6 +59,11 @@ class GeminiVisionProvider(BasePestDetector):
 
         try:
             b64_data = base64.b64encode(image_bytes).decode("utf-8")
+            mime_type = "image/jpeg"
+            if image_bytes.startswith(b"\x89PNG"):
+                mime_type = "image/png"
+            elif image_bytes.startswith(b"RIFF") and b"WEBP" in image_bytes[:16]:
+                mime_type = "image/webp"
             
             system_prompt = (
                 "You are Krushi Mitra AI's senior agricultural entomologist and computer vision specialist for Odisha, India.\n"
@@ -109,7 +114,7 @@ class GeminiVisionProvider(BasePestDetector):
                             {"text": system_prompt},
                             {
                                 "inline_data": {
-                                    "mime_type": "image/jpeg",
+                                    "mime_type": mime_type,
                                     "data": b64_data
                                 }
                             }
@@ -128,8 +133,14 @@ class GeminiVisionProvider(BasePestDetector):
                     return await self.fallback.analyze(image_bytes, crop_id, farmer_district, forced_pest_id)
                 
                 resp_json = response.json()
-                raw_text = resp_json.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                parsed = json.loads(raw_text)
+                raw_text = resp_json.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                if raw_text.startswith("```json"):
+                    raw_text = raw_text[7:]
+                elif raw_text.startswith("```"):
+                    raw_text = raw_text[3:]
+                if raw_text.endswith("```"):
+                    raw_text = raw_text[:-3]
+                parsed = json.loads(raw_text.strip())
 
             # Validate Status
             status_str = parsed.get("status", "UNKNOWN").upper()

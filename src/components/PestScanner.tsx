@@ -30,6 +30,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
   selectedSample,
   onClearSample
 }) => {
+  const [currentSample, setCurrentSample] = useState<SamplePestImage | null>(selectedSample || null);
   const [imageUri, setImageUri] = useState<string | null>(selectedSample?.imageUri || null);
   const [selectedCrop, setSelectedCrop] = useState<CropId>('paddy');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -45,45 +46,50 @@ export const PestScanner: React.FC<PestScannerProps> = ({
   // If a sample is passed in from parent
   React.useEffect(() => {
     if (selectedSample) {
+      setCurrentSample(selectedSample);
       setImageUri(selectedSample.imageUri);
       PestVisionService.assessImageQuality(selectedSample.imageUri).then(setQualityCheck);
     }
   }, [selectedSample]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
+    // Validate type robustly for desktop and mobile browsers
+    const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp)$/i.test(file.name);
+    if (!isImage) {
       setErrorMsg(lang === 'or' 
         ? 'ଦୟାକରି କେବଳ JPG, JPEG, PNG କିମ୍ବା WEBP ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ।' 
         : 'Please upload only JPG, JPEG, PNG, or WEBP image files.');
       return;
     }
 
-    // Validate size (15MB limit)
-    if (file.size > 15 * 1024 * 1024) {
+    // Validate size (25MB limit before compression)
+    if (file.size > 25 * 1024 * 1024) {
       setErrorMsg(lang === 'or' 
-        ? 'ଫଟୋର ଆକାର ୧୫ MB ରୁ କମ୍ ହେବା ଉଚିତ।' 
-        : 'Image size exceeds maximum 15MB limit.');
+        ? 'ଫଟୋର ଆକାର ୨୫ MB ରୁ କମ୍ ହେବା ଉଚିତ।' 
+        : 'Image size exceeds maximum 25MB limit.');
       return;
     }
 
     setErrorMsg(null);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const uri = reader.result as string;
-      setImageUri(uri);
-      if (onClearSample) onClearSample();
-      const check = await PestVisionService.assessImageQuality(uri);
+    setCurrentSample(null);
+    if (onClearSample) onClearSample();
+
+    try {
+      // Compress and resize for safe preview, fast inference, and localStorage persistence
+      const compressedUri = await PestVisionService.compressAndResizeImage(file, 1200, 0.85);
+      setImageUri(compressedUri);
+      const check = await PestVisionService.assessImageQuality(compressedUri);
       setQualityCheck(check);
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to process uploaded image.');
+    }
   };
 
   const handleSelectSample = async (sample: SamplePestImage) => {
+    setCurrentSample(sample);
     setImageUri(sample.imageUri);
     setErrorMsg(null);
     const check = await PestVisionService.assessImageQuality(sample.imageUri);
@@ -113,7 +119,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
       const report = await PestVisionService.analyzeCropImage(
         imageUri,
         selectedCrop,
-        selectedSample?.pestId,
+        currentSample?.pestId,
         'bargarh'
       );
 
@@ -127,6 +133,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
 
   const handleReset = () => {
     setImageUri(null);
+    setCurrentSample(null);
     setQualityCheck(null);
     setErrorMsg(null);
     if (onClearSample) onClearSample();
@@ -225,7 +232,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                     <input 
                       ref={fileInputRef}
                       type="file" 
-                      accept="image/jpeg,image/png,image/webp" 
+                      accept="image/*,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" 
                       onChange={handleFileChange} 
                       className="hidden" 
                     />
@@ -370,20 +377,27 @@ export const PestScanner: React.FC<PestScannerProps> = ({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {SAMPLE_PEST_IMAGES.map((sample) => (
-            <button
-              key={sample.id}
-              onClick={() => handleSelectSample(sample)}
-              className="text-left p-2.5 rounded-xl border border-slate-200 hover:border-agri-500 hover:bg-agri-50/50 transition-all text-xs font-medium text-slate-800 flex items-center space-x-2"
-            >
-              <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 flex-shrink-0">
-                <img src={sample.imageUri} alt="" className="w-full h-full object-cover" />
-              </div>
-              <span className="line-clamp-1 font-bold">
-                {lang === 'or' ? sample.labelOr : sample.labelEn}
-              </span>
-            </button>
-          ))}
+          {SAMPLE_PEST_IMAGES.map((sample) => {
+            const isSelected = currentSample?.id === sample.id;
+            return (
+              <button
+                key={sample.id}
+                onClick={() => handleSelectSample(sample)}
+                className={`text-left p-2.5 rounded-xl border transition-all text-xs font-medium flex items-center space-x-2 ${
+                  isSelected 
+                    ? 'border-lime-500 bg-lime-50 text-agri-950 ring-2 ring-lime-400 font-bold shadow-sm' 
+                    : 'border-slate-200 hover:border-agri-500 hover:bg-agri-50/50 text-slate-800'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 flex-shrink-0">
+                  <img src={sample.imageUri} alt="" className="w-full h-full object-cover" />
+                </div>
+                <span className="line-clamp-1">
+                  {lang === 'or' ? sample.labelOr : sample.labelEn}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

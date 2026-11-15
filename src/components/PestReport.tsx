@@ -54,7 +54,7 @@ export const PestReport: React.FC<PestReportProps> = ({
   const isTreatmentAllowed = Boolean(report.treatmentAllowed);
 
   // Authoritative reference image for side-by-side comparison
-  const referenceImage = SAMPLE_PEST_IMAGES.find(s => s.pestId === pestId && s.expectedStatus === 'IDENTIFIED');
+  const referenceImage = SAMPLE_PEST_IMAGES.find(s => s.pestId === pestId);
 
   // Confidence display helper
   const confidence = report.identification.confidence;

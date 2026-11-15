@@ -35,7 +35,8 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
 
     setTestStatus('testing');
     try {
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey.trim()}`, {
+      const activeModel = settings.selectedModel || 'gemini-1.5-flash';
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -124,6 +125,22 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
             placeholder="AIzaSy..."
             className="w-full bg-slate-50 p-3 rounded-2xl text-xs sm:text-sm border border-slate-300 font-mono focus:outline-none focus:border-agri-700"
           />
+        </div>
+
+        {/* Model Selector */}
+        <div className="space-y-1.5">
+          <label className="font-bold text-xs text-slate-700">
+            {lang === 'or' ? 'Gemini ମଡେଲ ଚୟନ' : 'Multimodal Vision Model'}
+          </label>
+          <select
+            value={settings.selectedModel || 'gemini-1.5-flash'}
+            onChange={(e) => setSettings({ ...settings, selectedModel: e.target.value as any })}
+            className="w-full bg-slate-50 p-3 rounded-2xl text-xs sm:text-sm border border-slate-300 font-medium focus:outline-none focus:border-agri-700"
+          >
+            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended - Fast &amp; High Accuracy)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Next-Gen Multimodal)</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Advanced Vision)</option>
+          </select>
         </div>
 
         {/* Test Connection Button & Status */}
