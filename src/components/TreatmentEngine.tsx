@@ -12,7 +12,9 @@ import {
   ShieldAlert, 
   HeartHandshake,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { ScanReport, PestId } from '../types/pest';
 import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
@@ -32,12 +34,72 @@ export const TreatmentEngine: React.FC<TreatmentEngineProps> = ({
   onFollowUpSchedule
 }) => {
   const [activeTab, setActiveTab] = useState<'biological' | 'cultural' | 'chemical'>('biological');
+  const [cropStage, setCropStage] = useState<'vegetative' | 'reproductive'>('vegetative');
+  const [pestCountInput, setPestCountInput] = useState<string>('');
   const t = ODIA_TRANSLATIONS[lang];
   const pestId = report.identification.pestId;
   const knowledge = PEST_KNOWLEDGE_BASE[pestId] || PEST_KNOWLEDGE_BASE.uncertain;
 
   const isBeneficialOrHealthy = pestId === 'beneficial_spider' || pestId === 'healthy_paddy';
   const isTreatmentAllowed = Boolean(report.treatmentAllowed);
+
+  const getEtlThreshold = () => {
+    switch (pestId) {
+      case 'bph':
+        return {
+          threshold: cropStage === 'vegetative' ? 5.0 : 15.0,
+          unitLabel: lang === 'or' ? 'ଗୁଚ୍ଛ ପ୍ରତି ପୋକ (Hoppers/hill)' : 'Hoppers per hill',
+          sampleGuidance: lang === 'or' ? 'କ୍ଷେତର ୧୦ଟି ସ୍ଥାନରୁ ଗଛ ମୂଳ ପରୀକ୍ଷା କରି ହାରାହାରି ପୋକ ସଂଖ୍ୟା ଲେଖନ୍ତୁ।' : 'Sample 10 random hills by gently shaking stem bases and counting hoppers.',
+          standardText: cropStage === 'vegetative' ? '5 hoppers/hill (vegetative)' : '15 hoppers/hill (reproductive)'
+        };
+      case 'stem_borer':
+        return {
+          threshold: cropStage === 'vegetative' ? 5.0 : 1.0,
+          unitLabel: cropStage === 'vegetative' 
+            ? (lang === 'or' ? '% ମଜା ମରିବା (% Dead Hearts)' : '% Dead Hearts') 
+            : (lang === 'or' ? '% ଧଳା ଶିଁଷା (% Whiteheads)' : '% Whiteheads'),
+          sampleGuidance: cropStage === 'vegetative' 
+            ? (lang === 'or' ? '୧୦୦ଟି ଗୁଚ୍ଛରୁ ମଜା ମରିଥିବା ଗଛର ପ୍ରତିଶତ ବାହାର କରନ୍ତୁ।' : 'Count dead heart tillers per 100 tillers sampled randomly.') 
+            : (lang === 'or' ? '୧୦୦ଟି ଶିଁଷାରୁ ଧଳା ଶିଁଷାର ପ୍ରତିଶତ ବାହାର କରନ୍ତୁ।' : 'Count dry whiteheads per 100 panicles at heading stage.'),
+          standardText: cropStage === 'vegetative' ? '5% dead hearts or 1 egg mass/m²' : '1% whiteheads'
+        };
+      case 'leaf_folder':
+        return {
+          threshold: cropStage === 'vegetative' ? 2.0 : 1.0,
+          unitLabel: cropStage === 'vegetative' 
+            ? (lang === 'or' ? 'କ୍ଷତିଗ୍ରସ୍ତ ପତ୍ର/ଗୁଚ୍ଛ (Damaged leaves/hill)' : 'Damaged leaves per hill') 
+            : (lang === 'or' ? 'କ୍ଷତିଗ୍ରସ୍ତ ଧ୍ୱଜା ପତ୍ର/ଗୁଚ୍ଛ (Flag leaves/hill)' : 'Flag leaves per hill'),
+          sampleGuidance: lang === 'or' ? '୧୦ଟି ଗୁଚ୍ଛରୁ ସକ୍ରିୟ ପୋକ ଥିବା ମୋଡ଼ା ପତ୍ର ଗଣନା କରନ୍ତୁ।' : 'Inspect 10 random hills and count folded leaves with live feeding larvae.',
+          standardText: cropStage === 'vegetative' ? '2 damaged leaves/hill (tillering)' : '1 damaged flag leaf/hill (heading)'
+        };
+      case 'rice_hispa':
+        return {
+          threshold: 2.0,
+          unitLabel: lang === 'or' ? 'ବୟସ୍କ ପୋକ/ଗୁଚ୍ଛ (Adults/hill)' : 'Adults per hill',
+          sampleGuidance: lang === 'or' ? '୧୦ଟି ଗୁଚ୍ଛରୁ କଳା କଣ୍ଟକିତ ହିସ୍ପା ପୋକ ଗଣନା କରନ୍ତୁ କିମ୍ବା ୫% କ୍ଷତିଗ୍ରସ୍ତ ପତ୍ର ଦେଖନ୍ତୁ।' : 'Count spiny black adults per hill or check for >5% white blistered leaves.',
+          standardText: '1-2 adults/hill or >5% damaged leaves'
+        };
+      case 'armyworm':
+        return {
+          threshold: cropStage === 'vegetative' ? 1.0 : 0.5,
+          unitLabel: lang === 'or' ? 'ଲାର୍ଭା ପୋକ/ଗୁଚ୍ଛ (Larvae/hill)' : 'Larvae per hill',
+          sampleGuidance: lang === 'or' ? 'ସନ୍ଧ୍ୟା ବେଳେ ବା ସକାଳେ ଗଛ ମୂଳ ଓ ମାଟିରେ ଲୁଚିଥିବା ଲାର୍ଭା ଗଣନା କରନ୍ତୁ।' : 'Inspect plant base, leaf sheaths, and soil crevices during dawn/dusk for nocturnal larvae.',
+          standardText: cropStage === 'vegetative' ? '1 larva/hill (tillering)' : '1 larva/2 hills (0.5/hill) or 1 clipped panicle/m²'
+        };
+      default:
+        return {
+          threshold: 999.0,
+          unitLabel: 'per hill',
+          sampleGuidance: '',
+          standardText: 'N/A'
+        };
+    }
+  };
+
+  const etl = getEtlThreshold();
+  const parsedCount = pestCountInput.trim() === '' ? null : parseFloat(pestCountInput);
+  const isInputValid = parsedCount !== null && !isNaN(parsedCount) && parsedCount >= 0;
+  const isEtlBreached = isInputValid && parsedCount >= etl.threshold;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-fadeIn">
@@ -264,26 +326,162 @@ export const TreatmentEngine: React.FC<TreatmentEngineProps> = ({
             </span>
           </div>
 
-          {/* ETL Threshold Condition */}
-          <div className="bg-rose-50/80 border border-rose-200 p-4 rounded-2xl text-xs text-rose-950 flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-rose-700 flex-shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-rose-900 block">
-                {lang === 'or' ? 'ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା (Economic Threshold Level - ETL):' : 'Economic Threshold Level (ETL) Condition:'}
+          {/* Field Scouting & ETL Validation Gate */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-5 h-5 text-agri-700" />
+                <h3 className="font-extrabold text-slate-900 text-base">
+                  {lang === 'or' ? 'କ୍ଷେତ ନିରୀକ୍ଷଣ ଓ ETL ଯାଞ୍ଚ (Field Scouting Gate)' : 'Field Scouting & ETL Safety Gate'}
+                </h3>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                Mandatory Safety Protocol
               </span>
-              <p className="mt-0.5">
-                {lang === 'or' ? knowledge.economicThresholdLevelOr : knowledge.economicThresholdLevelEn}
-              </p>
-              <p className="mt-1 font-bold text-rose-900">
-                {lang === 'or' 
-                  ? 'ପୋକ ସଂଖ୍ୟା ଏହି ସୀମା ଟପିଲେ ହିଁ ତଳେ ଥିବା କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ।'
-                  : 'Apply chemical insecticides strictly after ETL is reached to prevent pesticide resistance and unnecessary costs.'}
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {lang === 'or'
+                ? 'ICAR-NRRI ଏବଂ OUAT ନିର୍ଦ୍ଦେଶାବଳୀ ଅନୁଯାୟୀ କୀଟନାଶକ ପ୍ରୟୋଗ ପୂର୍ବରୁ କ୍ଷେତ ନିରୀକ୍ଷଣ କରି ପୋକ ସଂଖ୍ୟା ଯାଞ୍ଚ କରିବା ବାଧ୍ୟତାମୂଳକ।'
+                : 'ICAR-NRRI Cuttack and OUAT protocols legally mandate empirical field sampling prior to unlocking chemical insecticide recommendations.'}
+            </p>
+
+            {/* Stage Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block">
+                {lang === 'or' ? '୧. ଫସଲର ବର୍ତ୍ତମାନର ପର୍ଯ୍ୟାୟ ଚୟନ କରନ୍ତୁ:' : '1. Select Current Crop Growth Stage:'}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCropStage('vegetative')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                    cropStage === 'vegetative'
+                      ? 'bg-agri-800 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {lang === 'or' ? 'ଗଛ ବୃଦ୍ଧି / କୁଶି ଅବସ୍ଥା (Vegetative)' : 'Vegetative / Tillering Stage'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCropStage('reproductive')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                    cropStage === 'reproductive'
+                      ? 'bg-agri-800 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {lang === 'or' ? 'ଶିଁଷା ବାହାରିବା / ଫୁଲ ଅବସ୍ଥା (Heading)' : 'Panicle / Heading Stage'}
+                </button>
+              </div>
+            </div>
+
+            {/* Scouting Count Input */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-bold text-slate-700 flex justify-between items-center">
+                <span>
+                  {lang === 'or' ? `୨. କ୍ଷେତ ନିରୀକ୍ଷଣ ପରିମାଣ (${etl.unitLabel}):` : `2. Field Scouting Observation (${etl.unitLabel}):`}
+                </span>
+                <span className="text-[11px] font-semibold text-rose-700">
+                  ETL Threshold: {etl.standardText}
+                </span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={pestCountInput}
+                  onChange={(e) => setPestCountInput(e.target.value)}
+                  placeholder={lang === 'or' ? `ସଂଖ୍ୟା ଲେଖନ୍ତୁ (ଉଦାହରଣ: ${etl.threshold})` : `Enter count (e.g. ${etl.threshold})`}
+                  className="flex-1 px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-agri-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPestCountInput(String(Math.max(0, etl.threshold - 2)))}
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold whitespace-nowrap"
+                  title="Test below ETL"
+                >
+                  {lang === 'or' ? 'ସୀମା ତଳେ' : 'Below ETL'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPestCountInput(String(etl.threshold + 3))}
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold whitespace-nowrap"
+                  title="Test above ETL"
+                >
+                  {lang === 'or' ? 'ସୀମା ଉପରେ' : 'Above ETL'}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 italic">
+                {etl.sampleGuidance}
               </p>
             </div>
           </div>
 
-          {/* Molecule Cards */}
-          <div className="grid grid-cols-1 gap-4">
+          {/* ETL Verification Status Gate Banner */}
+          {!isInputValid && (
+            <div className="bg-amber-50 border-2 border-amber-300 p-5 rounded-3xl text-xs text-amber-950 flex items-start space-x-3.5 shadow-sm">
+              <Lock className="w-6 h-6 text-amber-700 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-extrabold text-amber-900 text-sm block">
+                  {lang === 'or' ? 'ରାସାୟନିକ ପରାମର୍ଶ ସ୍ଥଗିତ: କ୍ଷେତ ନିରୀକ୍ଷଣ ତଥ୍ୟ ଆବଶ୍ୟକ' : 'Chemical Advice Locked: Field Scouting Data Required'}
+                </span>
+                <p>
+                  {lang === 'or'
+                    ? 'କୀଟନାଶକ ଔଷଧ ଦେଖିବା ପୂର୍ବରୁ ଉପରେ ନିଜ କ୍ଷେତର ପୋକ ସଂଖ୍ୟା ଲେଖନ୍ତୁ। ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା (ETL) ନିଶ୍ଚିତ ନ କରି ବିଷ ସିଞ୍ଚନ କରିବା ଆଇନଗତ ଓ ବୈଜ୍ଞାନିକ ଭାବେ ନିଷେଧ।'
+                    : 'Chemical molecule recommendations are locked. Enter your 10-hill field scouting observation above to verify whether pest density has crossed the Economic Threshold Level (ETL). Indiscriminate chemical spraying without field data triggers secondary pest resurgence and destroys beneficial Lycosa wolf spiders.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isInputValid && !isEtlBreached && (
+            <div className="bg-rose-50 border-2 border-rose-300 p-5 rounded-3xl text-xs text-rose-950 flex items-start space-x-3.5 shadow-sm">
+              <ShieldAlert className="w-6 h-6 text-rose-700 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-0.5 rounded bg-rose-200 text-rose-900 font-bold text-[10px] uppercase">
+                    Safety Gate Locked
+                  </span>
+                  <span className="font-extrabold text-rose-900 text-sm">
+                    {lang === 'or' ? 'ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା (ETL) ଠାରୁ କମ୍ — ରାସାୟନିକ ସିଞ୍ଚନ ନିଷେଧ' : 'Below Economic Threshold Level — Chemical Spray Prohibited'}
+                  </span>
+                </div>
+                <p>
+                  {lang === 'or'
+                    ? `ଆପଣଙ୍କ କ୍ଷେତରେ ପୋକ ସଂଖ୍ୟା (${parsedCount} ${etl.unitLabel}) ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା (${etl.threshold}) ଠାରୁ କମ୍ ଅଛି। ଏହି ସମୟରେ ବିଷ ସିଞ୍ଚନ କଲେ ଚାଷୀଙ୍କ ଟଙ୍କା ଅଯଥା ଖର୍ଚ୍ଚ ହୁଏ ଏବଂ କ୍ଷେତରେ ଥିବା ବନ୍ଧୁ ବୁଢ଼ିଆଣୀ ମରିଯାଆନ୍ତି। ଦୟାକରି କେବଳ ଜୈବିକ (Tab 1) ଓ ଚାଷ ପଦ୍ଧତି (Tab 2) ଆପଣାନ୍ତୁ।`
+                    : `Your observed pest count (${parsedCount} ${etl.unitLabel}) is BELOW the Economic Threshold Level (${etl.threshold}). Applying chemical insecticides at sub-threshold levels causes unnecessary expenditure, eliminates natural biological predators (Lycosa spiders), and accelerates insecticide resistance. Continue biological conservation and cultural practices.`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isInputValid && isEtlBreached && (
+            <div className="bg-emerald-50 border-2 border-emerald-400 p-5 rounded-3xl text-xs text-emerald-950 flex items-start space-x-3.5 shadow-sm animate-fadeIn">
+              <CheckCircle2 className="w-6 h-6 text-emerald-700 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-bold text-[10px] uppercase">
+                    Authorized By IPM Protocol
+                  </span>
+                  <span className="font-extrabold text-emerald-900 text-sm">
+                    {lang === 'or' ? 'ETL ସୀମା ଅତିକ୍ରମ କରିଛି — ଅନୁମୋଦିତ ରାସାୟନିକ ଉପଚାର ଅନୁମତିପ୍ରାପ୍ତ' : 'ETL Breached — Chemical Treatment Authorized (CIBRC Approved)'}
+                  </span>
+                </div>
+                <p>
+                  {lang === 'or'
+                    ? `କ୍ଷେତରେ ପୋକ ସଂଖ୍ୟା (${parsedCount} ${etl.unitLabel}) ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା (${etl.threshold}) ଅତିକ୍ରମ କରିଛି। ତଳେ ଥିବା କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ (CIBRC) ଅନୁମୋଦିତ ଔଷଧ ସଠିକ ମାତ୍ରା, ପାଣି ପରିମାଣ ଓ ସୁରକ୍ଷା ନିୟମ ମାନି ସିଞ୍ଚନ କରନ୍ତୁ।`
+                    : `Field observation (${parsedCount} ${etl.unitLabel}) meets or exceeds the Economic Threshold Level (${etl.threshold}). Controlled chemical intervention is authorized. Apply strictly using the CIBRC-registered molecules, dosages, water volumes, and Pre-Harvest Intervals (PHI) detailed below.`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Molecule Cards — Displayed ONLY when ETL is Breached */}
+          {isEtlBreached && (
+            <div className="grid grid-cols-1 gap-4 pt-2">
             {knowledge.chemicalControl.map((chem, idx) => (
               <div key={idx} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -355,6 +553,7 @@ export const TreatmentEngine: React.FC<TreatmentEngineProps> = ({
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
 

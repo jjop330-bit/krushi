@@ -29,6 +29,11 @@ class ChemicalControlItem(BaseModel):
     safety_precautions_or: str
     water_spray_instructions: str
 
+class ScoutingObservation(BaseModel):
+    crop_stage: str
+    sampling_unit: str
+    pest_count: float
+
 class TreatmentPlanResponse(BaseModel):
     pest_id: str
     pest_name_en: str
@@ -39,6 +44,11 @@ class TreatmentPlanResponse(BaseModel):
     biological_control: List[BiologicalControlItem]
     cultural_control: List[CulturalControlItem]
     chemical_control: List[ChemicalControlItem]
+    chemical_authorized: bool = False
+    authorization_status: str = "LOCKED_PENDING_SCOUTING_OBSERVATION"
+    scouting_observation: Optional[ScoutingObservation] = None
+    scouting_guidance_en: str = ""
+    scouting_guidance_or: str = ""
     expert_consultation_criteria_en: List[str]
     expert_consultation_criteria_or: List[str]
     scientific_references: List[str]
