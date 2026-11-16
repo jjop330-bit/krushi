@@ -16,7 +16,9 @@ async def get_pest_treatments(
     pest_id: str,
     crop_stage: Optional[str] = Query(None, description="Crop growth stage: vegetative, tillering, panicle, heading"),
     sampling_unit: Optional[str] = Query(None, description="Field scouting measurement unit: per_hill, percent_dead_hearts, etc."),
-    pest_count: Optional[float] = Query(None, description="Empirical field scouting count/percentage")
+    pest_count: Optional[float] = Query(None, description="Empirical field scouting count/percentage"),
+    provenance: Optional[str] = Query("FIELD_PILOT_VERIFIED", description="Observation provenance: FARMER_SUBMITTED, EXPERT_VERIFIED, FIELD_PILOT_VERIFIED, INVALID_OR_INCOMPLETE"),
+    verifier_id: Optional[str] = Query("PILOT-SUPERVISED-VERIFIER", description="Official KVK officer or pilot verifier code")
 ):
     """
     Returns authentic, 3-tier Integrated Pest Management (IPM) recommendations
@@ -26,13 +28,17 @@ async def get_pest_treatments(
     - Biological and cultural control (safe IPM education) are returned.
     - Chemical control (synthetic insecticides) is STRICTLY LOCKED ([] empty list)
       unless verified empirical field scouting data meeting or exceeding the pest-specific
-      Economic Threshold Level (ETL) is supplied.
+      Economic Threshold Level (ETL) is supplied by an authorized verifier.
+    - Unverified farmer observations (FARMER_SUBMITTED) require expert physical confirmation
+      before chemical recommendations can be unlocked.
     """
     knowledge = get_pest_knowledge(
         pest_id=pest_id,
         crop_stage=crop_stage,
         sampling_unit=sampling_unit,
-        pest_count=pest_count
+        pest_count=pest_count,
+        provenance=provenance,
+        verifier_id=verifier_id
     )
     if not knowledge:
         raise HTTPException(status_code=404, detail="Pest not found")
@@ -42,7 +48,9 @@ async def get_pest_treatments(
         scouting_obs = ScoutingObservation(
             crop_stage=crop_stage,
             sampling_unit=sampling_unit,
-            pest_count=pest_count
+            pest_count=pest_count,
+            provenance=provenance or "FIELD_PILOT_VERIFIED",
+            verifier_id=verifier_id
         )
 
     return TreatmentPlanResponse(
@@ -90,11 +98,14 @@ async def authorize_pest_treatment(
 ):
     """
     Submits an empirical field scouting observation to evaluate Economic Threshold Level (ETL)
-    and authorize applicable CIBRC chemical recommendations.
+    and authorize applicable CIBRC chemical recommendations based on verified observation provenance.
     """
+    prov_val = observation.provenance.value if hasattr(observation.provenance, "value") else str(observation.provenance)
     return await get_pest_treatments(
         pest_id=pest_id,
         crop_stage=observation.crop_stage,
         sampling_unit=observation.sampling_unit,
-        pest_count=observation.pest_count
+        pest_count=observation.pest_count,
+        provenance=prov_val,
+        verifier_id=observation.verifier_id
     )

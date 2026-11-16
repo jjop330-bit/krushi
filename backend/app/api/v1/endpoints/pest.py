@@ -34,6 +34,9 @@ async def analyze_crop_image(
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty image file provided.")
 
+    if len(image_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image file exceeds maximum allowable limit of 20MB.")
+
     # Upload to Supabase Storage (or mock local storage)
     user_id = auth_ctx.get("user_id", "anonymous")
     image_url = await supabase_service.upload_crop_photograph(
@@ -73,6 +76,12 @@ async def analyze_crop_image_base64(
         image_bytes = base64.b64decode(raw_b64)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {str(e)}")
+
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Empty image payload provided.")
+
+    if len(image_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image payload exceeds maximum allowable limit of 20MB.")
 
     user_id = auth_ctx.get("user_id", "anonymous")
     image_url = await supabase_service.upload_crop_photograph(image_bytes, "base64_scan.jpg", user_id)
@@ -115,13 +124,15 @@ class SignatureVerificationRequest(BaseModel):
 @router.post("/verify-signature")
 async def verify_report_signature_endpoint(request: SignatureVerificationRequest):
     """
-    Cryptographic verification endpoint to confirm tamper-evidence of a diagnosis report.
-    Validates HMAC-SHA256 signature using the server's protected REPORT_SIGNING_SECRET.
+    Server-authenticated tamper-evident report verification endpoint.
+    Validates HMAC-SHA256 Message Authentication Code (MAC) using the server's protected
+    REPORT_SIGNING_SECRET with support for secure key rotation across versions.
+    Does not expose secret keys or leak private report internals.
     """
     from app.core.security import verify_report_signature
     valid = verify_report_signature(
         scan_id=request.scan_id,
-        image_hash=request.image_hash,
+        image_hash=request.image_hash or "",
         status=request.status,
         pest_id=request.pest_id,
         created_at=request.created_at,

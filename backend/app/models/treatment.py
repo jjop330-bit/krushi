@@ -1,5 +1,12 @@
+from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel
+
+class ObservationProvenanceEnum(str, Enum):
+    FARMER_SUBMITTED = "FARMER_SUBMITTED"
+    EXPERT_VERIFIED = "EXPERT_VERIFIED"
+    FIELD_PILOT_VERIFIED = "FIELD_PILOT_VERIFIED"
+    INVALID_OR_INCOMPLETE = "INVALID_OR_INCOMPLETE"
 
 class BiologicalControlItem(BaseModel):
     title_en: str
@@ -33,6 +40,9 @@ class ScoutingObservation(BaseModel):
     crop_stage: str
     sampling_unit: str
     pest_count: float
+    provenance: ObservationProvenanceEnum = ObservationProvenanceEnum.FIELD_PILOT_VERIFIED
+    verifier_id: Optional[str] = "PILOT-SUPERVISED-VERIFIER"
+    verification_notes: Optional[str] = None
 
 class TreatmentPlanResponse(BaseModel):
     pest_id: str

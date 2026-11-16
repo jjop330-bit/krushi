@@ -319,3 +319,108 @@ async def test_comprehensive_13_point_adversarial_security_suite():
             assert len(sp.get("chemical_control", [])) == 0
             assert sp.get("chemical_authorized", False) is False
 
+@pytest.mark.asyncio
+async def test_unverified_farmer_observation_requires_expert_confirmation():
+    """
+    CRITICAL AGRICULTURAL SAFETY GATE:
+    Unverified farmer counts (FARMER_SUBMITTED) NEVER authorize chemical treatments directly,
+    even if the reported count is above the Economic Threshold Level (ETL).
+    Must fail closed with status FARMER_OBSERVATION_REQUIRES_EXPERT_VERIFICATION.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # BPH vegetative stage with 12 hoppers/hill (ETL >= 5), but submitted by unverified farmer:
+        obs_payload = {
+            "crop_stage": "vegetative",
+            "sampling_unit": "per_hill",
+            "pest_count": 12.0,
+            "provenance": "FARMER_SUBMITTED",
+            "verifier_id": None
+        }
+        resp = await client.post("/api/v1/treatments/bph/authorize", json=obs_payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["chemical_authorized"] is False
+        assert len(data["chemical_control"]) == 0
+        assert data["authorization_status"] == "FARMER_OBSERVATION_REQUIRES_EXPERT_VERIFICATION"
+        assert "unverified farmer observation" in data["responsible_stewardship_warning_en"].lower() or "expert" in data["responsible_stewardship_warning_en"].lower()
+
+@pytest.mark.asyncio
+async def test_forged_observation_provenance_rejected():
+    """
+    Direct API security check:
+    Submitting an observation marked EXPERT_VERIFIED or FIELD_PILOT_VERIFIED without
+    a valid verifier_id must be rejected as forged/unauthenticated provenance.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Claiming EXPERT_VERIFIED with empty verifier_id
+        forged_payload = {
+            "crop_stage": "vegetative",
+            "sampling_unit": "per_hill",
+            "pest_count": 10.0,
+            "provenance": "EXPERT_VERIFIED",
+            "verifier_id": "   "  # Whitespace only
+        }
+        resp = await client.post("/api/v1/treatments/bph/authorize", json=forged_payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["chemical_authorized"] is False
+        assert len(data["chemical_control"]) == 0
+        assert data["authorization_status"] == "FORGED_OBSERVATION_PROVENANCE_REJECTED"
+
+@pytest.mark.asyncio
+async def test_threshold_boundary_conditions():
+    """
+    Tests exact boundary transitions at the Economic Threshold Level (ETL):
+    - Count == ETL - 0.1: Below ETL -> Chemical Locked
+    - Count == ETL: Exactly at ETL -> Chemical Authorized (for verified provenance)
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # BPH vegetative stage ETL is 5.0 hoppers/hill
+        # 1. Just below threshold (4.9):
+        resp_below = await client.get("/api/v1/treatments/bph?crop_stage=vegetative&sampling_unit=per_hill&pest_count=4.9&provenance=FIELD_PILOT_VERIFIED&verifier_id=PILOT-TEST")
+        assert resp_below.status_code == 200
+        assert resp_below.json()["chemical_authorized"] is False
+        assert resp_below.json()["authorization_status"] == "BELOW_ETL_NO_CHEMICAL_JUSTIFIED"
+
+        # 2. Exactly at threshold (5.0):
+        resp_at = await client.get("/api/v1/treatments/bph?crop_stage=vegetative&sampling_unit=per_hill&pest_count=5.0&provenance=FIELD_PILOT_VERIFIED&verifier_id=PILOT-TEST")
+        assert resp_at.status_code == 200
+        assert resp_at.json()["chemical_authorized"] is True
+        assert resp_at.json()["authorization_status"] == "ETL_BREACHED_CHEMICAL_AUTHORIZED"
+
+@pytest.mark.asyncio
+async def test_crop_stage_and_unit_mismatch_fails_closed():
+    """
+    Verifies that stage-inappropriate units (e.g. reproductive whiteheads checked at vegetative stage)
+    fail closed with INVALID_OBSERVATION_DATA.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/treatments/stem_borer?crop_stage=vegetative&sampling_unit=percent_whiteheads&pest_count=5.0")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["chemical_authorized"] is False
+        assert data["authorization_status"] == "INVALID_OBSERVATION_DATA"
+
+@pytest.mark.asyncio
+async def test_unrealistic_out_of_range_counts():
+    """
+    Verifies that impossible percentages (>100%) or ridiculous insect counts (>2000/hill)
+    fail closed with INVALID_OBSERVATION_DATA.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 150% dead hearts
+        r1 = await client.get("/api/v1/treatments/stem_borer?crop_stage=tillering&sampling_unit=percent_dead_hearts&pest_count=150.0")
+        assert r1.status_code == 200
+        assert r1.json()["authorization_status"] == "INVALID_OBSERVATION_DATA"
+
+        # 5000 hoppers on a single hill
+        r2 = await client.get("/api/v1/treatments/bph?crop_stage=vegetative&sampling_unit=per_hill&pest_count=5000.0")
+        assert r2.status_code == 200
+        assert r2.json()["authorization_status"] == "INVALID_OBSERVATION_DATA"
+
+

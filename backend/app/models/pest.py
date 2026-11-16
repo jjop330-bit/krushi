@@ -40,6 +40,10 @@ class ImageQualityAssessment(BaseModel):
     sharpness_score: int = Field(ge=0, le=100)
     warning_message_en: Optional[str] = None
     warning_message_or: Optional[str] = None
+    # Scientific raw metric telemetry
+    raw_mean_luminance: Optional[float] = None  # Rec. 601 Y luminance (0-255)
+    raw_contrast_std: Optional[float] = None    # Channel standard deviation (0-255)
+    raw_edge_variance: Optional[float] = None   # High-frequency edge variance (Laplacian)
 
 class AlternativeDiagnosis(BaseModel):
     pest_id: str

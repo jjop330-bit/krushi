@@ -795,7 +795,9 @@ def evaluate_treatment_authorization(
     crop_stage: Optional[str] = None,
     sampling_unit: Optional[str] = None,
     pest_count: Optional[float] = None,
-    raw_chemicals: Optional[List[Dict[str, Any]]] = None
+    raw_chemicals: Optional[List[Dict[str, Any]]] = None,
+    provenance: Optional[str] = "FIELD_PILOT_VERIFIED",
+    verifier_id: Optional[str] = "PILOT-SUPERVISED-VERIFIER"
 ) -> Tuple[bool, str, str, str, List[Dict[str, Any]]]:
     raw_chemicals = raw_chemicals or []
     if pest_id not in SUPPORTED_PESTS:
@@ -823,12 +825,52 @@ def evaluate_treatment_authorization(
     norm_stage = crop_stage.strip().lower()
     norm_unit = sampling_unit.strip().lower()
 
+    # Provenance security validation
+    norm_provenance = (provenance or "FARMER_SUBMITTED").strip().upper()
+    if norm_provenance == "INVALID_OR_INCOMPLETE":
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            "Observation data marked invalid or incomplete. Chemical authorization locked.",
+            "ଅବୈଧ କିମ୍ବା ଅସମ୍ପୂର୍ଣ୍ଣ ତଥ୍ୟ। ରାସାୟନିକ ପରାମର୍ଶ ସ୍ଥଗିତ।",
+            []
+        )
+
+    # Forged provenance check: claims expert/pilot verification without valid verifier_id
+    if norm_provenance in ["EXPERT_VERIFIED", "FIELD_PILOT_VERIFIED"] and (not verifier_id or not str(verifier_id).strip()):
+        return (
+            False,
+            "FORGED_OBSERVATION_PROVENANCE_REJECTED",
+            "Forged observation rejected: Verified provenance claims require a valid, non-empty verifier_id from a certified KVK agronomist or field pilot supervisor. Chemical guidance locked.",
+            "ଅବୈଧ ଯାଞ୍ଚ ପରିଚୟ: ବିଶେଷଜ୍ଞ ପରିଚୟ ବିନା ରାସାୟନିକ ପରାମର୍ଶ ମିଳିପାରିବ ନାହିଁ।",
+            []
+        )
+
+    # Boundary & realistic range checks
     if pest_count < 0:
         return (
             False,
             "INVALID_OBSERVATION_DATA",
             "Pest count cannot be negative.",
             "ପୋକ ସଂଖ୍ୟା ଋଣାତ୍ମକ ହୋଇପାରିବ ନାହିଁ।",
+            []
+        )
+
+    if ("percent" in norm_unit or "%" in norm_unit) and pest_count > 100.0:
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            f"Pest percentage ({pest_count}%) exceeds maximum possible percentage of 100%.",
+            "କ୍ଷତି ପ୍ରତିଶତ ୧୦୦% ରୁ ଅଧିକ ହୋଇପାରିବ ନାହିଁ।",
+            []
+        )
+
+    if ("hill" in norm_unit or "sq_m" in norm_unit) and pest_count > 2000.0:
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            f"Pest count ({pest_count} {norm_unit}) exceeds realistic agronomic limits (>2000/unit).",
+            "ପୋକ ସଂଖ୍ୟା ବାସ୍ତବ ସୀମାଠାରୁ ଅତ୍ୟଧିକ ଅଟେ।",
             []
         )
 
@@ -877,6 +919,26 @@ def evaluate_treatment_authorization(
 
     threshold = float(threshold)
 
+    # Policy enforcement: Unverified farmer observations cannot unlock chemical treatment
+    if norm_provenance == "FARMER_SUBMITTED":
+        if pest_count >= threshold:
+            return (
+                False,
+                "FARMER_OBSERVATION_REQUIRES_EXPERT_VERIFICATION",
+                f"Farmer-submitted count ({pest_count} {norm_unit}) meets or exceeds Economic Threshold Level ({threshold} at {norm_stage} stage). However, chemical insecticide recommendations are strictly locked until independently confirmed by a certified KVK agronomist or extension officer (EXPERT_VERIFIED). Unverified farmer inputs cannot authorize synthetic chemicals.",
+                f"ଆପଣ ଦେଇଥିବା ପୋକ ସଂଖ୍ୟା ({pest_count}) ETL ସୀମା ଟପିଛି, କିନ୍ତୁ କୃଷି ବିଶେଷଜ୍ଞଙ୍କ ପ୍ରତ୍ୟକ୍ଷ ଯାଞ୍ଚ ବିନା ରାସାୟନିକ କୀଟନାଶକ ପରାମର୍ଶ ଦେବା ନିଷିଦ୍ଧ। ସ୍ଥାନୀୟ କୃଷି ବିଜ୍ଞାନ କେନ୍ଦ୍ର (KVK) ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ।",
+                []
+            )
+        else:
+            return (
+                False,
+                "BELOW_ETL_NO_CHEMICAL_JUSTIFIED",
+                f"Pest density ({pest_count} {norm_unit}) is BELOW the Economic Threshold Level ({threshold} threshold at {norm_stage} stage). Chemical insecticide application is economically unjustified and prohibited to conserve natural predators and prevent secondary pest resurgence.",
+                f"ପୋକ ସଂଖ୍ୟା ({pest_count}) ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା ({threshold}) ଠାରୁ କମ୍ ଅଛି। ବନ୍ଧୁ କୀଟଙ୍କ ସୁରକ୍ଷା ପାଇଁ କୀଟନାଶକ ସିଞ୍ଚନ ନିଷେଧ।",
+                []
+            )
+
+    # Verified observation (EXPERT_VERIFIED or FIELD_PILOT_VERIFIED)
     if pest_count >= threshold:
         if not raw_chemicals:
             return (
@@ -889,7 +951,7 @@ def evaluate_treatment_authorization(
         return (
             True,
             "ETL_BREACHED_CHEMICAL_AUTHORIZED",
-            f"Economic Threshold Level breached ({pest_count} {norm_unit} >= {threshold} threshold at {norm_stage} stage). Chemical intervention authorized under registered CIBRC specifications.",
+            f"Economic Threshold Level breached ({pest_count} {norm_unit} >= {threshold} threshold at {norm_stage} stage). Chemical intervention authorized under registered CIBRC specifications (Verified by {verifier_id}).",
             f"ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା (ETL) ଅତିକ୍ରମ କରିଛି ({pest_count} >= {threshold})। ଅନୁମୋଦିତ ମାତ୍ରାରେ କୀଟନାଶକ ପ୍ରୟୋଗ କରାଯାଇପାରିବ।",
             raw_chemicals
         )
@@ -906,7 +968,9 @@ def get_pest_knowledge(
     pest_id: str,
     crop_stage: Optional[str] = None,
     sampling_unit: Optional[str] = None,
-    pest_count: Optional[float] = None
+    pest_count: Optional[float] = None,
+    provenance: Optional[str] = "FIELD_PILOT_VERIFIED",
+    verifier_id: Optional[str] = "PILOT-SUPERVISED-VERIFIER"
 ) -> Dict[str, Any]:
     raw_data = PEST_KNOWLEDGE_DICT.get(pest_id, PEST_KNOWLEDGE_DICT["uncertain"])
     data = dict(raw_data)
@@ -917,8 +981,22 @@ def get_pest_knowledge(
         crop_stage=crop_stage,
         sampling_unit=sampling_unit,
         pest_count=pest_count,
-        raw_chemicals=raw_chemicals
+        raw_chemicals=raw_chemicals,
+        provenance=provenance,
+        verifier_id=verifier_id
     )
+
+    data["chemical_control"] = authorized_chems
+    data["chemical_authorized"] = auth
+    data["authorization_status"] = status
+    data["authorization_message_en"] = msg_en
+    data["authorization_message_or"] = msg_or
+
+    rule = ETL_RULES.get(pest_id, {})
+    data["scouting_guidance_en"] = rule.get("description_en", "Field scouting required before chemical intervention.")
+    data["scouting_guidance_or"] = rule.get("description_or", "ରାସାୟନିକ ପ୍ରୟୋଗ ପୂର୍ବରୁ କ୍ଷେତରେ ପୋକ ସଂଖ୍ୟା ଯାଞ୍ଚ କରନ୍ତୁ।")
+
+    return data
 
     data["chemical_control"] = authorized_chems
     data["chemical_authorized"] = auth

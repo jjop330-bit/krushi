@@ -12,10 +12,16 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     ACTIVE_VISION_PROVIDER: str = "gemini"  # "gemini" | "baseline" | "yolo"
 
-    # Server-Side Cryptographic Report Signing Key (HMAC-SHA256 Secret)
-    # Stored strictly on server, never exposed in client bundles or network responses
+    # Server-Side HMAC-SHA256 Message Authentication Code (MAC) Configuration
+    # Used for tamper-evident server-authenticated report verification.
+    # Stored strictly on server in backend env, never exposed in client bundles or network responses.
     REPORT_SIGNING_SECRET: str = "km-audit-signing-secret-v1-production-2026"
     REPORT_SIGNING_KEY_VERSION: str = "v1"
+    # Secure historical key registry supporting key rotation verification
+    REPORT_SIGNING_HISTORICAL_KEYS: dict = {
+        "v1": "km-audit-signing-secret-v1-production-2026",
+        "v0": "km-audit-signing-secret-v0-pilot-archive"
+    }
     
     # Supabase Configuration (Optional - graceful fallback for local development)
     SUPABASE_URL: Optional[str] = None

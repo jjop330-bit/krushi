@@ -249,4 +249,141 @@ async def test_cryptographic_hmac_report_signing_and_tamper_verification():
         assert res_tampered2.json()["valid"] is False
         assert res_tampered2.json()["status"] == "TAMPERED_OR_INVALID"
 
+@pytest.mark.asyncio
+async def test_pillow_decompression_bomb_matrix():
+    """
+    Exhaustively tests the Pillow decompression bomb security boundary:
+    1. Below 25MP: 4000x5000 (20MP) -> Accepted
+    2. At 25MP: 5000x5000 (25MP) -> Accepted
+    3. Above 25MP: 5001x5000 (25.005MP) -> Triggers DecompressionBombWarning, Rejected
+    4. Above 2x limit: 8000x7000 (56MP) -> Triggers DecompressionBombError, Rejected
+    5. Beyond 8000px max dimension: 8001x100 -> Rejected by geometric bounds
+    """
+    from app.services.vision.quality import validate_image_bytes
+    from PIL import ImageDraw
+
+    def make_png_with_pattern(w, h):
+        img = Image.new("RGB", (w, h), color=(100, 150, 100))
+        draw = ImageDraw.Draw(img)
+        step = max(50, w // 20)
+        for i in range(0, w, step):
+            draw.line([(i, 0), (i, h)], fill=(20, 20, 20), width=10)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+
+    # 1. Below 25MP (20MP)
+    png_20mp = make_png_with_pattern(4000, 5000)
+    q1 = validate_image_bytes(png_20mp)
+    assert q1.is_clear is True
+    assert q1.warning_message_en is None
+
+    # 2. At 25MP (25,000,000 pixels)
+    png_25mp = make_png_with_pattern(5000, 5000)
+    q2 = validate_image_bytes(png_25mp)
+    assert q2.is_clear is True
+
+    # 3. Above 25MP (25,005,000 pixels) - DecompressionBombWarning intercepted
+    img_bomb1 = Image.new("RGB", (5001, 5000), color=(100, 100, 100))
+    buf_b1 = io.BytesIO()
+    img_bomb1.save(buf_b1, format="PNG")
+    q3 = validate_image_bytes(buf_b1.getvalue())
+    assert q3.is_clear is False
+    assert "Decompression bomb" in q3.warning_message_en or "25" in q3.warning_message_en
+
+    # 4. Above 2x limit (56,000,000 pixels) - DecompressionBombError intercepted
+    img_bomb2 = Image.new("RGB", (8000, 7000), color=(100, 100, 100))
+    buf_b2 = io.BytesIO()
+    img_bomb2.save(buf_b2, format="PNG")
+    q4 = validate_image_bytes(buf_b2.getvalue())
+    assert q4.is_clear is False
+    assert "Decompression bomb" in q4.warning_message_en or "25" in q4.warning_message_en
+
+    # 5. Beyond 8000px max dimension
+    img_wide = Image.new("RGB", (8001, 100), color=(100, 100, 100))
+    buf_wide = io.BytesIO()
+    img_wide.save(buf_wide, format="PNG")
+    q5 = validate_image_bytes(buf_wide.getvalue())
+    assert q5.is_clear is False
+    assert "8000" in q5.warning_message_en
+
+@pytest.mark.asyncio
+async def test_oversized_file_size_rejection_at_gateway():
+    """
+    Verifies that files exceeding 20MB are rejected at the API gateway before storage upload.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 21MB dummy payload
+        big_bytes = b"0" * (21 * 1024 * 1024)
+        res = await client.post(
+            "/api/v1/pest/analyze",
+            files={"file": ("huge.jpg", big_bytes, "image/jpeg")},
+            data={"crop_id": "paddy"}
+        )
+        assert res.status_code == 400
+        assert "20MB" in res.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_hmac_key_rotation_and_historical_verification():
+    """
+    Verifies key rotation support:
+    - Reports generated with historical key 'v0' are successfully verified using key_version='v0'
+    - Unknown key versions ('v99') are safely rejected
+    - Missing or empty secrets fail safely
+    """
+    from app.core.security import verify_report_signature
+    from app.core.config import settings
+    import hmac, hashlib
+
+    # Generate test signature with historical key 'v0'
+    key_v0 = settings.REPORT_SIGNING_HISTORICAL_KEYS["v0"].encode("utf-8")
+    canonical_v0 = "scan-historical:abc123hash:IDENTIFIED:bph:1700000000000"
+    sig_v0 = hmac.new(key_v0, canonical_v0.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    # Verify with key_version='v0'
+    assert verify_report_signature(
+        scan_id="scan-historical",
+        image_hash="abc123hash",
+        status="IDENTIFIED",
+        pest_id="bph",
+        created_at=1700000000000,
+        signature=sig_v0,
+        key_version="v0"
+    ) is True
+
+    # Unknown key version fails safe
+    assert verify_report_signature(
+        scan_id="scan-historical",
+        image_hash="abc123hash",
+        status="IDENTIFIED",
+        pest_id="bph",
+        created_at=1700000000000,
+        signature=sig_v0,
+        key_version="v99_unknown"
+    ) is False
+
+@pytest.mark.asyncio
+async def test_concurrent_image_uploads_stability():
+    """
+    Tests server resource stability under concurrent uploads.
+    """
+    import asyncio
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        img_bytes = generate_test_image("JPEG")
+        
+        async def upload_one(idx):
+            return await client.post(
+                "/api/v1/pest/analyze",
+                files={"file": (f"concurrent_{idx}.jpg", img_bytes, "image/jpeg")},
+                data={"crop_id": "paddy", "forced_pest_id": "bph"}
+            )
+
+        responses = await asyncio.gather(*(upload_one(i) for i in range(8)))
+        for r in responses:
+            assert r.status_code == 200
+            assert r.json()["status"] == ScanStatusEnum.IDENTIFIED.value
+
+
 
