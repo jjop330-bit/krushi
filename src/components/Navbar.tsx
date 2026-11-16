@@ -90,22 +90,22 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Main Brand Bar */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full">
-        <div className="flex items-center justify-between h-14 sm:h-16 w-full">
+      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 xl:px-8">
+        <div className="flex flex-wrap xl:flex-nowrap items-center justify-between min-w-0 w-full box-border py-1.5 xl:py-0 min-h-[56px] sm:min-h-[64px]">
           {/* Logo & Brand Name */}
           <div 
-            className="flex items-center space-x-2 sm:space-x-3 cursor-pointer group min-w-0"
+            className="flex items-center space-x-2 sm:space-x-3 cursor-pointer group flex-shrink-0"
             onClick={() => handleNavClick('dashboard')}
           >
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-lime-400 to-agri-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform flex-shrink-0">
               <Sprout className="w-5 h-5 sm:w-6 sm:h-6 text-agri-950" />
             </div>
-            <div className="flex flex-col justify-center min-w-0">
+            <div className="flex flex-col justify-center flex-shrink-0">
               <div className="flex items-center space-x-1.5 sm:space-x-2">
-                <span className="text-base sm:text-xl font-extrabold tracking-tight text-white font-sans truncate">
+                <span className="text-base sm:text-xl font-extrabold tracking-tight text-white font-sans whitespace-nowrap">
                   {lang === 'or' ? 'କୃଷି ମିତ୍ର AI' : 'Krushi Mitra AI'}
                 </span>
-                <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded bg-lime-500/20 text-lime-300 border border-lime-400/30 whitespace-nowrap flex-shrink-0">
+                <span className="hidden sm:inline-flex xl:hidden 2xl:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded bg-lime-500/20 text-lime-300 border border-lime-400/30 whitespace-nowrap flex-shrink-0">
                   ODISHA 2026
                 </span>
               </div>
@@ -116,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center space-x-0.5 xl:space-x-1.5 flex-1 justify-center mx-1.5 xl:mx-4 overflow-hidden">
+          <nav className="hidden md:flex items-center flex-auto min-w-0 justify-center gap-[2px] xl:gap-1 mx-auto xl:mx-2 order-3 xl:order-2 w-full xl:w-auto mt-1.5 xl:mt-0 py-1 xl:py-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;
@@ -125,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   key={item.id}
                   onClick={() => !item.disabled && handleNavClick(item.id)}
                   disabled={item.disabled}
-                  className={`px-2 xl:px-3 py-1.5 xl:py-2 rounded-lg text-xs xl:text-sm font-medium transition-all flex items-center space-x-1 xl:space-x-1.5 whitespace-nowrap flex-shrink-0 ${
+                  className={`px-1 xl:px-1.5 2xl:px-2 py-1 xl:py-1.5 rounded-lg text-[9px] md:text-[9.2px] lg:text-[10px] xl:text-[10.5px] 2xl:text-xs font-medium transition-all flex items-center gap-0.5 xl:gap-1 whitespace-nowrap flex-shrink-0 ${
                     isActive 
                       ? 'bg-agri-800 text-lime-300 shadow-sm border border-agri-700' 
                       : item.highlight
@@ -135,20 +135,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                       : 'text-agri-100 hover:bg-agri-800/60 hover:text-white'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 xl:w-4 xl:h-4 flex-shrink-0 ${isActive ? 'text-lime-300' : ''}`} />
-                  <span className="hidden xl:inline">{item.label}</span>
-                  <span className="inline xl:hidden">{item.shortLabel || item.label}</span>
+                  <Icon className={`hidden 2xl:inline-block w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-lime-300' : ''}`} />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
           {/* Right Controls: Quick Voice + Language Toggle + Menu */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0 order-2 xl:order-3">
             {/* Quick Odia Voice Button (Desktop & Tablet only; mobile has prominent voice button in bottom bar) */}
             <button
               onClick={onQuickVoice}
-              className="hidden sm:flex p-2 rounded-full bg-agri-800 hover:bg-agri-700 text-lime-300 border border-agri-700 hover:scale-105 transition-all shadow items-center justify-center"
+              className="hidden sm:flex xl:hidden 2xl:flex p-2 rounded-full bg-agri-800 hover:bg-agri-700 text-lime-300 border border-agri-700 hover:scale-105 transition-all shadow items-center justify-center"
               title={lang === 'or' ? 'ଓଡ଼ିଆ ଭଏସ୍ ସହାୟକ' : 'Odia Voice Assistant'}
             >
               <Volume2 className="w-4 h-4" />
@@ -182,7 +181,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Menu Hamburger (touch target strictly >= 44x44px) */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 min-h-[44px] min-w-[44px] rounded-lg text-agri-200 hover:text-white hover:bg-agri-800 flex items-center justify-center transition-colors"
+              className="md:hidden p-2 min-h-[44px] min-w-[44px] rounded-lg text-agri-200 hover:text-white hover:bg-agri-800 flex items-center justify-center transition-colors"
               aria-label="Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}

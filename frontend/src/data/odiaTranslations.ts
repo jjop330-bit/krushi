@@ -40,7 +40,7 @@ export const ODIA_TRANSLATIONS: Record<'en' | 'or', TranslationDictionary> = {
     navTreatment: 'Smart Treatments',
     navAssistant: 'Odia Voice Assistant',
     navMap: 'Odisha Outbreak Map',
-    navFollowUp: 'Follow-Up Scans',
+    navFollowUp: 'Follow-Up',
     navCropLibrary: 'Crops',
     navExpertPortal: 'Expert Review Queue',
     navSettings: 'API & Configuration',
