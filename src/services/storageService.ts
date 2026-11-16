@@ -16,22 +16,44 @@ export interface AppSettings {
   backendUrl: string;
 }
 
+const getInitialBackendUrl = (): string => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+    const envUrl = String(import.meta.env.VITE_API_URL).trim();
+    if (envUrl.length > 0) return envUrl;
+  }
+  return 'http://localhost:8000/api/v1';
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
   language: 'or',
   preferredDistrict: 'bargarh',
   useLiveGemini: true,
   selectedModel: 'gemini-3.5-flash',
   useBackendProxy: true,
-  backendUrl: 'http://localhost:8000/api/v1'
+  backendUrl: getInitialBackendUrl()
 };
 
 export class StorageService {
   public static getSettings(): AppSettings {
+    const defaultBackendUrl = getInitialBackendUrl();
+    const effectiveDefaults: AppSettings = {
+      ...DEFAULT_SETTINGS,
+      backendUrl: defaultBackendUrl
+    };
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // If an explicit production VITE_API_URL is configured, override stale localhost in saved preferences
+        const envUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : undefined;
+        if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0 && parsed.backendUrl === 'http://localhost:8000/api/v1') {
+          parsed.backendUrl = envUrl.trim();
+        }
+        return { ...effectiveDefaults, ...parsed };
+      }
+      return effectiveDefaults;
     } catch {
-      return DEFAULT_SETTINGS;
+      return effectiveDefaults;
     }
   }
 

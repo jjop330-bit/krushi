@@ -1,0 +1,536 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { 
+  Camera, 
+  Upload, 
+  RefreshCw, 
+  AlertCircle, 
+  CheckCircle2, 
+  Sparkles, 
+  Image as ImageIcon, 
+  Sliders, 
+  HelpCircle,
+  ShieldCheck,
+  ArrowRight,
+  Hash,
+  Activity,
+  Layers,
+  FileCheck
+} from 'lucide-react';
+import { ODIA_TRANSLATIONS } from '../data/odiaTranslations';
+import { SAMPLE_PEST_IMAGES, SamplePestImage } from '../data/sampleImages';
+import { PestVisionService, ImageQualityCheck } from '../services/pestVisionService';
+import { ScanReport, CropId } from '../types/pest';
+import { CameraModal } from './CameraModal';
+
+export type ScannerLifecycleState = 
+  | 'IDLE' 
+  | 'IMAGE_SELECTED' 
+  | 'IMAGE_VALIDATED' 
+  | 'ANALYZING' 
+  | 'RESULT_RECEIVED';
+
+interface PestScannerProps {
+  lang: 'or' | 'en';
+  onScanComplete: (report: ScanReport) => void;
+  selectedSample?: SamplePestImage | null;
+  onClearSample?: () => void;
+}
+
+export const PestScanner: React.FC<PestScannerProps> = ({
+  lang,
+  onScanComplete,
+  selectedSample,
+  onClearSample
+}) => {
+  // Deterministic state machine
+  const [lifecycleState, setLifecycleState] = useState<ScannerLifecycleState>('IDLE');
+  const [currentSample, setCurrentSample] = useState<SamplePestImage | null>(selectedSample || null);
+  const [imageUri, setImageUri] = useState<string | null>(selectedSample?.imageUri || null);
+  const [imageHash, setImageHash] = useState<string | null>(null);
+  const [selectedCrop, setSelectedCrop] = useState<CropId>('paddy');
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analysisStep, setAnalysisStep] = useState<string>('');
+  const [qualityCheck, setQualityCheck] = useState<ImageQualityCheck | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState<boolean>(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeRequestIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const t = ODIA_TRANSLATIONS[lang];
+
+  // Abort any ongoing network inference when unmounting
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Compute image hash and quality whenever an image is selected
+  const processNewImage = useCallback(async (uri: string, sample?: SamplePestImage | null) => {
+    // Reset previous execution context to avoid race conditions
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    setLifecycleState('IMAGE_SELECTED');
+    setErrorMsg(null);
+    setImageUri(uri);
+    setCurrentSample(sample || null);
+
+    try {
+      const hash = await PestVisionService.computeImageHash(uri);
+      setImageHash(hash);
+      const check = await PestVisionService.assessImageQuality(uri);
+      setQualityCheck(check);
+      setLifecycleState('IMAGE_VALIDATED');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to inspect image quality.');
+      setLifecycleState('IMAGE_SELECTED');
+    }
+  }, []);
+
+  // React to parent sample selection
+  useEffect(() => {
+    if (selectedSample) {
+      processNewImage(selectedSample.imageUri, selectedSample);
+    }
+  }, [selectedSample, processNewImage]);
+
+  // Handle uploaded file (via input or drag-and-drop)
+  const handleRawFile = async (file: File) => {
+    setErrorMsg(null);
+
+    // 1. Strict binary magic byte validation
+    const validation = await PestVisionService.validateImageBinary(file);
+    if (!validation.isValid) {
+      setErrorMsg(lang === 'or' ? validation.errorOr || 'ଅବୈଧ ଫଟୋ ଫାଇଲ୍।' : validation.errorEn || 'Invalid image file.');
+      return;
+    }
+
+    if (onClearSample) onClearSample();
+
+    try {
+      // 2. High-fidelity compression preserving microscopic insect anatomy
+      const compressedUri = await PestVisionService.compressAndResizeImage(file, 1200, 0.85);
+      await processNewImage(compressedUri, null);
+    } catch (err: any) {
+      setErrorMsg(err.message || (lang === 'or' ? 'ଫଟୋ ପ୍ରକ୍ରିୟାକରଣରେ ତ୍ରୁଟି।' : 'Failed to process uploaded image.'));
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleRawFile(file);
+  };
+
+  // Drag and Drop handlers for desktop browsers
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await handleRawFile(file);
+    }
+  };
+
+  const handleSelectSample = async (sample: SamplePestImage) => {
+    if (onClearSample) onClearSample();
+    await processNewImage(sample.imageUri, sample);
+  };
+
+  // Live camera snapshot capture handler
+  const handleCameraCapture = async (capturedDataUrl: string) => {
+    if (onClearSample) onClearSample();
+    await processNewImage(capturedDataUrl, null);
+  };
+
+  // Analysis trigger with strict concurrency protection
+  const handleStartAnalysis = async () => {
+    if (!imageUri) return;
+
+    // Generate unique request ID
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    activeRequestIdRef.current = requestId;
+
+    // Prepare abort controller for request cancellation
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setLifecycleState('ANALYZING');
+    setIsAnalyzing(true);
+    setErrorMsg(null);
+
+    try {
+      // Diagnostic progress stages
+      setAnalysisStep(lang === 'or' ? '୧/୪: ଫଟୋ ଗୁଣବତ୍ତା ଓ ରେଜୋଲ୍ୟୁସନ ଯାଞ୍ଚ ହେଉଛି...' : '1/4: Validating image resolution & lighting contrast...');
+      await new Promise(r => setTimeout(r, 400));
+
+      if (controller.signal.aborted) return;
+
+      setAnalysisStep(lang === 'or' ? '୨/୪: କୀଟର ବାହ୍ୟ ଗଠନ ଓ ଲକ୍ଷଣ ଅନୁସନ୍ଧାନ ହେଉଛି...' : '2/4: Analyzing insect morphology & plant damage signatures...');
+      await new Promise(r => setTimeout(r, 450));
+
+      if (controller.signal.aborted) return;
+
+      setAnalysisStep(lang === 'or' ? '୩/୪: ICAR-NRRI ଓ OUAT କୀଟ ତଥ୍ୟାବଳୀ ସହିତ ମେଳ କରାଯାଉଛି...' : '3/4: Cross-referencing with ICAR-NRRI & OUAT pest knowledge base...');
+      await new Promise(r => setTimeout(r, 400));
+
+      if (controller.signal.aborted) return;
+
+      setAnalysisStep(lang === 'or' ? '୪/୪: ଜୈବିକ ଓ ରାସାୟନିକ ଉପଚାର ପରାମର୍ଶ ପ୍ରସ୍ତୁତ ହେଉଛି...' : '4/4: Formulating 3-tier IPM recommendations & safety checks...');
+      await new Promise(r => setTimeout(r, 350));
+
+      if (controller.signal.aborted) return;
+
+      // Execute vision diagnosis
+      const report = await PestVisionService.analyzeCropImage(
+        imageUri,
+        selectedCrop,
+        currentSample?.pestId,
+        'bargarh',
+        requestId,
+        controller.signal
+      );
+
+      // Verify response belongs to active request (prevent race conditions)
+      if (activeRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setLifecycleState('RESULT_RECEIVED');
+      setIsAnalyzing(false);
+      onScanComplete(report);
+    } catch (err: any) {
+      if (activeRequestIdRef.current !== requestId) return;
+      setIsAnalyzing(false);
+      setLifecycleState('IMAGE_VALIDATED');
+      setErrorMsg(err.message || (lang === 'or' ? 'ବିଶ୍ଳେଷଣ ବିଫଳ ହେଲା। ପୁନଃ ଚେଷ୍ଟା କରନ୍ତୁ।' : 'Diagnostic analysis failed. Please try again.'));
+    }
+  };
+
+  const handleReset = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    activeRequestIdRef.current = null;
+    setLifecycleState('IDLE');
+    setImageUri(null);
+    setImageHash(null);
+    setCurrentSample(null);
+    setQualityCheck(null);
+    setErrorMsg(null);
+    setIsAnalyzing(false);
+    if (onClearSample) onClearSample();
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-fadeIn">
+      {/* Title Card */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-agri-100 text-agri-800 text-xs font-bold uppercase tracking-wide">
+                {lang === 'or' ? 'AI କୀଟ ସ୍କାନର' : 'Multimodal Vision Scanner'}
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                {lang === 'or' ? 'ଓଡ଼ିଶା ଧାନ ଫସଲ ସଂସ୍କରଣ' : 'Odisha Paddy Edition'}
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+              {lang === 'or' ? 'ଧାନ କ୍ଷେତର ଫଟୋ ଉଠାନ୍ତୁ ବା ଅପଲୋଡ୍ କରନ୍ତୁ' : 'Photograph or Upload Crop Pest'}
+            </h1>
+            <p className="text-sm text-slate-600 mt-1">
+              {lang === 'or' 
+                ? 'ଗଛ ମୂଳ, ପତ୍ର କିମ୍ବା ଆକ୍ରାନ୍ତ ଅଂଶର ଏକ ସ୍ପଷ୍ଟ ଫଟୋ ନିଅନ୍ତୁ। AI ତୁରନ୍ତ ପୋକ ଚିହ୍ନଟ କରି ନିରାପଦ ଉପଚାର ବତାଇବ।'
+                : 'Capture stem bases, leaf sheaths, or damaged foliage. The AI accurately identifies pest species, assesses severity, and delivers 3-tier IPM guidance.'}
+            </p>
+          </div>
+
+          {/* Active Crop Selector */}
+          <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center space-x-1 border border-slate-200">
+            <span className="text-xs font-bold text-slate-700 px-2">
+              {lang === 'or' ? 'ଫସଲ:' : 'Crop:'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedCrop('paddy')}
+              className="px-3 py-1.5 rounded-xl bg-agri-800 text-white font-bold text-xs shadow-sm flex items-center space-x-1"
+            >
+              <span>🌾</span>
+              <span>{lang === 'or' ? 'ଧାନ (Paddy)' : 'Paddy (Rice)'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Error Notification */}
+        {errorMsg && (
+          <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start space-x-3 text-rose-800 text-sm animate-fadeIn">
+            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold">{lang === 'or' ? 'ତ୍ରୁଟି ଦେଖାଦେଇଛି' : 'Input / System Alert'}</p>
+              <p className="text-xs text-rose-700 mt-0.5 leading-relaxed">{errorMsg}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Main Photo Interaction Area */}
+        <div className="mt-6">
+          {!imageUri ? (
+            /* Upload & Camera Buttons */
+            <div 
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all ${
+                isDragOver 
+                  ? 'border-agri-600 bg-agri-50 scale-[1.01]' 
+                  : 'border-slate-300 bg-slate-50/70 hover:bg-slate-50'
+              }`}
+            >
+              <div className="max-w-md mx-auto space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-agri-100 text-agri-800 flex items-center justify-center shadow-inner">
+                  <Camera className="w-8 h-8" />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {lang === 'or' ? 'ଫଟୋ ଉଠାନ୍ତୁ କିମ୍ବା ଡ୍ରପ୍ କରନ୍ତୁ' : 'Take a photo or drag & drop image'}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {lang === 'or' ? 'ସମର୍ଥିତ ଫର୍ମାଟ୍: JPG, JPEG, PNG, WEBP (ସର୍ବାଧିକ ୨୫ MB)' : 'Supported formats: JPG, JPEG, PNG, WEBP (up to 25MB)'}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                  {/* Live WebRTC Camera Button (Primary on Mobile and Desktop) */}
+                  <button 
+                    type="button"
+                    onClick={() => setIsCameraModalOpen(true)}
+                    className="min-h-[44px] cursor-pointer px-6 py-3.5 rounded-2xl bg-lime-500 hover:bg-lime-400 text-agri-950 font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>{lang === 'or' ? 'ଲାଇଭ୍ କ୍ୟାମେରା ଖୋଲନ୍ତୁ' : 'Open Live Camera'}</span>
+                  </button>
+
+                  {/* Gallery File Upload */}
+                  <label className="min-h-[44px] cursor-pointer px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-sm border border-slate-300 flex items-center justify-center space-x-2 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    <Upload className="w-4 h-4 text-agri-700" />
+                    <span>{lang === 'or' ? 'ଗ୍ୟାଲେରୀରୁ ଆଣନ୍ତୁ' : 'Browse Gallery'}</span>
+                    <input 
+                      ref={fileInputRef}
+                      type="file" 
+                      accept="image/*,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" 
+                      onChange={handleFileChange} 
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+
+                {/* Field Photography Guide for Reliable AI Identification */}
+                <div className="pt-4 text-left bg-white p-4.5 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-2">
+                  <span className="font-extrabold text-slate-900 flex items-center space-x-1.5 text-xs">
+                    <HelpCircle className="w-4 h-4 text-agri-700 flex-shrink-0" />
+                    <span>{lang === 'or' ? 'ନିର୍ଭୁଲ ଚିହ୍ନଟ ପାଇଁ ଫଟୋ ଉଠାଇବାର ନିୟମ:' : 'Field Photography Guide for Reliable AI Identification:'}</span>
+                  </span>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ସ୍ୱାଭାବିକ ଦିନ ଆଲୋକରେ ଫଟୋ ନିଅନ୍ତୁ (ଫ୍ଲାସ୍ ବ୍ୟବହାର କରନ୍ତୁ ନାହିଁ)।' : 'Use natural daylight; avoid camera flash glare.'}</span>
+                    </li>
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ହାତ ସ୍ଥିର ରଖନ୍ତୁ ଯେପରି ଫଟୋ ଝାପ୍‌ସା (blur) ନ ହୁଏ।' : 'Keep device steady to eliminate motion blur.'}</span>
+                    </li>
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ପୋକର ସମ୍ପୂର୍ଣ୍ଣ ଶରୀର ଓ ଡେଣା ନିକଟରୁ (close-up) ନିଅନ୍ତୁ।' : 'Capture a sharp close-up without cutting off insect legs or wings.'}</span>
+                    </li>
+                    <li className="flex items-start space-x-1.5">
+                      <span className="text-agri-700 font-bold">•</span>
+                      <span>{lang === 'or' ? 'ପତ୍ର କ୍ଷତି ଓ ଜୀବନ୍ତ ପୋକର ଅଲଗା ଅଲଗା ଫଟୋ ନିଅନ୍ତୁ।' : 'Take separate photographs of insect body vs foliar damage.'}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Image Preview & Analysis Card */
+            <div className="space-y-4">
+              <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-300 shadow-md aspect-[16/10] sm:aspect-[16/9] flex items-center justify-center">
+                <img 
+                  src={imageUri} 
+                  alt="Crop preview" 
+                  className="w-full h-full object-contain" 
+                />
+
+                {/* Retake / Replace Action Overlay */}
+                {!isAnalyzing && (
+                  <div className="absolute top-4 right-4 flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="min-h-[44px] px-3.5 py-2 rounded-xl bg-black/75 hover:bg-black/90 text-white text-xs font-bold backdrop-blur-md flex items-center space-x-1.5 transition-colors focus:ring-2 focus:ring-lime-400"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>{t.ctaRetake}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Specimen Signature Pill (Audit Traceability) */}
+                {imageHash && (
+                  <div className="absolute bottom-3 left-3 bg-black/75 text-slate-300 px-3 py-1.5 rounded-xl text-[10px] font-mono backdrop-blur-md flex items-center space-x-1.5 border border-white/10">
+                    <Hash className="w-3 h-3 text-lime-400" />
+                    <span>SHA-256: {imageHash.slice(0, 12)}...{imageHash.slice(-6)}</span>
+                  </div>
+                )}
+
+                {/* Analysis Overlay Progress */}
+                {isAnalyzing && (
+                  <div className="absolute inset-0 bg-agri-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-white text-center space-y-4 animate-fadeIn">
+                    <div className="w-16 h-16 rounded-full border-4 border-lime-400 border-t-transparent animate-spin flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-lime-300" />
+                    </div>
+                    <div className="max-w-sm space-y-1">
+                      <h4 className="text-lg font-bold text-lime-300 font-sans">
+                        {lang === 'or' ? 'AI ବିଶ୍ଳେଷଣ ଚାଲିଛି...' : 'AI Vision Intelligence Analyzing...'}
+                      </h4>
+                      <p className="text-xs text-agri-100">
+                        {analysisStep}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Image Quality Telemetry Indicator */}
+              {qualityCheck && !isAnalyzing && (
+                <div className={`p-4 rounded-2xl border text-xs flex items-start space-x-3 transition-colors ${
+                  qualityCheck.isClear 
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                    : 'bg-amber-50 border-amber-300 text-amber-900'
+                }`}>
+                  {qualityCheck.isClear ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <span className="font-bold">
+                        {qualityCheck.isClear 
+                          ? (lang === 'or' ? 'ଫଟୋ ଗୁଣବତ୍ତା: ଉପଯୁକ୍ତ ଓ ସ୍ପଷ୍ଟ' : 'Image Quality: Optimal for Identification') 
+                          : (lang === 'or' ? 'ଫଟୋ ଗୁଣବତ୍ତା ଚେତାବନୀ' : 'Image Quality Alert')}
+                      </span>
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        Sharpness: {qualityCheck.sharpnessScore}% | Light: {qualityCheck.lightingScore}%
+                      </span>
+                    </div>
+                    {!qualityCheck.isClear && (
+                      <p className="mt-1 font-medium text-amber-800 leading-relaxed">
+                        {lang === 'or' ? qualityCheck.warningMessageOr : qualityCheck.warningMessage}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Primary Analyze CTA Button */}
+              {!isAnalyzing && (
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleStartAnalysis}
+                    className="min-h-[48px] flex-1 py-4 px-6 rounded-2xl bg-agri-800 hover:bg-agri-900 text-lime-300 font-extrabold text-base flex items-center justify-center space-x-2.5 shadow-lg shadow-agri-950/20 hover:scale-[1.01] active:scale-[0.99] transition-all"
+                  >
+                    <Sparkles className="w-5 h-5 text-lime-400" />
+                    <span>{lang === 'or' ? 'AI କୀଟ ବିଶ୍ଳେଷଣ ଆରମ୍ଭ କରନ୍ତୁ' : 'Run AI Pest Diagnosis'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="min-h-[48px] px-6 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors"
+                  >
+                    {lang === 'or' ? 'ବାତିଲ କରନ୍ତୁ' : 'Cancel'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 1-Click Fast Test Strip (Quick Testing of all 8 Classes) */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center space-x-1.5">
+            <Sliders className="w-3.5 h-3.5 text-agri-700" />
+            <span>{lang === 'or' ? 'ତୁରନ୍ତ ପରୀକ୍ଷା ନମୁନା' : 'Instant Diagnostic Test Gallery'}</span>
+          </span>
+          <span className="text-[11px] text-slate-400">
+            {lang === 'or' ? 'କ୍ଲିକ୍ କରନ୍ତୁ ଓ ଫଟୋ ଦେଖନ୍ତୁ' : 'Click to load specimen instantly'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {SAMPLE_PEST_IMAGES.map((sample) => {
+            const isSelected = currentSample?.id === sample.id;
+            return (
+              <button
+                key={sample.id}
+                type="button"
+                onClick={() => handleSelectSample(sample)}
+                className={`min-h-[44px] text-left p-2.5 rounded-xl border transition-all text-xs font-medium flex items-center space-x-2 ${
+                  isSelected 
+                    ? 'border-lime-500 bg-lime-50 text-agri-950 ring-2 ring-lime-400 font-bold shadow-sm' 
+                    : 'border-slate-200 hover:border-agri-500 hover:bg-agri-50/50 text-slate-800'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 flex-shrink-0">
+                  <img src={sample.imageUri} alt="" className="w-full h-full object-cover" />
+                </div>
+                <span className="line-clamp-1">
+                  {lang === 'or' ? sample.labelOr : sample.labelEn}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Live WebRTC Camera Viewfinder Modal */}
+      <CameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handleCameraCapture}
+        lang={lang}
+      />
+    </div>
+  );
+};

@@ -11,10 +11,11 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS middleware for Next.js frontend communication
+# CORS middleware for Vite / Web frontend communication
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

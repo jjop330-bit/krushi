@@ -391,7 +391,8 @@ export class PestVisionService {
     abortSignal?: AbortSignal
   ): Promise<ScanReport | null> {
     const settings = StorageService.getSettings();
-    const backendUrl = settings.backendUrl || 'http://localhost:8000/api/v1';
+    const envApiUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : undefined;
+    const backendUrl = settings.backendUrl || (envApiUrl ? String(envApiUrl).trim() : 'http://localhost:8000/api/v1');
 
     if (typeof fetch === 'undefined') return null;
 

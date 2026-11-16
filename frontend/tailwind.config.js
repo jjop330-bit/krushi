@@ -1,11 +1,8 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
-  darkMode: ["class"],
+/** @type {import('tailwindcss').Config} */
+export default {
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -31,6 +28,9 @@ const config: Config = {
           400: '#D6C5A5',
           500: '#BC9F75',
           600: '#A18357',
+          700: '#816843',
+          800: '#645136',
+          900: '#4D3E2B',
         },
         limeacc: {
           400: '#A3E635',
@@ -45,5 +45,4 @@ const config: Config = {
     },
   },
   plugins: [],
-};
-export default config;
+}
