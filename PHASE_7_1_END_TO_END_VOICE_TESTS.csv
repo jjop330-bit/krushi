@@ -1,0 +1,7 @@
+test_id,category,user_query,assistant_http_status,gemini_response_language,tts_request_language_code,tts_speaker,sarvam_http_status,audio_mime_type,audio_byte_length,wav_sample_rate_hz,wav_channels,wav_duration_seconds,playback_success
+E2E-01,1. Greeting,"ନମସ୍କାର, ଆପଣ କିପରି ସାହାଯ୍ୟ କରିପାରିବେ?",200,od-IN (Odia Script),od-IN,shubh,200,audio/wav,1216204,22050,1,27.58,PASS
+E2E-02,2. Rice Pest Question (BPH),"ମୋ ଧାନ କ୍ଷେତରେ ମାଟିଆ ଗୁଣ୍ଡି ପୋକ ଲାଗିଛନ୍ତି, ମୁଁ କେବେ ଏବଂ କେଉଁ ଔଷଧ ପ୍ରୟୋଗ କରିବି?",200,od-IN (Odia Script),od-IN,shubh,200,audio/wav,1953792,22050,1,44.3,PASS
+E2E-03,3. Insect Identification Explanation,"ଧାନ ଗଛର ମଝି ଡେମ୍ଫ ଶୁଖି ଯାଉଛି (dead heart), ଏହା କେଉଁ ପୋକ ଏବଂ କି ପ୍ରତିକାର ନେବି?",200,od-IN (Odia Script),od-IN,priya,200,audio/wav,459154,22050,1,10.41,PASS
+E2E-04,4. Crop Protection & Biological IPM,What is the IPM protocol for Scirpophaga incertulas using Trichogramma japonicum?,200,od-IN (Odia Script),od-IN,shubh,200,audio/wav,380128,22050,1,8.62,PASS
+E2E-05,5. Scientific Names (Nilaparvata lugens & Scirpophaga),Nilaparvata lugens ଏବଂ Scirpophaga incertulas ପାଇଁ ସୁପାରିଶ,200,od-IN (Odia Script),od-IN,priya,200,audio/wav,745158,22050,1,16.9,PASS
+E2E-06,6. Numerical Measurements & Official ETL,ପ୍ରତି ଏକର ମାପ ଏବଂ ETL ସୀମା କେତେ?,200,od-IN (Odia Script),od-IN,shubh,200,audio/wav,575814,22050,1,13.06,PASS
