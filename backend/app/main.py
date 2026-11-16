@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.api.v1.endpoints.health import check_health
+from app.models.health import HealthResponse
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -34,6 +36,10 @@ async def root():
         "api_v1": settings.API_V1_STR
     }
 
+@app.get("/health", response_model=HealthResponse, tags=["Health"])
+async def root_health():
+    return await check_health()
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True)
+    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=True)

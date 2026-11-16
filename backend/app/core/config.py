@@ -44,6 +44,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
+        "https://krushi-psi.vercel.app",
         "https://krushi-mitra-ai.vercel.app",
         "https://krushi-mitra-ai-frontend.vercel.app",
         "https://krushi-mitra.vercel.app",
