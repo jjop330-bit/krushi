@@ -4,9 +4,10 @@ import struct
 import httpx
 from unittest.mock import patch, AsyncMock
 from httpx import Response, Request, ASGITransport
+import sarvamai
 from app.main import app
 from app.core.config import settings
-from app.services.voice import normalize_language_code, SUPPORTED_SPEAKERS
+from app.services.voice import normalize_language_code, SUPPORTED_SPEAKERS, _AUDIO_CACHE
 
 def make_mock_wav_bytes(num_samples: int = 1600, sample_rate: int = 16000) -> bytes:
     """
@@ -33,11 +34,14 @@ def make_mock_wav_bytes(num_samples: int = 1600, sample_rate: int = 16000) -> by
         b"data",
         data_size
     )
-    # Simple sine wave or zero samples
     samples = b"\x00" * data_size
     return header + samples
 
 MOCK_WAV_BASE64 = base64.b64encode(make_mock_wav_bytes()).decode("utf-8")
+
+class MockSDKResponse:
+    def __init__(self, audios):
+        self.audios = audios
 
 @pytest.mark.asyncio
 async def test_language_code_normalization():
@@ -71,6 +75,7 @@ async def test_voice_speakers_and_health_endpoints():
 
 @pytest.mark.asyncio
 async def test_tts_missing_api_key_fails_closed():
+    _AUDIO_CACHE.clear()
     with patch.object(settings, "SARVAM_API_KEY", None):
         async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             res = await client.post(
@@ -82,11 +87,12 @@ async def test_tts_missing_api_key_fails_closed():
 
 @pytest.mark.asyncio
 async def test_tts_validation_rejections():
+    _AUDIO_CACHE.clear()
     with patch.object(settings, "SARVAM_API_KEY", "test-key-mock"):
         async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             # 1. Empty text
             res_empty = await client.post("/api/v1/voice/tts", json={"text": "", "language_code": "od-IN"})
-            assert res_empty.status_code == 422 or res_empty.status_code == 400
+            assert res_empty.status_code in (400, 422)
 
             # 2. Whitespace only
             res_ws = await client.post("/api/v1/voice/tts", json={"text": "   \n\t  ", "language_code": "od-IN"})
@@ -104,29 +110,26 @@ async def test_tts_validation_rejections():
             assert "unsupported language code" in res_lang.json()["detail"].lower()
 
 @pytest.mark.asyncio
-async def test_tts_odia_speech_synthesis_success():
+async def test_tts_odia_speech_synthesis_success_and_caching():
     """
-    Test synthesizing authentic Odia agricultural phrases:
+    Test synthesizing authentic Odia agricultural phrases and verify caching:
     1. Short Odia greeting.
     2. Long Odia agricultural explanation.
     3. Pest identification result with scientific names.
-    4. Odia numbers, dates, and measurements.
+    4. Caching behavior (second call served from LRU cache).
     """
+    _AUDIO_CACHE.clear()
     test_phrases = [
         ("ନମସ୍କାର ଚାଷୀ ଭାଇ! କୃଷି ମିତ୍ର AI ରେ ଆପଣଙ୍କୁ ସ୍ୱାଗତ।", "greeting"),
         ("ମାଟିଆ ଗୁଣ୍ଡି ପୋକ (Nilaparvata lugens) ରୋକିବା ପାଇଁ ଏକର ପିଛା ୨୦୦ ଲିଟର ପାଣିରେ ୯୪ ମିଲି ପେକ୍ସାଲୋନ୍ ମିଶାଇ ଗଛ ମୂଳକୁ ସିଞ୍ଚନ କରନ୍ତୁ।", "scientific_pest"),
         ("କାଣ୍ଡବିନ୍ଧା ପୋକ (Scirpophaga incertulas) ର କ୍ଷତି: ମଝି କାଣ୍ଡ ମରି ଶୁଖିଯାଏ। ୫ ପ୍ରତିଶତ ମଜା ମରିବା ହେଉଛି ETL ସୀମା।", "etl_measurement")
     ]
 
-    mock_resp = Response(
-        status_code=200,
-        json={"audios": [MOCK_WAV_BASE64]},
-        request=Request("POST", settings.SARVAM_TTS_ENDPOINT)
-    )
+    mock_sdk_resp = MockSDKResponse([MOCK_WAV_BASE64])
 
     with patch.object(settings, "SARVAM_API_KEY", "test-valid-key"):
-        with patch("app.services.voice._call_sarvam_api", new_callable=AsyncMock) as mock_call:
-            mock_call.return_value = mock_resp
+        with patch("app.services.voice._call_sarvam_sdk", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_sdk_resp
 
             async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
                 for phrase, label in test_phrases:
@@ -146,6 +149,7 @@ async def test_tts_odia_speech_synthesis_success():
                     assert data["speaker"] == "shubh"
                     assert data["provider"] == "sarvam-bulbul-v3"
                     assert data["character_count"] == len(phrase)
+                    assert data["cached"] is False
 
                     # Validate base64 payload decodes to authentic RIFF WAVE audio header
                     decoded = base64.b64decode(data["audio_base64"])
@@ -153,33 +157,57 @@ async def test_tts_odia_speech_synthesis_success():
                     assert b"WAVE" in decoded[:12]
                     assert len(decoded) > 44
 
+                # Test Caching: re-requesting the first phrase should be served from cache
+                call_count_before = mock_call.call_count
+                cached_res = await client.post(
+                    "/api/v1/voice/tts",
+                    json={
+                        "text": test_phrases[0][0],
+                        "language_code": "od-IN",
+                        "speaker": "shubh",
+                        "pace": 1.0
+                    }
+                )
+                assert cached_res.status_code == 200
+                cached_data = cached_res.json()
+                assert cached_data["cached"] is True
+                assert mock_call.call_count == call_count_before, "Cache hit must NOT invoke Sarvam SDK again"
+
 @pytest.mark.asyncio
 async def test_tts_provider_error_handling():
+    _AUDIO_CACHE.clear()
     with patch.object(settings, "SARVAM_API_KEY", "test-key"):
         async with httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             # 1. Timeout (HTTP 504)
-            with patch("app.services.voice._call_sarvam_api", side_effect=httpx.TimeoutException("Timed out")):
-                res_to = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର", "language_code": "od-IN"})
+            with patch("app.services.voice._call_sarvam_sdk", side_effect=TimeoutError("Timed out")):
+                res_to = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର ଟାଇମଆଉଟ", "language_code": "od-IN"})
                 assert res_to.status_code == 504
                 assert "timed out" in res_to.json()["detail"].lower()
 
-            # 2. Authentication failure (HTTP 401 from Sarvam -> 502 Bad Gateway)
-            mock_401 = Response(401, text="Unauthorized", request=Request("POST", settings.SARVAM_TTS_ENDPOINT))
-            with patch("app.services.voice._call_sarvam_api", new_callable=AsyncMock, return_value=mock_401):
-                res_auth = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର", "language_code": "od-IN"})
+            # 2. Authentication failure (UnauthorizedError -> HTTP 502)
+            mock_auth_err = sarvamai.UnauthorizedError(body="Invalid token")
+            with patch("app.services.voice._call_sarvam_sdk", side_effect=mock_auth_err):
+                res_auth = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର ଅଥୋରାଇଜେସନ", "language_code": "od-IN"})
                 assert res_auth.status_code == 502
                 assert "authentication failure" in res_auth.json()["detail"].lower()
 
-            # 3. Rate limit (HTTP 429 from Sarvam -> 429 Too Many Requests)
-            mock_429 = Response(429, text="Rate limit exceeded", request=Request("POST", settings.SARVAM_TTS_ENDPOINT))
-            with patch("app.services.voice._call_sarvam_api", new_callable=AsyncMock, return_value=mock_429):
-                res_rl = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର", "language_code": "od-IN"})
+            # 3. Rate limit (TooManyRequestsError -> HTTP 429)
+            mock_rl_err = sarvamai.TooManyRequestsError(body="Rate limit")
+            with patch("app.services.voice._call_sarvam_sdk", side_effect=mock_rl_err):
+                res_rl = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର ରେଟ୍ ଲିମିଟ", "language_code": "od-IN"})
                 assert res_rl.status_code == 429
                 assert "rate limit" in res_rl.json()["detail"].lower()
 
-            # 4. Empty audio response from provider (HTTP 502)
-            mock_empty_audio = Response(200, json={"audios": []}, request=Request("POST", settings.SARVAM_TTS_ENDPOINT))
-            with patch("app.services.voice._call_sarvam_api", new_callable=AsyncMock, return_value=mock_empty_audio):
-                res_empty = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର", "language_code": "od-IN"})
+            # 4. Credits Depleted (PaymentRequiredError -> HTTP 503)
+            mock_pay_err = sarvamai.PaymentRequiredError(body="Payment required")
+            with patch("app.services.voice._call_sarvam_sdk", side_effect=mock_pay_err):
+                res_pay = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର କ୍ରେଡିଟ୍ ଶେଷ", "language_code": "od-IN"})
+                assert res_pay.status_code == 503
+                assert "quota or credits" in res_pay.json()["detail"].lower()
+
+            # 5. Empty audio response from provider (HTTP 502)
+            mock_empty_audio = MockSDKResponse([])
+            with patch("app.services.voice._call_sarvam_sdk", new_callable=AsyncMock, return_value=mock_empty_audio):
+                res_empty = await client.post("/api/v1/voice/tts", json={"text": "ନମସ୍କାର ଫାଙ୍କା", "language_code": "od-IN"})
                 assert res_empty.status_code == 502
                 assert "empty or unparseable" in res_empty.json()["detail"].lower()

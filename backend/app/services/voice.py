@@ -1,9 +1,13 @@
 import logging
-import httpx
+import hashlib
+from collections import OrderedDict
 from fastapi import HTTPException
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from app.core.config import settings
 from app.models.voice import VoiceTTSResponse, SpeakerInfo, SupportedSpeakersResponse
+
+import sarvamai
+from sarvamai import AsyncSarvamAI
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +32,14 @@ SUPPORTED_SPEAKERS: List[SpeakerInfo] = [
     SpeakerInfo(name="kavya", gender="female", recommended_for=["conversational"])
 ]
 
+# In-memory LRU Cache for audio payloads (max 256 cached items to minimize API credit consumption)
+_AUDIO_CACHE: OrderedDict[str, VoiceTTSResponse] = OrderedDict()
+_CACHE_MAX_SIZE = 256
+
+def _generate_cache_key(text: str, lang: str, speaker: str, pace: float, model: str) -> str:
+    raw = f"{text}|{lang}|{speaker}|{pace:.2f}|{model}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
 def normalize_language_code(code: str) -> str:
     """
     Normalizes input language codes to Sarvam Bulbul v3 target_language_code.
@@ -41,16 +53,25 @@ def normalize_language_code(code: str) -> str:
         )
     return SUPPORTED_LANGUAGE_CODES[clean]
 
-async def _call_sarvam_api(payload: Dict[str, Any], headers: Dict[str, str]) -> httpx.Response:
+async def _call_sarvam_sdk(
+    api_key: str,
+    text: str,
+    language_code: str,
+    speaker: str,
+    pace: float,
+    model: str
+) -> Any:
     """
-    Makes outbound request to Sarvam AI Bulbul v3 TTS endpoint with timeout.
+    Calls Sarvam AI Bulbul v3 text-to-speech using official sarvamai AsyncSarvamAI SDK.
     """
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        return await client.post(
-            settings.SARVAM_TTS_ENDPOINT,
-            json=payload,
-            headers=headers
-        )
+    client = AsyncSarvamAI(api_subscription_key=api_key)
+    return await client.text_to_speech.convert(
+        text=text,
+        language_code=language_code,
+        speaker=speaker,
+        pace=pace,
+        model=model
+    )
 
 async def synthesize_odia_speech(
     text: str,
@@ -59,8 +80,9 @@ async def synthesize_odia_speech(
     pace: float = 1.0
 ) -> VoiceTTSResponse:
     """
-    Synthesizes speech in Odia using Sarvam AI Bulbul v3.
-    Enforces strict input validation, rate limiting handling, and credentials protection.
+    Synthesizes speech in Odia using official Sarvam AI SDK (Bulbul v3).
+    Enforces strict input validation, in-memory caching to save credits,
+    rate limiting protection, and credentials isolation.
     """
     # 1. Input text validation
     cleaned_text = text.strip() if text else ""
@@ -85,7 +107,15 @@ async def synthesize_odia_speech(
     # 4. Pace bounds validation (0.5 to 2.0)
     clamped_pace = max(0.5, min(2.0, float(pace)))
 
-    # 5. Verify provider credentials
+    # 5. Check in-memory LRU cache to avoid unnecessary billing & repeated requests
+    cache_key = _generate_cache_key(cleaned_text, target_lang, selected_speaker, clamped_pace, settings.SARVAM_TTS_MODEL)
+    if cache_key in _AUDIO_CACHE:
+        logger.info("Serving Odia TTS response from cache for hash=%s", cache_key[:8])
+        _AUDIO_CACHE.move_to_end(cache_key)
+        cached_res = _AUDIO_CACHE[cache_key]
+        return cached_res.model_copy(update={"cached": True})
+
+    # 6. Verify provider credentials
     if not settings.SARVAM_API_KEY or not settings.SARVAM_API_KEY.strip():
         logger.warning("SARVAM_API_KEY is not configured on backend. Failing closed with HTTP 503.")
         raise HTTPException(
@@ -93,22 +123,8 @@ async def synthesize_odia_speech(
             detail="Odia voice synthesis is temporarily unavailable. Provider key not configured on backend."
         )
 
-    # 6. Execute external request with timeout and error handling
-    payload: Dict[str, Any] = {
-        "text": cleaned_text,
-        "target_language_code": target_lang,
-        "speaker": selected_speaker,
-        "pace": clamped_pace,
-        "model": settings.SARVAM_TTS_MODEL
-    }
-
-    headers = {
-        "api-subscription-key": settings.SARVAM_API_KEY.strip(),
-        "Content-Type": "application/json"
-    }
-
     logger.info(
-        "Synthesizing speech via Sarvam AI: model=%s, lang=%s, speaker=%s, chars=%d",
+        "Synthesizing speech via Sarvam AI SDK: model=%s, lang=%s, speaker=%s, chars=%d",
         settings.SARVAM_TTS_MODEL,
         target_lang,
         selected_speaker,
@@ -116,72 +132,88 @@ async def synthesize_odia_speech(
     )
 
     try:
-        response = await _call_sarvam_api(payload, headers)
+        response = await _call_sarvam_sdk(
+            api_key=settings.SARVAM_API_KEY.strip(),
+            text=cleaned_text,
+            language_code=target_lang,
+            speaker=selected_speaker,
+            pace=clamped_pace,
+            model=settings.SARVAM_TTS_MODEL
+        )
 
-        if response.status_code == 200:
-            data = response.json()
-            audios = data.get("audios")
-            if not audios or not isinstance(audios, list) or len(audios) == 0 or not audios[0]:
-                logger.error("Sarvam TTS returned HTTP 200 but audios array is empty or invalid.")
-                raise HTTPException(
-                    status_code=502,
-                    detail="Voice provider returned an empty or unparseable audio stream."
-                )
-
-            audio_base64 = audios[0]
-            if not isinstance(audio_base64, str) or len(audio_base64.strip()) == 0:
-                raise HTTPException(
-                    status_code=502,
-                    detail="Invalid base64 audio payload received from voice provider."
-                )
-
-            return VoiceTTSResponse(
-                audio_base64=audio_base64.strip(),
-                mime_type="audio/wav",
-                language_code=target_lang,
-                speaker=selected_speaker,
-                character_count=len(cleaned_text),
-                provider="sarvam-bulbul-v3"
-            )
-
-        elif response.status_code == 400:
-            logger.error("Sarvam TTS 400 Bad Request: %s", response.text[:200])
-            raise HTTPException(
-                status_code=400,
-                detail="Voice synthesis request was rejected by provider as malformed."
-            )
-
-        elif response.status_code in (401, 403):
-            logger.error("Sarvam TTS authentication failure (HTTP %d).", response.status_code)
+        audios = getattr(response, "audios", None)
+        if not audios or not isinstance(audios, list) or len(audios) == 0 or not audios[0]:
+            logger.error("Sarvam SDK returned empty or invalid audios list.")
             raise HTTPException(
                 status_code=502,
-                detail="Voice synthesis authentication failure with upstream provider."
+                detail="Voice provider returned an empty or unparseable audio stream."
             )
 
-        elif response.status_code == 429:
-            logger.warning("Sarvam TTS rate limit reached (HTTP 429).")
+        audio_base64 = audios[0]
+        if not isinstance(audio_base64, str) or len(audio_base64.strip()) == 0:
             raise HTTPException(
-                status_code=429,
-                detail="Voice synthesis rate limit exceeded. Please wait a moment and retry."
+                status_code=502,
+                detail="Invalid base64 audio payload received from voice provider."
             )
 
-        else:
-            logger.error("Sarvam TTS unexpected upstream error HTTP %d: %s", response.status_code, response.text[:200])
-            raise HTTPException(
-                status_code=503,
-                detail=f"Upstream voice synthesis service error (HTTP {response.status_code})."
-            )
+        result = VoiceTTSResponse(
+            audio_base64=audio_base64.strip(),
+            mime_type="audio/wav",
+            language_code=target_lang,
+            speaker=selected_speaker,
+            character_count=len(cleaned_text),
+            provider="sarvam-bulbul-v3",
+            cached=False
+        )
 
-    except httpx.TimeoutException:
-        logger.error("Sarvam TTS request timed out after 15 seconds.")
+        # Store in LRU cache
+        if len(_AUDIO_CACHE) >= _CACHE_MAX_SIZE:
+            _AUDIO_CACHE.popitem(last=False)
+        _AUDIO_CACHE[cache_key] = result
+
+        return result
+
+    except HTTPException:
+        raise
+
+    except sarvamai.BadRequestError as err:
+        logger.error("Sarvam SDK BadRequestError: %s", str(err))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Voice synthesis request rejected by provider: {str(err)}"
+        )
+
+    except (sarvamai.UnauthorizedError, sarvamai.ForbiddenError) as err:
+        logger.error("Sarvam SDK Authentication error: %s", str(err))
+        raise HTTPException(
+            status_code=502,
+            detail="Voice synthesis authentication failure with upstream provider."
+        )
+
+    except sarvamai.PaymentRequiredError as err:
+        logger.error("Sarvam SDK PaymentRequiredError (credits depleted): %s", str(err))
+        raise HTTPException(
+            status_code=503,
+            detail="Voice synthesis quota or credits currently exhausted on provider account."
+        )
+
+    except sarvamai.TooManyRequestsError as err:
+        logger.warning("Sarvam SDK Rate limit error (HTTP 429): %s", str(err))
+        raise HTTPException(
+            status_code=429,
+            detail="Voice synthesis rate limit exceeded. Please wait a moment and retry."
+        )
+
+    except (sarvamai.GatewayTimeoutError, TimeoutError) as err:
+        logger.error("Sarvam SDK Timeout: %s", str(err))
         raise HTTPException(
             status_code=504,
             detail="Voice synthesis provider request timed out. Please try again."
         )
 
-    except httpx.RequestError as exc:
-        logger.error("Sarvam TTS network connection error: %s", str(exc))
+    except Exception as exc:
+        logger.error("Unexpected error in Sarvam SDK synthesis: %s", str(exc), exc_info=True)
         raise HTTPException(
-            status_code=502,
-            detail="Network communication error connecting to voice synthesis service."
+            status_code=503,
+            detail=f"Upstream voice synthesis service error: {str(exc)}"
         )

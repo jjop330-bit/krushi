@@ -42,3 +42,5 @@ venv/
 # Next.js
 .next/
 out/
+
+*.wav

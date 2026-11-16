@@ -307,7 +307,94 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
                     )
                 )
 
-            if forced_pest_id in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm", "beneficial_spider", "healthy_paddy"]:
+            if forced_pest_id in ["unsupported_species", "unsupported"]:
+                return PestAnalysisResponse(
+                    scan_id=scan_id,
+                    request_id=scan_id,
+                    image_hash=image_hash,
+                    model_version="expert-baseline-v1",
+                    created_at=now,
+                    status=ScanStatusEnum.UNSUPPORTED_SPECIES,
+                    common_name="Unsupported Species",
+                    common_name_or="ଅସମର୍ଥିତ ପ୍ରଜାତି",
+                    scientific_name=None,
+                    pest_id=None,
+                    confidence=None,
+                    confidence_type=None,
+                    visual_evidence=["Morphological features do not match validated Odisha pest registry"],
+                    crop=crop_id,
+                    crop_id=crop_id,
+                    plant_part="leaf",
+                    life_stage="Unknown",
+                    reason="The observed organism or symptom is not currently present in the validated ICAR/OUAT knowledge base. No diagnosis is forced.",
+                    limitations=["Species outside validated regional knowledge registry."],
+                    needs_better_image=False,
+                    treatment_allowed=False,
+                    expert_review_recommended=True,
+                    quality_assessment=quality,
+                    severity_assessment=SeverityEnum.LOW,
+                    potential_yield_loss_range="Assessment suspended",
+                    immediate_actions_en=["Do not apply synthetic pesticides without confirmed species identification.", "Consult local KVK agronomist for physical sample inspection."],
+                    immediate_actions_or=["ସଠିକ ଚିହ୍ନଟ ବିନା କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।", "ସ୍ଥାନୀୟ କୃଷି ବିଜ୍ଞାନ କେନ୍ଦ୍ର (KVK) କୁ ନମୁନା ଦେଖାନ୍ତୁ।"],
+                    source_model="expert-verified-baseline",
+                    farmer_district=farmer_district,
+                    is_sample_scan=True,
+                    identification=PestIdentification(
+                        pest_id=PestIdEnum.UNCERTAIN,
+                        common_name_en="Unsupported Species",
+                        common_name_or="ଅସମର୍ଥିତ ପ୍ରଜାତି",
+                        confidence=None,
+                        certainty_tier=CertaintyTierEnum.UNCERTAIN
+                    )
+                )
+
+            if forced_pest_id in ["non_target_insect", "neutral_insect"]:
+                return PestAnalysisResponse(
+                    scan_id=scan_id,
+                    request_id=scan_id,
+                    image_hash=image_hash,
+                    model_version="expert-baseline-v1",
+                    created_at=now,
+                    status=ScanStatusEnum.NON_TARGET_INSECT,
+                    common_name="Non-Target / Neutral Insect",
+                    common_name_or="ଅଣ-କ୍ଷତିକାରକ / ନିରପେକ୍ଷ କୀଟ",
+                    scientific_name="Non-target arthropod",
+                    pest_id="other_insect",
+                    confidence=88.0,
+                    confidence_type="benchmark_reference",
+                    visual_evidence=["Arthropod present but causes no economic damage to this crop"],
+                    crop=crop_id,
+                    crop_id=crop_id,
+                    plant_part="leaf",
+                    life_stage="Adult",
+                    reason="Observed insect is a non-target or neutral arthropod (e.g. fly, beetle, spider, or butterfly) that does not feed destructively on this host crop.",
+                    limitations=["Non-pest insect."],
+                    needs_better_image=False,
+                    treatment_allowed=False,
+                    expert_review_recommended=False,
+                    quality_assessment=quality,
+                    severity_assessment=SeverityEnum.LOW,
+                    potential_yield_loss_range="0%",
+                    immediate_actions_en=["Do not spray chemical insecticides. Non-target insects maintain ecological balance."],
+                    immediate_actions_or=["କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ। ଏହି କୀଟ ଫସଲକୁ ନଷ୍ଟ କରେ ନାହିଁ।"],
+                    source_model="expert-verified-baseline",
+                    farmer_district=farmer_district,
+                    is_sample_scan=True,
+                    identification=PestIdentification(
+                        pest_id=PestIdEnum.UNCERTAIN,
+                        common_name_en="Non-Target Insect",
+                        common_name_or="ଅଣ-କ୍ଷତିକାରକ କୀଟ",
+                        confidence=88,
+                        certainty_tier=CertaintyTierEnum.MODERATE
+                    )
+                )
+
+            if forced_pest_id in [
+                "bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm",
+                "fall_armyworm", "fruit_borer", "shoot_and_fruit_borer", "black_thrips",
+                "groundnut_leaf_miner", "pulse_pod_borer", "diamondback_moth",
+                "beneficial_spider", "healthy_paddy"
+            ]:
                 knowledge = get_pest_knowledge(forced_pest_id)
             
             # Non-pest cases
@@ -407,17 +494,33 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
                 "armyworm": SeverityEnum.SEVERE,
                 "stem_borer": SeverityEnum.MODERATE,
                 "leaf_folder": SeverityEnum.MODERATE,
-                "rice_hispa": SeverityEnum.MODERATE
+                "rice_hispa": SeverityEnum.MODERATE,
+                "fall_armyworm": SeverityEnum.SEVERE,
+                "fruit_borer": SeverityEnum.SEVERE,
+                "shoot_and_fruit_borer": SeverityEnum.MODERATE,
+                "black_thrips": SeverityEnum.MODERATE,
+                "groundnut_leaf_miner": SeverityEnum.MODERATE,
+                "pulse_pod_borer": SeverityEnum.MODERATE,
+                "diamondback_moth": SeverityEnum.SEVERE
             }
             conf_map = {
                 "bph": (91.0, "Nymphs and macropterous adults clustered at stem base with visible honeydew secretion."),
                 "stem_borer": (91.0, "Bore holes at stem internodes with central whorl drying ('dead heart')."),
                 "leaf_folder": (88.0, "Longitudinally rolled leaf blades fastened by silk threads with scraped white stripes."),
                 "rice_hispa": (87.0, "Adult with characteristic dorsal spines creating parallel white feeding streaks."),
-                "armyworm": (90.0, "Smooth-bodied caterpillar with distinct lateral stripes feeding gregariously on foliage.")
+                "armyworm": (90.0, "Smooth-bodied caterpillar with distinct lateral stripes feeding gregariously on foliage."),
+                "fall_armyworm": (92.0, "Inverted Y suture on head capsule and four square abdominal pinacula feeding inside whorl frass."),
+                "fruit_borer": (89.0, "Circular bore holes in fruit with caterpillar feeding partially embedded."),
+                "shoot_and_fruit_borer": (90.0, "Wilted drooping shoot tip or bored fruit with frass plugging entrance."),
+                "black_thrips": (88.0, "Upward cupping of leaves with dark rasping feeding lesions on tender buds."),
+                "groundnut_leaf_miner": (87.0, "Blister-like leaf mines and webbed leaflets with internal feeding larvae."),
+                "pulse_pod_borer": (88.0, "Webbed flower and pod clusters with frass and entry hole."),
+                "diamondback_moth": (91.0, "Window-pane leaf feeding and wriggling backward larva dropping on silken thread.")
             }
             conf, vis_feat = conf_map.get(forced_pest_id, (85.0, "Typical morphological characteristics."))
             
+            host_crop_name = knowledge.get("host_crops", ["Crop"])[0] if knowledge.get("host_crops") else crop_id
+
             return PestAnalysisResponse(
                 scan_id=scan_id,
                 request_id=scan_id,
@@ -432,11 +535,12 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
                 confidence=conf,
                 confidence_type="benchmark_reference",
                 visual_evidence=[vis_feat, f"Diagnostic signs consistent with {knowledge['key_symptoms_en'][0]}."],
-                crop="Rice",
+                crop=host_crop_name,
                 crop_id=crop_id,
+                plant_part="leaf",
                 life_stage="Larval / Nymph / Adult observed",
-                reason=f"Specimen visual characteristics match authoritative ICAR-NRRI reference morphology for {knowledge['scientific_name']}.",
-                limitations=["Field-wide economic threshold (ETL) must be determined by sampling 20 random hills."],
+                reason=f"Specimen visual characteristics match authoritative reference morphology for {knowledge['scientific_name']}.",
+                limitations=["Field-wide economic threshold (ETL) must be determined by sampling before chemical action."],
                 needs_better_image=False,
                 treatment_allowed=True,
                 expert_review_recommended=False,
@@ -449,7 +553,7 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
                 farmer_district=farmer_district,
                 is_sample_scan=True,
                 identification=PestIdentification(
-                    pest_id=PestIdEnum(forced_pest_id),
+                    pest_id=forced_pest_id,
                     common_name_en=knowledge["common_name_en"],
                     common_name_or=knowledge["common_name_or"],
                     scientific_name=knowledge["scientific_name"],

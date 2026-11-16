@@ -54,6 +54,10 @@ class VoiceTTSResponse(BaseModel):
         "sarvam-bulbul-v3", 
         description="Underlying speech synthesis provider."
     )
+    cached: bool = Field(
+        False,
+        description="Whether this response was served from backend LRU cache."
+    )
 
 class SpeakerInfo(BaseModel):
     name: str
