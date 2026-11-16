@@ -1,0 +1,11 @@
+lighting_condition,lighting_score_pct,sharpness_score_pct,is_clear,expected_is_clear,status,warning_en,warning_or,field_context
+Overcast Monsoon Morning,17,100,True,True,PASS,None (Passed Quality Gate),None (ଗୁଣବତ୍ତା ଯାଞ୍ଚ ସଫଳ),Heavy cloud cover during Kharif monsoon scouting in Bargarh
+Dense Canopy Deep Shade,14,100,True,True,PASS,None (Passed Quality Gate),None (ଗୁଣବତ୍ତା ଯାଞ୍ଚ ସଫଳ),Under dense tillering rice plants near base of stem
+Early Dawn Scouting (6:00 AM),19,100,True,True,PASS,None (Passed Quality Gate),None (ଗୁଣବତ୍ତା ଯାଞ୍ଚ ସଫଳ),Low-light morning insect sweep netting in Sambalpur
+Cloudy Afternoon Diffuse Light,43,100,True,True,PASS,None (Passed Quality Gate),None (ଗୁଣବତ୍ତା ଯାଞ୍ଚ ସଫଳ),Optimal diffused daylight without harsh shadows
+Direct High-Noon Sunlight,74,100,True,True,PASS,None (Passed Quality Gate),None (ଗୁଣବତ୍ତା ଯାଞ୍ଚ ସଫଳ),Clear sky midday photo with bright leaf reflections
+Backlit Foliage Silhouette,33,100,True,True,PASS,None (Passed Quality Gate),None (ଗୁଣବତ୍ତା ଯାଞ୍ଚ ସଫଳ),Sun behind paddy leaves; insect on shaded underside
+Late Evening Sunset (6:15 PM),16,100,True,True,PASS,None (Passed Quality Gate),None (ଗୁଣବତ୍ତା ଯାଞ୍ଚ ସଫଳ),Dusk armyworm scouting before night migration
+Extreme Underexposure / Pitch Black Night,3,39,False,False,PASS,The uploaded photograph appears completely uniform or empty. No agricultural subject detected.,ଫଟୋଟି ସମ୍ପୂର୍ଣ୍ଣ ଖାଲି କିମ୍ବା ଏକା ରଙ୍ଗର ଦେଖାଯାଉଛି। କୌଣସି ଫସଲ କିମ୍ବା ପୋକ ଚିହ୍ନଟ ହେଲାନାହିଁ।,Flash failed or lens covered; completely unreadable dark frame
+Severe Lens Glare / Total Overexposure,99,100,False,False,PASS,The uploaded photograph appears completely uniform or empty. No agricultural subject detected.,ଫଟୋଟି ସମ୍ପୂର୍ଣ୍ଣ ଖାଲି କିମ୍ବା ଏକା ରଙ୍ଗର ଦେଖାଯାଉଛି। କୌଣସି ଫସଲ କିମ୍ବା ପୋକ ଚିହ୍ନଟ ହେଲାନାହିଁ।,Direct sun ray directly into camera aperture; washed out sensor
+Motion Blurred Field Sweep,47,39,False,False,PASS,The uploaded photograph appears completely uniform or empty. No agricultural subject detected.,ଫଟୋଟି ସମ୍ପୂର୍ଣ୍ଣ ଖାଲି କିମ୍ବା ଏକା ରଙ୍ଗର ଦେଖାଯାଉଛି। କୌଣସି ଫସଲ କିମ୍ବା ପୋକ ଚିହ୍ନଟ ହେଲାନାହିଁ।,Hand jitter or walking while snapping photo; severe blur

@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     ACTIVE_VISION_PROVIDER: str = "gemini"  # "gemini" | "baseline" | "yolo"
+
+    # Server-Side Cryptographic Report Signing Key (HMAC-SHA256 Secret)
+    # Stored strictly on server, never exposed in client bundles or network responses
+    REPORT_SIGNING_SECRET: str = "km-audit-signing-secret-v1-production-2026"
+    REPORT_SIGNING_KEY_VERSION: str = "v1"
     
     # Supabase Configuration (Optional - graceful fallback for local development)
     SUPABASE_URL: Optional[str] = None

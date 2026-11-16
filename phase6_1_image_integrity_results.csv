@@ -1,0 +1,11 @@
+test_case,input_type,detected_format,expected_behavior,actual_result,status,safety_implication
+Truncated JPEG,Incomplete JPEG byte stream (cut mid-frame),JPEG (truncated),"Full raster decode fails (image.load()), reject safely",REJECTED,PASS,Prevents unhandled PIL Decompression/Decoding exceptions in API worker
+Corrupted PNG,Valid PNG magic bytes + corrupted chunk data,PNG (corrupt),"Pillow raster unpack fails, reject as unreadable file",REJECTED,PASS,Prevents process crashes on broken raster headers
+Invalid WebP,RIFF WEBP header with corrupted bitstream,WebP (corrupt),Pillow raises UnidentifiedImageError or load error,REJECTED,PASS,Guarantees reliable WebP decoding from modern Android handsets
+Valid Header + Invalid Body,Authentic JFIF magic bytes followed by arbitrary non-image text,JPEG header spoof,image.load() catches raster syntax error and rejects,REJECTED,PASS,Blocks polyglot and payload injection attacks
+Zero-byte File,0 bytes empty payload,Empty,Immediate rejection with warning message,REJECTED,PASS,Prevents null pointer or zero-division errors downstream
+Oversized File (>20MB),21 MB payload exceeding MAX_FILE_SIZE (20MB),Unknown / oversized,Fast size check rejects before allocating memory,REJECTED,PASS,Prevents memory exhaustion and API worker DoS
+Excessive Image Dimensions (>8000px),JPEG with width 8001px exceeding 8000px max,JPEG (oversized dimensions),Rejects image exceeding 8000px limit,REJECTED,PASS,Protects vision canvas and API gateway from geometric explosion
+Decompression Bomb Guard,"PIL Image.MAX_IMAGE_PIXELS configured to 25,000,000 pixels",Pillow Core Security,Pillow raises DecompressionBombError for malicious sparse rasters,"PROTECTED (MAX_IMAGE_PIXELS = 25,000,000)",PASS,Prevents gzip/raster compression ratio denial-of-service
+Extension Spoofing (.exe as .jpg),PE32 executable binary named scan.jpg,PE Executable,Binary magic byte inspection rejects non-image payload,REJECTED,PASS,Eliminates arbitrary file upload and server remote execution risks
+iOS HEIC Container Detection,Apple iPhone HEIC photo (ISO BMFF ftypheic signature),HEIC / HEIF (Apple iPhone),Detects ftypheic and outputs bilingual user conversion instructions,DETECTED_WITH_GUIDANCE,PASS,Informs Odia farmers using iPhones to switch camera setting to Most Compatible

@@ -1,6 +1,7 @@
 import base64
 from typing import List, Optional
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Depends
+from pydantic import BaseModel
 from app.models.pest import (
     PestAnalysisResponse,
     PestAnalysisRequestBase64
@@ -101,3 +102,37 @@ async def get_species_detail(pest_id: str):
     if not knowledge or knowledge.get("id") == "uncertain" and pest_id != "uncertain":
         raise HTTPException(status_code=404, detail=f"Pest species '{pest_id}' not found.")
     return knowledge
+
+class SignatureVerificationRequest(BaseModel):
+    scan_id: str
+    image_hash: Optional[str] = None
+    status: str
+    pest_id: Optional[str] = None
+    created_at: int
+    report_signature: str
+    signature_key_version: Optional[str] = "v1"
+
+@router.post("/verify-signature")
+async def verify_report_signature_endpoint(request: SignatureVerificationRequest):
+    """
+    Cryptographic verification endpoint to confirm tamper-evidence of a diagnosis report.
+    Validates HMAC-SHA256 signature using the server's protected REPORT_SIGNING_SECRET.
+    """
+    from app.core.security import verify_report_signature
+    valid = verify_report_signature(
+        scan_id=request.scan_id,
+        image_hash=request.image_hash,
+        status=request.status,
+        pest_id=request.pest_id,
+        created_at=request.created_at,
+        signature=request.report_signature,
+        key_version=request.signature_key_version or "v1"
+    )
+    return {
+        "valid": valid,
+        "status": "VERIFIED" if valid else "TAMPERED_OR_INVALID",
+        "scan_id": request.scan_id,
+        "algorithm": "HMAC-SHA256",
+        "key_version": request.signature_key_version or "v1"
+    }
+
