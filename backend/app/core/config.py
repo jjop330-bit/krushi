@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     ACTIVE_VISION_PROVIDER: str = "gemini"  # "gemini" | "baseline" | "yolo"
 
+    # Sarvam AI Voice Engine Configuration (Odia Text-to-Speech)
+    # Bulbul v3 with target_language_code="od-IN"
+    # Stored strictly on backend, never exposed to client or logged
+    SARVAM_API_KEY: Optional[str] = None
+    SARVAM_TTS_MODEL: str = "bulbul:v3"
+    SARVAM_DEFAULT_SPEAKER: str = "shubh"
+    SARVAM_TTS_ENDPOINT: str = "https://api.sarvam.ai/text-to-speech"
+
     # Server-Side HMAC-SHA256 Message Authentication Code (MAC) Configuration
     # Used for tamper-evident server-authenticated report verification.
     # Stored strictly on server in backend env, never exposed in client bundles or network responses.

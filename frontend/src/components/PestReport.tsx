@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   AlertTriangle, 
   Volume2, 
+  VolumeX,
+  Play,
+  Pause,
+  RotateCcw,
+  Loader2,
   FileDown, 
   Share2, 
   ArrowRight, 
@@ -23,7 +28,7 @@ import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
 import { ODIA_TRANSLATIONS } from '../data/odiaTranslations';
 import { SAMPLE_PEST_IMAGES } from '../data/sampleImages';
 import { StorageService } from '../services/storageService';
-import { voiceService } from '../services/voiceService';
+import { voiceService, AudioPlaybackState } from '../services/voiceService';
 import confetti from 'canvas-confetti';
 
 interface PestReportProps {
@@ -44,9 +49,16 @@ export const PestReport: React.FC<PestReportProps> = ({
   onEscalate,
   onRetakeScan
 }) => {
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioState, setAudioState] = useState<AudioPlaybackState>('idle');
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [escalated, setEscalated] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      voiceService.stopSpeaking();
+    };
+  }, []);
 
   const t = ODIA_TRANSLATIONS[lang];
   const pestId = report.identification.pestId;
@@ -65,20 +77,33 @@ export const PestReport: React.FC<PestReportProps> = ({
     'text-slate-600 bg-slate-100 border-slate-300';
 
   const handleAudioNarration = () => {
-    if (isPlayingAudio) {
-      voiceService.stopSpeaking();
-      setIsPlayingAudio(false);
+    if (audioState === 'playing') {
+      voiceService.pause();
+      setAudioState('paused');
       return;
     }
 
-    setIsPlayingAudio(true);
+    if (audioState === 'paused') {
+      voiceService.resume();
+      setAudioState('playing');
+      return;
+    }
+
+    if (audioState === 'loading') {
+      voiceService.stopSpeaking();
+      setAudioState('idle');
+      return;
+    }
+
+    setAudioState('loading');
+    setAudioError(null);
     let speechText = '';
 
     if (status === 'IDENTIFIED') {
       if (lang === 'or') {
-        speechText = `କୃଷି ମିତ୍ର AI ନିରୀକ୍ଷଣ: ଆପଣଙ୍କ ଧାନ ଫସଲରେ ${knowledge.commonNameOr} ର ଲକ୍ଷଣ ଚିହ୍ନଟ ହୋଇଛି। ପ୍ରାଥମିକ ଲକ୍ଷଣ: ${knowledge.keySymptomsOr[0]}। ନିରାପଦ ଜୈବିକ ପଦକ୍ଷେପ: ${knowledge.immediateNextStepsOr[0]}`;
+        speechText = `କୃଷି ମିତ୍ର AI ନିରୀକ୍ଷଣ: ଆପଣଙ୍କ ଧାନ ଫସଲରେ ${knowledge.commonNameOr} (${knowledge.scientificName}) ର ଲକ୍ଷଣ ଚିହ୍ନଟ ହୋଇଛି। ପ୍ରାଥମିକ ଲକ୍ଷଣ: ${knowledge.keySymptomsOr[0]}। ନିରାପଦ ଜୈବିକ ପଦକ୍ଷେପ: ${knowledge.immediateNextStepsOr[0]}`;
       } else {
-        speechText = `Krushi Mitra AI diagnostic summary: Visual features indicate ${knowledge.commonNameEn}. Primary symptom: ${knowledge.keySymptomsEn[0]}. Immediate recommendation: ${knowledge.immediateNextStepsEn[0]}`;
+        speechText = `Krushi Mitra AI diagnostic summary: Visual features indicate ${knowledge.commonNameEn} (${knowledge.scientificName}). Primary symptom: ${knowledge.keySymptomsEn[0]}. Immediate recommendation: ${knowledge.immediateNextStepsEn[0]}`;
       }
     } else if (status === 'OTHER_INSECT') {
       speechText = lang === 'or' 
@@ -98,9 +123,31 @@ export const PestReport: React.FC<PestReportProps> = ({
         : 'The image is unclear. Please retake a steady close-up photograph in natural light.';
     }
 
-    voiceService.speak(speechText, lang, () => {
-      setIsPlayingAudio(false);
+    voiceService.speak(speechText, lang, {
+      onStateChange: (state) => setAudioState(state),
+      onEnd: () => {
+        setAudioState('idle');
+        setAudioError(null);
+      },
+      onError: (errMsg) => {
+        setAudioState('error');
+        setAudioError(errMsg);
+      }
     });
+  };
+
+  const handleReplayAudio = () => {
+    if (audioState === 'playing' || audioState === 'paused') {
+      voiceService.replay();
+    } else {
+      handleAudioNarration();
+    }
+  };
+
+  const handleStopAudio = () => {
+    voiceService.stopSpeaking();
+    setAudioState('idle');
+    setAudioError(null);
   };
 
   const handleSaveReport = () => {
@@ -313,19 +360,67 @@ export const PestReport: React.FC<PestReportProps> = ({
               </span>
             </div>
 
-            {/* Odia Audio Button */}
-            <button
-              onClick={handleAudioNarration}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all ${
-                isPlayingAudio 
-                  ? 'bg-rose-500 text-white animate-pulse' 
-                  : 'bg-lime-500 hover:bg-lime-400 text-agri-950 shadow-sm'
-              }`}
-            >
-              <Volume2 className="w-4 h-4" />
-              <span>{isPlayingAudio ? (lang === 'or' ? 'ବନ୍ଦ କରନ୍ତୁ' : 'Stop Audio') : (lang === 'or' ? 'ଓଡ଼ିଆରେ ଶୁଣନ୍ତୁ' : 'Listen in Odia')}</span>
-            </button>
+            {/* Odia Audio Control Group */}
+            <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+              {audioState === 'loading' ? (
+                <button
+                  disabled
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 bg-amber-100 text-amber-900 border border-amber-300 shadow-sm"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
+                  <span>{lang === 'or' ? 'ଅଡିଓ ପ୍ରସ୍ତୁତ ହେଉଛି...' : 'Generating Audio...'}</span>
+                </button>
+              ) : audioState === 'error' ? (
+                <button
+                  onClick={handleAudioNarration}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 shadow-sm transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>{lang === 'or' ? 'ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ' : 'Retry Audio'}</span>
+                </button>
+              ) : audioState === 'playing' || audioState === 'paused' ? (
+                <div className="flex items-center space-x-1 bg-white/90 p-1 rounded-xl border border-slate-200 shadow-sm">
+                  <button
+                    onClick={handleAudioNarration}
+                    className="px-3 py-1 rounded-lg text-xs font-bold flex items-center space-x-1.5 bg-agri-700 hover:bg-agri-800 text-white transition-colors"
+                  >
+                    {audioState === 'playing' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    <span>{audioState === 'playing' ? (lang === 'or' ? 'ରଖନ୍ତୁ' : 'Pause') : (lang === 'or' ? 'ଚଲାନ୍ତୁ' : 'Resume')}</span>
+                  </button>
+
+                  <button
+                    onClick={handleReplayAudio}
+                    className="p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
+                    title={lang === 'or' ? 'ପୁନର୍ବାର ଶୁଣନ୍ତୁ' : 'Replay'}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+
+                  <button
+                    onClick={handleStopAudio}
+                    className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                    title={lang === 'or' ? 'ଅଡିଓ ବନ୍ଦ କରନ୍ତୁ' : 'Stop'}
+                  >
+                    <VolumeX className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAudioNarration}
+                  className="px-4 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-2 bg-lime-500 hover:bg-lime-400 text-agri-950 shadow-sm transition-all"
+                >
+                  <Volume2 className="w-4 h-4" />
+                  <span>{lang === 'or' ? 'ଓଡ଼ିଆରେ ଶୁଣନ୍ତୁ' : 'Listen in Odia'}</span>
+                </button>
+              )}
+            </div>
           </div>
+          {audioState === 'error' && audioError && (
+            <div className="mt-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0" />
+              <span>{audioError}</span>
+            </div>
+          )}
         </div>
 
         {/* DETAILED CROP DAMAGE & HARVEST IMPACT ANALYSIS */}

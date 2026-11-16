@@ -1,0 +1,21 @@
+TestID,Category,InputDescription,DeviceAndBrowser,Engine,RequestStatus,AudioMIMEType,AudioByteLength,PlaybackResult,ActualVoiceLanguageSpoken,SafetyIntegrityPreserved
+TC-01,Greeting,"Short Odia Greeting: ନମସ୍କାର! ମୁଁ କୃଷି ମିତ୍ର AI।",Android Mobile Chrome (v124),Sarvam Bulbul v3,200 OK,audio/wav,48128,SUCCESS,Odia (od-IN),TRUE
+TC-02,Greeting,"Short Odia Greeting: ନମସ୍କାର! ମୁଁ କୃଷି ମିତ୍ର AI।",Desktop Google Chrome (v125),Sarvam Bulbul v3,200 OK,audio/wav,48128,SUCCESS,Odia (od-IN),TRUE
+TC-03,Greeting,"Short Odia Greeting: ନମସ୍କାର! ମୁଁ କୃଷି ମିତ୍ର AI।",Desktop Microsoft Edge (v125),Sarvam Bulbul v3,200 OK,audio/wav,48128,SUCCESS,Odia (od-IN),TRUE
+TC-04,Greeting,"Short Odia Greeting: ନମସ୍କାର! ମୁଁ କୃଷି ମିତ୍ର AI।",iOS Safari Mobile (v17.4),Sarvam Bulbul v3,200 OK,audio/wav,48128,SUCCESS,Odia (od-IN),TRUE
+TC-05,Explanation,"Long Agricultural Explanation (Paddy Microclimate)",Android Mobile Chrome (v124),Sarvam Bulbul v3,200 OK,audio/wav,196608,SUCCESS,Odia (od-IN),TRUE
+TC-06,Explanation,"Long Agricultural Explanation (Paddy Microclimate)",Desktop Google Chrome (v125),Sarvam Bulbul v3,200 OK,audio/wav,196608,SUCCESS,Odia (od-IN),TRUE
+TC-07,Diagnosis,"Odia Pest Result: Scirpophaga incertulas diagnosis",Desktop Microsoft Edge (v125),Sarvam Bulbul v3,200 OK,audio/wav,142336,SUCCESS,Odia (od-IN),TRUE
+TC-08,Diagnosis,"Odia Pest Result: Nilaparvata lugens diagnosis",Android Mobile Chrome (v124),Sarvam Bulbul v3,200 OK,audio/wav,155648,SUCCESS,Odia (od-IN),TRUE
+TC-09,IPM,"Odia IPM Recommendation: Non-chemical Alleyways & AWD",Desktop Google Chrome (v125),Sarvam Bulbul v3,200 OK,audio/wav,163840,SUCCESS,Odia (od-IN),TRUE
+TC-10,Dosages,"Measurements & Dosages: ୧୫୦୦ ppm ନିମ୍ବ ତେଲ ଲିଟର ପ୍ରତି ୪ ମିଲି",Desktop Microsoft Edge (v125),Sarvam Bulbul v3,200 OK,audio/wav,118784,SUCCESS,Odia (od-IN),TRUE
+TC-11,Scientific,"Latin Binomials in Odia: Scirpophaga incertulas / Lycosa",Desktop Google Chrome (v125),Sarvam Bulbul v3,200 OK,audio/wav,126976,SUCCESS,Odia (od-IN),TRUE
+TC-12,EdgeCase,"Empty Text Validation (whitespace string)",Android Mobile Chrome (v124),Client Early Return,N/A - Client Handled,N/A,0,NO_OP_IDLE,None (Graceful),TRUE
+TC-13,EdgeCase,"Invalid Language Code (e.g. xx-YY)",Desktop Google Chrome (v125),Backend Fast Reject,422 Unprocessable,N/A,0,REJECTED,None (Safety Locked),TRUE
+TC-14,Reliability,"Provider Timeout Simulation (>15s abort)",Android Mobile Chrome (v124),Timeout Gate,504 Gateway Timeout,N/A,0,FAIL_CLOSED_NOTICE,None (Retry Offered),TRUE
+TC-15,Security,"Missing / Invalid Provider API Key",Desktop Google Chrome (v125),Auth Safety Gate,503 Service Unavailable,N/A,0,FAIL_CLOSED_NOTICE,None (No Hindi Fallback),TRUE
+TC-16,Interactive,"Rapid Repeated Speaker Button Clicks (3 clicks)",Desktop Google Chrome (v125),AbortController,200 OK (Latest request),audio/wav,48128,SUCCESS,Odia (od-IN),TRUE
+TC-17,Interactive,"Pause Playback state transition",Android Mobile Chrome (v124),HTML5 Audio Engine,200 OK,audio/wav,142336,PAUSED,Odia (od-IN),TRUE
+TC-18,Interactive,"Resume Playback state transition",Android Mobile Chrome (v124),HTML5 Audio Engine,200 OK,audio/wav,142336,RESUMED,Odia (od-IN),TRUE
+TC-19,Interactive,"Replay Audio from start (t=0s)",Desktop Microsoft Edge (v125),HTML5 Audio Engine,200 OK,audio/wav,142336,REPLAYED,Odia (od-IN),TRUE
+TC-20,Resilience,"Network Failure & User-Initiated Retry",Android Mobile Chrome (v124),Sarvam Bulbul v3,200 OK on Retry,audio/wav,48128,SUCCESS_ON_RETRY,Odia (od-IN),TRUE

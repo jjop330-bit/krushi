@@ -1,9 +1,14 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
 class ScanStatusEnum(str, Enum):
     IDENTIFIED = "IDENTIFIED"
+    PROBABLE_IDENTIFICATION = "PROBABLE_IDENTIFICATION"
+    UNCERTAIN = "UNCERTAIN"
+    UNSUPPORTED_SPECIES = "UNSUPPORTED_SPECIES"
+    NON_TARGET_INSECT = "NON_TARGET_INSECT"
+    IMAGE_QUALITY_INSUFFICIENT = "IMAGE_QUALITY_INSUFFICIENT"
     OTHER_INSECT = "OTHER_INSECT"
     NO_INSECT = "NO_INSECT"
     HEALTHY_CROP = "HEALTHY_CROP"
@@ -19,6 +24,12 @@ class PestIdEnum(str, Enum):
     LEAF_FOLDER = "leaf_folder"
     RICE_HISPA = "rice_hispa"
     ARMYWORM = "armyworm"
+    FALL_ARMYWORM = "fall_armyworm"
+    FRUIT_BORER = "fruit_borer"
+    SHOOT_AND_FRUIT_BORER = "shoot_and_fruit_borer"
+    BLACK_THRIPS = "black_thrips"
+    GROUNDNUT_LEAF_MINER = "groundnut_leaf_miner"
+    PULSE_POD_BORER = "pulse_pod_borer"
     BENEFICIAL_SPIDER = "beneficial_spider"
     HEALTHY_PADDY = "healthy_paddy"
     UNCERTAIN = "uncertain"
@@ -52,7 +63,7 @@ class AlternativeDiagnosis(BaseModel):
     confidence: Optional[int] = None
 
 class PestIdentification(BaseModel):
-    pest_id: PestIdEnum
+    pest_id: Union[PestIdEnum, str]
     common_name_en: str
     common_name_or: str
     scientific_name: Optional[str] = None
@@ -80,6 +91,8 @@ class PestAnalysisResponse(BaseModel):
     visual_evidence: List[str] = []
     crop: str = "Rice"
     crop_id: str = "paddy"
+    plant_part: Optional[str] = "leaf"
+    confidence_aware_status: Optional[str] = None
     life_stage: Optional[str] = "Unknown"
     reason: str
     limitations: List[str] = []
@@ -138,6 +151,7 @@ class PestAnalysisResponse(BaseModel):
 class PestAnalysisRequestBase64(BaseModel):
     image_base64: str
     crop_id: str = "paddy"
+    plant_part: Optional[str] = "leaf"
     farmer_district: str = "bargarh"
     forced_pest_id: Optional[str] = None
 
