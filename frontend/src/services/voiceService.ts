@@ -127,6 +127,7 @@ export class VoiceService {
         this.setState('playing');
         return;
       } catch (playErr) {
+        // If autoplay policy blocked cached audio, proceed with error notice
         console.warn('Playback of cached audio failed:', playErr);
       }
     }

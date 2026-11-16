@@ -108,7 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-lime-400 flex-shrink-0" />
-                <span>{lang === 'or' ? '୩୨ ଓଡ଼ିଶା ଫସଲ' : '32 Odisha Crops'}</span>
+                <span>{lang === 'or' ? 'ଧାନ ଓ ପ୍ରମୁଖ ଫସଲ ରେଜିଷ୍ଟ୍ରି' : 'Paddy & Validated Crop Registry'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-lime-400 flex-shrink-0" />
@@ -120,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-lime-400 flex-shrink-0" />
-                <span>{lang === 'or' ? 'ଶୂନ୍ୟ ଭୁଲ୍ ଚିହ୍ନଟ ସୁରକ୍ଷା' : 'Zero False Positive'}</span>
+                <span>{lang === 'or' ? '୨୨-ପ୍ରତିରୋଧୀ ଯାଞ୍ଚ ସୁରକ୍ଷା' : '22-Point Rejection Checks'}</span>
               </div>
             </div>
           </div>
@@ -132,11 +132,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-lime-400 animate-pulse"></span>
                   <span className="font-bold text-lime-300">
-                    {lang === 'or' ? 'ପରୀକ୍ଷିତ କ୍ଷେତ୍ରୀୟ ନମୁନା ବିଶ୍ଳେଷଣ' : 'Live Field Specimen Telemetry'}
+                    {lang === 'or' ? 'ପ୍ରଦର୍ଶନୀ ନମୁନା: ICAR-NRRI କୀଟ ରେଫରେନ୍ସ' : 'Demonstration Specimen (ICAR-NRRI Reference)'}
                   </span>
                 </div>
                 <span className="text-[11px] text-agri-200">
-                  {lang === 'or' ? 'ବରଗଡ଼ ଜିଲ୍ଲା' : 'Bargarh Command'}
+                  {lang === 'or' ? 'ବରଗଡ଼ କେନାଲ ଅଞ୍ଚଳ (ନମୁନା)' : 'Bargarh Command (Sample Context)'}
                 </span>
               </div>
 
@@ -151,7 +151,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   {lang === 'or' ? 'ମାଟିଆ ଗୁଣ୍ଡି ପୋକ (BPH)' : 'Brown Planthopper'}
                 </div>
                 <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-emerald-600/90 text-white text-[10px] font-bold">
-                  94% Confidence
+                  {lang === "or" ? "ନମୁନା ରେଫରେନ୍ସ" : "Reference Specimen"}
                 </div>
               </div>
 
@@ -162,8 +162,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <span className="font-mono italic text-lime-300">Nilaparvata lugens</span>
                 </div>
                 <div className="flex justify-between items-center text-agri-100">
-                  <span className="text-agri-200">{lang === 'or' ? 'ଆର୍ଥିକ କ୍ଷତି ସୀମା (ETL):' : 'ETL Threshold:'}</span>
-                  <span className="font-semibold text-amber-300">{lang === 'or' ? '୫-୧୦ ପୋକ / ଗୁଛା' : '5-10 insects/hill'}</span>
+                  <span className="text-agri-200">{lang === 'or' ? 'ପ୍ରମାଣିତ ETL (ICAR-NRRI):' : 'Official ETL (ICAR-NRRI):'}</span>
+                  <span className="font-semibold text-amber-300">{lang === 'or' ? '୫-୧୦ ପୋକ/ଗୁଛା (ଟିଲରିଂ ସ୍ତର, ୨୦ ଗୁଛା ଯାଞ୍ଚ)' : '5-10 insects/hill (Tillering, scout 20 hills)'}</span>
                 </div>
               </div>
 
