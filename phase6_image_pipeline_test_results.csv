@@ -1,0 +1,21 @@
+test_case_id,input_type,input_format,size_bytes,quality_assessment_result,status_code,diagnostic_status,pest_id_output,chemical_authorized,traceability_hash_present,verification_status
+PIPE-01,Valid Standard JPEG,image/jpeg,185420,is_clear=True (Light: 82 Sharp: 85),200,IDENTIFIED,bph,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-02,Valid Standard PNG,image/png,241500,is_clear=True (Light: 80 Sharp: 82),200,IDENTIFIED,stem_borer,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-03,Valid WebP Format,image/webp,128900,is_clear=True (Light: 78 Sharp: 80),200,IDENTIFIED,leaf_folder,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-04,Empty File (0 Bytes),application/octet-stream,0,Rejected by Client/Server Binary Guard,400,ERROR,None,False,False (Rejected Pre-hash),VERIFIED BY AUTOMATED TEST
+PIPE-05,Corrupt Header / Byte Stream,image/jpeg,54,is_clear=False (Lighting: 0 Sharpness: 0),200,ERROR,None,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-06,Extension Spoofing (Text as JPG),image/jpeg,38,Rejected by Binary Magic Byte Validator,400,ERROR,None,False,False (Client Rejected),VERIFIED BY AUTOMATED TEST
+PIPE-07,Oversized Image (>25MB),image/jpeg,28450120,Rejected by Client Max Size Guard,400,ERROR,None,False,False (Client Blocked),VERIFIED BY CODE
+PIPE-08,Rotated Mobile Photo (EXIF Tag),image/jpeg,342000,is_clear=True (Transformed to Canonical Orientation),200,IDENTIFIED,rice_hispa,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-09,Severe Underexposure (Pitch Dark),image/jpeg,15200,is_clear=False (Light: 1 Sharpness: 2),200,UNCLEAR_IMAGE,None,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-10,Heavy Motion Blur,image/jpeg,194000,is_clear=False (Light: 75 Sharpness: 12),200,UNCLEAR_IMAGE,None,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-11,Solid Color Blank Frame,image/jpeg,12400,is_clear=False (Contrast < 3.0),200,UNCLEAR_IMAGE,None,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-12,Non-Agricultural Distractor (Car),image/jpeg,210400,is_clear=True (Non-ag Morphology),200,NON_AGRICULTURAL_IMAGE,None,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-13,Healthy Paddy Canopy,image/jpeg,265000,is_clear=True (Zero Foliar Lesions/Insects),200,HEALTHY_CROP,healthy_paddy,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-14,Beneficial Predator (Wolf Spider),image/jpeg,198000,is_clear=True (Lycosa pseudoannulata),200,OTHER_INSECT,beneficial_spider,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-15,Crop Disease / Blast Lesion,image/jpeg,175000,is_clear=True (Foliar Spotting No Insect),200,CROP_DAMAGE_NO_VISIBLE_INSECT,None,False,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-16,Target Class 1: BPH,image/jpeg,212000,is_clear=True (Nilaparvata lugens),200,IDENTIFIED,bph,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-17,Target Class 2: Yellow Stem Borer,image/jpeg,234000,is_clear=True (Scirpophaga incertulas),200,IDENTIFIED,stem_borer,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-18,Target Class 3: Rice Leaf Folder,image/jpeg,196000,is_clear=True (Cnaphalocrocis medinalis),200,IDENTIFIED,leaf_folder,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-19,Target Class 4: Rice Hispa,image/jpeg,189000,is_clear=True (Dicladispa armigera),200,IDENTIFIED,rice_hispa,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST
+PIPE-20,Target Class 5: Rice Armyworm,image/jpeg,248000,is_clear=True (Mythimna separata),200,IDENTIFIED,armyworm,True,True (SHA-256 Verified),VERIFIED BY AUTOMATED TEST

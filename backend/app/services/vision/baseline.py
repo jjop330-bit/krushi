@@ -1,5 +1,6 @@
 import time
 import uuid
+import hashlib
 from typing import Optional
 from app.services.vision.base import BasePestDetector
 from app.services.vision.quality import validate_image_bytes
@@ -33,12 +34,16 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
     ) -> PestAnalysisResponse:
         quality = validate_image_bytes(image_bytes)
         scan_id = f"scan-{uuid.uuid4().hex[:12]}"
+        image_hash = hashlib.sha256(image_bytes).hexdigest()
         now = int(time.time() * 1000)
         
         # Check for image corruption / unreadable bytes
         if quality.lighting_score == 0 and quality.sharpness_score == 0 and not forced_pest_id:
             return PestAnalysisResponse(
                 scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                 created_at=now,
                 status=ScanStatusEnum.ERROR,
                 common_name="Corrupted / Unreadable File",
@@ -76,6 +81,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
         if not quality.is_clear and not forced_pest_id:
             return PestAnalysisResponse(
                 scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                 created_at=now,
                 status=ScanStatusEnum.UNCLEAR_IMAGE,
                 common_name="Unclear Image",
@@ -126,6 +134,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             if forced_pest_id == "unclear_image":
                 return PestAnalysisResponse(
                     scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                     created_at=now,
                     status=ScanStatusEnum.UNCLEAR_IMAGE,
                     common_name="Unclear Image",
@@ -171,6 +182,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             if forced_pest_id == "non_agricultural":
                 return PestAnalysisResponse(
                     scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                     created_at=now,
                     status=ScanStatusEnum.NON_AGRICULTURAL_IMAGE,
                     common_name="Non-Agricultural Image",
@@ -208,6 +222,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             if forced_pest_id == "crop_damage_no_insect":
                 return PestAnalysisResponse(
                     scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                     created_at=now,
                     status=ScanStatusEnum.CROP_DAMAGE_NO_VISIBLE_INSECT,
                     common_name="Crop Damage (No Visible Insect)",
@@ -253,6 +270,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             if forced_pest_id == "other_insect":
                 return PestAnalysisResponse(
                     scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                     created_at=now,
                     status=ScanStatusEnum.OTHER_INSECT,
                     common_name="Other Insect (Non-Rice Pest)",
@@ -294,6 +314,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             if forced_pest_id == "healthy_paddy":
                 return PestAnalysisResponse(
                     scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                     created_at=now,
                     status=ScanStatusEnum.HEALTHY_CROP,
                     common_name=knowledge["common_name_en"],
@@ -336,6 +359,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             if forced_pest_id == "beneficial_spider":
                 return PestAnalysisResponse(
                     scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                     created_at=now,
                     status=ScanStatusEnum.OTHER_INSECT,  # Beneficial natural enemy
                     common_name=knowledge["common_name_en"],
@@ -394,6 +420,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
             
             return PestAnalysisResponse(
                 scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="expert-baseline-v1",
                 created_at=now,
                 status=ScanStatusEnum.IDENTIFIED,
                 common_name=knowledge["common_name_en"],
@@ -437,6 +466,9 @@ class VerifiedExpertBaselineProvider(BasePestDetector):
         # Report honest status: UNKNOWN / OFFLINE_REJECTION with zero treatment allowed.
         return PestAnalysisResponse(
             scan_id=scan_id,
+            request_id=scan_id,
+            image_hash=image_hash,
+            model_version="expert-baseline-v1",
             created_at=now,
             status=ScanStatusEnum.UNKNOWN,
             common_name="Unidentified Agricultural Subject",

@@ -2,6 +2,7 @@ import json
 import base64
 import time
 import uuid
+import hashlib
 from typing import Optional
 import httpx
 from app.core.config import settings
@@ -43,6 +44,7 @@ class GeminiVisionProvider(BasePestDetector):
     ) -> PestAnalysisResponse:
         quality = validate_image_bytes(image_bytes)
         scan_id = f"scan-{uuid.uuid4().hex[:12]}"
+        image_hash = hashlib.sha256(image_bytes).hexdigest()
         now = int(time.time() * 1000)
         
         # Fast local pre-rejection for corrupted, blank, or heavily blurred captures
@@ -160,6 +162,9 @@ class GeminiVisionProvider(BasePestDetector):
                     # Return honest error report with ZERO fabricated diagnoses or treatments
                     return PestAnalysisResponse(
                         scan_id=scan_id,
+                        request_id=scan_id,
+                        image_hash=image_hash,
+                        model_version="3.5-flash-lite",
                         created_at=now,
                         status=ScanStatusEnum.ERROR,
                         common_name=f"Gemini API Error ({response.status_code})",
@@ -277,6 +282,9 @@ class GeminiVisionProvider(BasePestDetector):
 
             return PestAnalysisResponse(
                 scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="3.5-flash-lite",
                 created_at=now,
                 status=status,
                 common_name=parsed.get("common_name"),
@@ -320,6 +328,9 @@ class GeminiVisionProvider(BasePestDetector):
             # If an API key was configured, return an honest diagnostic error rather than silently masking it
             return PestAnalysisResponse(
                 scan_id=scan_id,
+                request_id=scan_id,
+                image_hash=image_hash,
+                model_version="3.5-flash-lite",
                 created_at=now,
                 status=ScanStatusEnum.ERROR,
                 common_name="Gemini Connection Error",

@@ -62,6 +62,9 @@ class PestAnalysisResponse(BaseModel):
     Implements two-stage subject validation, rejection states, and treatment gating.
     """
     scan_id: str
+    request_id: Optional[str] = None
+    image_hash: Optional[str] = None
+    model_version: Optional[str] = "3.5-flash-lite"
     created_at: int
     status: ScanStatusEnum
     common_name: Optional[str] = None

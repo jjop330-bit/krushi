@@ -123,3 +123,74 @@ test('Pest-Specific ETL Standards: All 5 supported pests have authentic threshol
   }
 });
 
+test('Binary Image Validation: Accurate magic byte detection and extension spoofing rejection', async () => {
+  const { PestVisionService } = await import('./src/services/pestVisionService.ts');
+
+  // 1. Valid JPEG mock file
+  const jpegBytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01]);
+  const jpegBlob = new Blob([jpegBytes], { type: 'image/jpeg' });
+  const jpegFile = new File([jpegBlob], 'specimen.jpg', { type: 'image/jpeg' });
+  const jpegValidation = await PestVisionService.validateImageBinary(jpegFile);
+  assert.equal(jpegValidation.isValid, true, 'Genuine JPEG must validate as valid');
+  assert.equal(jpegValidation.format, 'image/jpeg');
+
+  // 2. Valid PNG mock file
+  const pngBytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D]);
+  const pngBlob = new Blob([pngBytes], { type: 'image/png' });
+  const pngFile = new File([pngBlob], 'sample.png', { type: 'image/png' });
+  const pngValidation = await PestVisionService.validateImageBinary(pngFile);
+  assert.equal(pngValidation.isValid, true, 'Genuine PNG must validate as valid');
+  assert.equal(pngValidation.format, 'image/png');
+
+  // 3. Valid WEBP mock file
+  const webpBytes = new Uint8Array([
+    0x52, 0x49, 0x46, 0x46, // RIFF
+    0x24, 0x00, 0x00, 0x00,
+    0x57, 0x45, 0x42, 0x50, // WEBP
+    0x56, 0x50, 0x38, 0x20
+  ]);
+  const webpBlob = new Blob([webpBytes], { type: 'image/webp' });
+  const webpFile = new File([webpBlob], 'field.webp', { type: 'image/webp' });
+  const webpValidation = await PestVisionService.validateImageBinary(webpFile);
+  assert.equal(webpValidation.isValid, true, 'Genuine WEBP must validate as valid');
+  assert.equal(webpValidation.format, 'image/webp');
+
+  // 4. Empty file rejection (0 bytes)
+  const emptyBlob = new Blob([], { type: 'image/jpeg' });
+  const emptyFile = new File([emptyBlob], 'empty.jpg', { type: 'image/jpeg' });
+  const emptyValidation = await PestVisionService.validateImageBinary(emptyFile);
+  assert.equal(emptyValidation.isValid, false, '0-byte file must be rejected');
+  assert.equal(emptyValidation.format, 'empty');
+
+  // 5. Extension spoofing rejection (plain text disguised as .jpg)
+  const fakeBytes = new TextEncoder().encode('THIS_IS_PLAIN_TEXT_NOT_AN_INSECT_IMAGE');
+  const fakeBlob = new Blob([fakeBytes], { type: 'image/jpeg' });
+  const fakeFile = new File([fakeBlob], 'malicious_text.jpg', { type: 'image/jpeg' });
+  const fakeValidation = await PestVisionService.validateImageBinary(fakeFile);
+  assert.equal(fakeValidation.isValid, false, 'Spoofed file must be rejected');
+  assert.equal(fakeValidation.format, 'unsupported');
+});
+
+test('Cryptographic SHA-256 Digest & Traceability on Every Diagnosis Report', async () => {
+  const { PestVisionService } = await import('./src/services/pestVisionService.ts');
+
+  const sampleDataUrl = SAMPLE_PEST_IMAGES[0].imageUri;
+  const hash = await PestVisionService.computeImageHash(sampleDataUrl);
+  assert.ok(hash && hash.length >= 16, 'SHA-256 hash must be computed');
+
+  const customReqId = 'req-trace-test-001';
+  const report = await PestVisionService.analyzeCropImage(
+    sampleDataUrl,
+    'paddy',
+    'bph',
+    'bargarh',
+    customReqId
+  );
+
+  assert.equal(report.requestId, customReqId, 'Report must carry caller requestId');
+  assert.ok(report.imageHash, 'Report must carry specimen imageHash');
+  assert.ok(report.modelVersion, 'Report must carry modelVersion');
+  assert.ok(report.analysisTimestamp > 0, 'Report must carry analysisTimestamp');
+});
+
+

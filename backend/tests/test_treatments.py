@@ -201,3 +201,121 @@ async def test_production_vision_model_matches_benchmark():
     """
     assert settings.GEMINI_MODEL == "gemini-3.5-flash-lite", f"Configured model '{settings.GEMINI_MODEL}' must match benchmark"
     assert settings.PROJECT_NAME == "Krushi Mitra AI Backend"
+
+@pytest.mark.asyncio
+async def test_comprehensive_13_point_adversarial_security_suite():
+    """
+    Phase 6 Exhaustive Adversarial Security Audit (Mandatory 13 Attack Vectors):
+    Asserts fail-closed security across all 13 required adversarial scenarios.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Congener non-target identification & 2. Malicious client submitting high counts for congener
+        congener_resp = await client.get("/api/v1/treatments/dicladispa_occator?crop_stage=vegetative&sampling_unit=per_hill&pest_count=50.0")
+        assert congener_resp.status_code == 200
+        congener_data = congener_resp.json()
+        assert len(congener_data["chemical_control"]) == 0
+        assert congener_data["chemical_authorized"] is False
+        assert congener_data["authorization_status"] == "UNSUPPORTED_OR_NON_TARGET"
+
+        # 3. Beneficial insects with high submitted counts (e.g. 50 Lycosa spiders/hill)
+        spider_resp = await client.get("/api/v1/treatments/beneficial_spider?crop_stage=vegetative&sampling_unit=per_hill&pest_count=50.0")
+        assert spider_resp.status_code == 200
+        spider_data = spider_resp.json()
+        assert len(spider_data["chemical_control"]) == 0
+        assert spider_data["chemical_authorized"] is False
+        assert spider_data["authorization_status"] == "UNSUPPORTED_OR_NON_TARGET"
+
+        # 4. Healthy crop with high submitted counts
+        healthy_resp = await client.get("/api/v1/treatments/healthy_paddy?crop_stage=vegetative&sampling_unit=per_hill&pest_count=100.0")
+        assert healthy_resp.status_code == 200
+        healthy_data = healthy_resp.json()
+        assert len(healthy_data["chemical_control"]) == 0
+        assert healthy_data["chemical_authorized"] is False
+        assert healthy_data["authorization_status"] == "UNSUPPORTED_OR_NON_TARGET"
+
+        # 5. Crop disease with high submitted counts (e.g. foliar blast lesions)
+        for disease in ["rice_blast", "brown_spot", "sheath_blight", "crop_damage_no_visible_insect"]:
+            dis_resp = await client.get(f"/api/v1/treatments/{disease}?crop_stage=vegetative&sampling_unit=percent_damaged_leaves&pest_count=80.0")
+            assert dis_resp.status_code == 200
+            dis_data = dis_resp.json()
+            assert len(dis_data["chemical_control"]) == 0
+            assert dis_data["chemical_authorized"] is False
+            assert dis_data["authorization_status"] == "UNSUPPORTED_OR_NON_TARGET"
+
+        # 6. Non-agricultural image with high submitted counts
+        for non_ag in ["non_agricultural", "car", "human_portrait", "tractor"]:
+            non_ag_resp = await client.get(f"/api/v1/treatments/{non_ag}?crop_stage=vegetative&sampling_unit=per_hill&pest_count=999.0")
+            assert non_ag_resp.status_code == 200
+            non_ag_data = non_ag_resp.json()
+            assert len(non_ag_data["chemical_control"]) == 0
+            assert non_ag_data["chemical_authorized"] is False
+            assert non_ag_data["authorization_status"] == "UNSUPPORTED_OR_NON_TARGET"
+
+        # 7. Unsupported crop stage
+        unsupported_stage_resp = await client.get("/api/v1/treatments/bph?crop_stage=post_harvest_storage&sampling_unit=per_hill&pest_count=20.0")
+        assert unsupported_stage_resp.status_code == 200
+        unsupported_stage_data = unsupported_stage_resp.json()
+        assert len(unsupported_stage_data["chemical_control"]) == 0
+        assert unsupported_stage_data["authorization_status"] == "INVALID_OBSERVATION_DATA"
+
+        # 8. Unsupported sampling unit
+        unsupported_unit_resp = await client.get("/api/v1/treatments/stem_borer?crop_stage=tillering&sampling_unit=litres_per_hectare&pest_count=20.0")
+        assert unsupported_unit_resp.status_code == 200
+        unsupported_unit_data = unsupported_unit_resp.json()
+        assert len(unsupported_unit_data["chemical_control"]) == 0
+        assert unsupported_unit_data["authorization_status"] == "INVALID_OBSERVATION_DATA"
+
+        # 9. Missing / unverified ETL source (larvae_per_hill on armyworm vegetative)
+        unverified_etl_resp = await client.get("/api/v1/treatments/armyworm?crop_stage=tillering&sampling_unit=larvae_per_hill&pest_count=10.0")
+        assert unverified_etl_resp.status_code == 200
+        unverified_etl_data = unverified_etl_resp.json()
+        assert len(unverified_etl_data["chemical_control"]) == 0
+        assert unverified_etl_data["authorization_status"] == "UNVERIFIED_ETL_RULE_LOCKED"
+
+        # 10. Unverified pesticide registration: Verify Emamectin Benzoate and off-label chemicals are strictly absent
+        for pid in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm"]:
+            auth_resp = await client.get(f"/api/v1/treatments/{pid}?crop_stage=vegetative&sampling_unit=per_hill&pest_count=50.0")
+            if auth_resp.status_code == 200:
+                chemicals = auth_resp.json().get("chemical_control", [])
+                for chem in chemicals:
+                    assert "Emamectin" not in chem["active_ingredient"], f"Unregistered Emamectin found in {pid}"
+                    assert chem["cibrc_registered"] is True
+
+        # 11. Missing PHI: Every authorized molecule across all 5 pests must have phi_days > 0
+        # Check BPH authorized molecules
+        bph_auth = await client.get("/api/v1/treatments/bph?crop_stage=vegetative&sampling_unit=per_hill&pest_count=10.0")
+        assert bph_auth.status_code == 200
+        for chem in bph_auth.json()["chemical_control"]:
+            assert chem["phi_days"] > 0, f"Missing PHI in {chem['active_ingredient']}"
+
+        # Check Stem Borer authorized molecules
+        ysb_auth = await client.get("/api/v1/treatments/stem_borer?crop_stage=tillering&sampling_unit=percent_dead_hearts&pest_count=10.0")
+        assert ysb_auth.status_code == 200
+        for chem in ysb_auth.json()["chemical_control"]:
+            assert chem["phi_days"] > 0
+            if "Chlorantraniliprole" in chem["active_ingredient"]:
+                assert chem["phi_days"] == 47, "Coragen PHI on rice must be 47 days"
+
+        # Check Rice Hispa authorized molecules
+        hispa_auth = await client.get("/api/v1/treatments/rice_hispa?crop_stage=vegetative&sampling_unit=per_hill&pest_count=5.0")
+        assert hispa_auth.status_code == 200
+        for chem in hispa_auth.json()["chemical_control"]:
+            assert chem["phi_days"] > 0
+            if "Chlorpyriphos" in chem["active_ingredient"]:
+                assert chem["phi_days"] == 30, "Chlorpyriphos PHI on rice must be 30 days"
+
+        # 12. Direct API requests bypassing frontend restrictions
+        for pid in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm"]:
+            direct_resp = await client.get(f"/api/v1/treatments/{pid}")
+            assert direct_resp.status_code == 200
+            assert len(direct_resp.json()["chemical_control"]) == 0
+            assert direct_resp.json()["chemical_authorized"] is False
+
+        # 13. Requests to every alternate knowledge and species endpoint
+        alt_species = await client.get("/api/v1/pest/species")
+        assert alt_species.status_code == 200
+        for sp in alt_species.json():
+            assert len(sp.get("chemical_control", [])) == 0
+            assert sp.get("chemical_authorized", False) is False
+

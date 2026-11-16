@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Camera, 
   Upload, 
@@ -10,12 +10,24 @@ import {
   Sliders, 
   HelpCircle,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Hash,
+  Activity,
+  Layers,
+  FileCheck
 } from 'lucide-react';
 import { ODIA_TRANSLATIONS } from '../data/odiaTranslations';
 import { SAMPLE_PEST_IMAGES, SamplePestImage } from '../data/sampleImages';
 import { PestVisionService, ImageQualityCheck } from '../services/pestVisionService';
-import { ScanReport, CropId, PestId } from '../types/pest';
+import { ScanReport, CropId } from '../types/pest';
+import { CameraModal } from './CameraModal';
+
+export type ScannerLifecycleState = 
+  | 'IDLE' 
+  | 'IMAGE_SELECTED' 
+  | 'IMAGE_VALIDATED' 
+  | 'ANALYZING' 
+  | 'RESULT_RECEIVED';
 
 interface PestScannerProps {
   lang: 'or' | 'en';
@@ -30,115 +42,208 @@ export const PestScanner: React.FC<PestScannerProps> = ({
   selectedSample,
   onClearSample
 }) => {
+  // Deterministic state machine
+  const [lifecycleState, setLifecycleState] = useState<ScannerLifecycleState>('IDLE');
   const [currentSample, setCurrentSample] = useState<SamplePestImage | null>(selectedSample || null);
   const [imageUri, setImageUri] = useState<string | null>(selectedSample?.imageUri || null);
+  const [imageHash, setImageHash] = useState<string | null>(null);
   const [selectedCrop, setSelectedCrop] = useState<CropId>('paddy');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisStep, setAnalysisStep] = useState<string>('');
   const [qualityCheck, setQualityCheck] = useState<ImageQualityCheck | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const activeRequestIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const t = ODIA_TRANSLATIONS[lang];
 
-  // If a sample is passed in from parent
-  React.useEffect(() => {
-    if (selectedSample) {
-      setCurrentSample(selectedSample);
-      setImageUri(selectedSample.imageUri);
-      PestVisionService.assessImageQuality(selectedSample.imageUri).then(setQualityCheck);
+  // Abort any ongoing network inference when unmounting
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Compute image hash and quality whenever an image is selected
+  const processNewImage = useCallback(async (uri: string, sample?: SamplePestImage | null) => {
+    // Reset previous execution context to avoid race conditions
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
-  }, [selectedSample]);
+
+    setLifecycleState('IMAGE_SELECTED');
+    setErrorMsg(null);
+    setImageUri(uri);
+    setCurrentSample(sample || null);
+
+    try {
+      const hash = await PestVisionService.computeImageHash(uri);
+      setImageHash(hash);
+      const check = await PestVisionService.assessImageQuality(uri);
+      setQualityCheck(check);
+      setLifecycleState('IMAGE_VALIDATED');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to inspect image quality.');
+      setLifecycleState('IMAGE_SELECTED');
+    }
+  }, []);
+
+  // React to parent sample selection
+  useEffect(() => {
+    if (selectedSample) {
+      processNewImage(selectedSample.imageUri, selectedSample);
+    }
+  }, [selectedSample, processNewImage]);
+
+  // Handle uploaded file (via input or drag-and-drop)
+  const handleRawFile = async (file: File) => {
+    setErrorMsg(null);
+
+    // 1. Strict binary magic byte validation
+    const validation = await PestVisionService.validateImageBinary(file);
+    if (!validation.isValid) {
+      setErrorMsg(lang === 'or' ? validation.errorOr || 'ଅବୈଧ ଫଟୋ ଫାଇଲ୍।' : validation.errorEn || 'Invalid image file.');
+      return;
+    }
+
+    if (onClearSample) onClearSample();
+
+    try {
+      // 2. High-fidelity compression preserving microscopic insect anatomy
+      const compressedUri = await PestVisionService.compressAndResizeImage(file, 1200, 0.85);
+      await processNewImage(compressedUri, null);
+    } catch (err: any) {
+      setErrorMsg(err.message || (lang === 'or' ? 'ଫଟୋ ପ୍ରକ୍ରିୟାକରଣରେ ତ୍ରୁଟି।' : 'Failed to process uploaded image.'));
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    await handleRawFile(file);
+  };
 
-    // Validate type robustly for desktop and mobile browsers
-    const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp)$/i.test(file.name);
-    if (!isImage) {
-      setErrorMsg(lang === 'or' 
-        ? 'ଦୟାକରି କେବଳ JPG, JPEG, PNG କିମ୍ବା WEBP ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ।' 
-        : 'Please upload only JPG, JPEG, PNG, or WEBP image files.');
-      return;
-    }
+  // Drag and Drop handlers for desktop browsers
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
 
-    // Validate size (25MB limit before compression)
-    if (file.size > 25 * 1024 * 1024) {
-      setErrorMsg(lang === 'or' 
-        ? 'ଫଟୋର ଆକାର ୨୫ MB ରୁ କମ୍ ହେବା ଉଚିତ।' 
-        : 'Image size exceeds maximum 25MB limit.');
-      return;
-    }
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
 
-    setErrorMsg(null);
-    setCurrentSample(null);
-    if (onClearSample) onClearSample();
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
 
-    try {
-      // Compress and resize for safe preview, fast inference, and localStorage persistence
-      const compressedUri = await PestVisionService.compressAndResizeImage(file, 1200, 0.85);
-      setImageUri(compressedUri);
-      const check = await PestVisionService.assessImageQuality(compressedUri);
-      setQualityCheck(check);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to process uploaded image.');
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await handleRawFile(file);
     }
   };
 
   const handleSelectSample = async (sample: SamplePestImage) => {
-    setCurrentSample(sample);
-    setImageUri(sample.imageUri);
-    setErrorMsg(null);
-    const check = await PestVisionService.assessImageQuality(sample.imageUri);
-    setQualityCheck(check);
+    if (onClearSample) onClearSample();
+    await processNewImage(sample.imageUri, sample);
   };
 
+  // Live camera snapshot capture handler
+  const handleCameraCapture = async (capturedDataUrl: string) => {
+    if (onClearSample) onClearSample();
+    await processNewImage(capturedDataUrl, null);
+  };
+
+  // Analysis trigger with strict concurrency protection
   const handleStartAnalysis = async () => {
     if (!imageUri) return;
+
+    // Generate unique request ID
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    activeRequestIdRef.current = requestId;
+
+    // Prepare abort controller for request cancellation
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setLifecycleState('ANALYZING');
     setIsAnalyzing(true);
     setErrorMsg(null);
 
     try {
-      // Realistic multi-stage diagnostic progress
-      setAnalysisStep(lang === 'or' ? 'ଫଟୋ ଗୁଣବତ୍ତା ଓ ରେଜୋଲ୍ୟୁସନ ଯାଞ୍ଚ ହେଉଛି...' : 'Validating image resolution & lighting contrast...');
-      await new Promise(r => setTimeout(r, 600));
+      // Diagnostic progress stages
+      setAnalysisStep(lang === 'or' ? '୧/୪: ଫଟୋ ଗୁଣବତ୍ତା ଓ ରେଜୋଲ୍ୟୁସନ ଯାଞ୍ଚ ହେଉଛି...' : '1/4: Validating image resolution & lighting contrast...');
+      await new Promise(r => setTimeout(r, 400));
 
-      setAnalysisStep(lang === 'or' ? 'କୀଟର ବାହ୍ୟ ଗଠନ ଓ ଲକ୍ଷଣ ଅନୁସନ୍ଧାନ ହେଉଛି...' : 'Analyzing insect morphology & plant damage signatures...');
-      await new Promise(r => setTimeout(r, 700));
+      if (controller.signal.aborted) return;
 
-      setAnalysisStep(lang === 'or' ? 'ICAR-NRRI ଓ OUAT କୀଟ ତଥ୍ୟାବଳୀ ସହିତ ମେଳ କରାଯାଉଛି...' : 'Cross-referencing with ICAR-NRRI & OUAT pest knowledge base...');
-      await new Promise(r => setTimeout(r, 600));
+      setAnalysisStep(lang === 'or' ? '୨/୪: କୀଟର ବାହ୍ୟ ଗଠନ ଓ ଲକ୍ଷଣ ଅନୁସନ୍ଧାନ ହେଉଛି...' : '2/4: Analyzing insect morphology & plant damage signatures...');
+      await new Promise(r => setTimeout(r, 450));
 
-      setAnalysisStep(lang === 'or' ? 'ଜୈବିକ ଓ ରାସାୟନିକ ଉପଚାର ପରାମର୍ଶ ପ୍ରସ୍ତୁତ ହେଉଛି...' : 'Formulating 3-tier IPM recommendations & safety checks...');
-      await new Promise(r => setTimeout(r, 500));
+      if (controller.signal.aborted) return;
+
+      setAnalysisStep(lang === 'or' ? '୩/୪: ICAR-NRRI ଓ OUAT କୀଟ ତଥ୍ୟାବଳୀ ସହିତ ମେଳ କରାଯାଉଛି...' : '3/4: Cross-referencing with ICAR-NRRI & OUAT pest knowledge base...');
+      await new Promise(r => setTimeout(r, 400));
+
+      if (controller.signal.aborted) return;
+
+      setAnalysisStep(lang === 'or' ? '୪/୪: ଜୈବିକ ଓ ରାସାୟନିକ ଉପଚାର ପରାମର୍ଶ ପ୍ରସ୍ତୁତ ହେଉଛି...' : '4/4: Formulating 3-tier IPM recommendations & safety checks...');
+      await new Promise(r => setTimeout(r, 350));
+
+      if (controller.signal.aborted) return;
 
       // Execute vision diagnosis
       const report = await PestVisionService.analyzeCropImage(
         imageUri,
         selectedCrop,
         currentSample?.pestId,
-        'bargarh'
+        'bargarh',
+        requestId,
+        controller.signal
       );
 
+      // Verify response belongs to active request (prevent race conditions)
+      if (activeRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setLifecycleState('RESULT_RECEIVED');
       setIsAnalyzing(false);
       onScanComplete(report);
     } catch (err: any) {
+      if (activeRequestIdRef.current !== requestId) return;
       setIsAnalyzing(false);
-      setErrorMsg(err.message || 'Diagnostic analysis failed. Please try again.');
+      setLifecycleState('IMAGE_VALIDATED');
+      setErrorMsg(err.message || (lang === 'or' ? 'ବିଶ୍ଳେଷଣ ବିଫଳ ହେଲା। ପୁନଃ ଚେଷ୍ଟା କରନ୍ତୁ।' : 'Diagnostic analysis failed. Please try again.'));
     }
   };
 
   const handleReset = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    activeRequestIdRef.current = null;
+    setLifecycleState('IDLE');
     setImageUri(null);
+    setImageHash(null);
     setCurrentSample(null);
     setQualityCheck(null);
     setErrorMsg(null);
+    setIsAnalyzing(false);
     if (onClearSample) onClearSample();
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   return (
@@ -171,6 +276,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
               {lang === 'or' ? 'ଫସଲ:' : 'Crop:'}
             </span>
             <button
+              type="button"
               onClick={() => setSelectedCrop('paddy')}
               className="px-3 py-1.5 rounded-xl bg-agri-800 text-white font-bold text-xs shadow-sm flex items-center space-x-1"
             >
@@ -182,11 +288,11 @@ export const PestScanner: React.FC<PestScannerProps> = ({
 
         {/* Error Notification */}
         {errorMsg && (
-          <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start space-x-3 text-rose-800 text-sm">
+          <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start space-x-3 text-rose-800 text-sm animate-fadeIn">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">{lang === 'or' ? 'ତ୍ରୁଟି ଦେଖାଦେଇଛି' : 'Error Occurred'}</p>
-              <p className="text-xs text-rose-700 mt-0.5">{errorMsg}</p>
+            <div className="flex-1">
+              <p className="font-bold">{lang === 'or' ? 'ତ୍ରୁଟି ଦେଖାଦେଇଛି' : 'Input / System Alert'}</p>
+              <p className="text-xs text-rose-700 mt-0.5 leading-relaxed">{errorMsg}</p>
             </div>
           </div>
         )}
@@ -195,7 +301,16 @@ export const PestScanner: React.FC<PestScannerProps> = ({
         <div className="mt-6">
           {!imageUri ? (
             /* Upload & Camera Buttons */
-            <div className="border-2 border-dashed border-slate-300 rounded-3xl p-8 sm:p-12 text-center bg-slate-50/70 hover:bg-slate-50 transition-colors">
+            <div 
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all ${
+                isDragOver 
+                  ? 'border-agri-600 bg-agri-50 scale-[1.01]' 
+                  : 'border-slate-300 bg-slate-50/70 hover:bg-slate-50'
+              }`}
+            >
               <div className="max-w-md mx-auto space-y-4">
                 <div className="w-16 h-16 mx-auto rounded-2xl bg-agri-100 text-agri-800 flex items-center justify-center shadow-inner">
                   <Camera className="w-8 h-8" />
@@ -203,30 +318,26 @@ export const PestScanner: React.FC<PestScannerProps> = ({
 
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    {lang === 'or' ? 'ଫଟୋ ଉଠାନ୍ତୁ କିମ୍ବା ଗ୍ୟାଲେରୀରୁ ବାଛନ୍ତୁ' : 'Take a photo or upload from device'}
+                    {lang === 'or' ? 'ଫଟୋ ଉଠାନ୍ତୁ କିମ୍ବା ଡ୍ରପ୍ କରନ୍ତୁ' : 'Take a photo or drag & drop image'}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    {lang === 'or' ? 'ସମର୍ଥିତ ଫର୍ମାଟ୍: JPG, JPEG, PNG, WEBP (ସର୍ବାଧିକ ୧୫ MB)' : 'Supported formats: JPG, JPEG, PNG, WEBP (up to 15MB)'}
+                    {lang === 'or' ? 'ସମର୍ଥିତ ଫର୍ମାଟ୍: JPG, JPEG, PNG, WEBP (ସର୍ବାଧିକ ୨୫ MB)' : 'Supported formats: JPG, JPEG, PNG, WEBP (up to 25MB)'}
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                  {/* Camera Button */}
-                  <label className="cursor-pointer px-6 py-3.5 rounded-2xl bg-lime-500 hover:bg-lime-400 text-agri-950 font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all">
+                  {/* Live WebRTC Camera Button (Primary on Mobile and Desktop) */}
+                  <button 
+                    type="button"
+                    onClick={() => setIsCameraModalOpen(true)}
+                    className="min-h-[44px] cursor-pointer px-6 py-3.5 rounded-2xl bg-lime-500 hover:bg-lime-400 text-agri-950 font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
                     <Camera className="w-4 h-4" />
-                    <span>{lang === 'or' ? 'କ୍ୟାମେରା ଖୋଲନ୍ତୁ' : 'Open Camera'}</span>
-                    <input 
-                      ref={cameraInputRef}
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment" 
-                      onChange={handleFileChange} 
-                      className="hidden" 
-                    />
-                  </label>
+                    <span>{lang === 'or' ? 'ଲାଇଭ୍ କ୍ୟାମେରା ଖୋଲନ୍ତୁ' : 'Open Live Camera'}</span>
+                  </button>
 
                   {/* Gallery File Upload */}
-                  <label className="cursor-pointer px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-sm border border-slate-300 flex items-center justify-center space-x-2 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all">
+                  <label className="min-h-[44px] cursor-pointer px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-sm border border-slate-300 flex items-center justify-center space-x-2 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all">
                     <Upload className="w-4 h-4 text-agri-700" />
                     <span>{lang === 'or' ? 'ଗ୍ୟାଲେରୀରୁ ଆଣନ୍ତୁ' : 'Browse Gallery'}</span>
                     <input 
@@ -239,7 +350,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                   </label>
                 </div>
 
-                {/* Comprehensive Photography Guide for Odisha Farmers (Section 11) */}
+                {/* Field Photography Guide for Reliable AI Identification */}
                 <div className="pt-4 text-left bg-white p-4.5 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-2">
                   <span className="font-extrabold text-slate-900 flex items-center space-x-1.5 text-xs">
                     <HelpCircle className="w-4 h-4 text-agri-700 flex-shrink-0" />
@@ -280,12 +391,21 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                 {!isAnalyzing && (
                   <div className="absolute top-4 right-4 flex space-x-2">
                     <button
+                      type="button"
                       onClick={handleReset}
-                      className="px-3 py-2 rounded-xl bg-black/70 hover:bg-black/90 text-white text-xs font-bold backdrop-blur-md flex items-center space-x-1.5 transition-colors"
+                      className="min-h-[44px] px-3.5 py-2 rounded-xl bg-black/75 hover:bg-black/90 text-white text-xs font-bold backdrop-blur-md flex items-center space-x-1.5 transition-colors focus:ring-2 focus:ring-lime-400"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>{t.ctaRetake}</span>
                     </button>
+                  </div>
+                )}
+
+                {/* Specimen Signature Pill (Audit Traceability) */}
+                {imageHash && (
+                  <div className="absolute bottom-3 left-3 bg-black/75 text-slate-300 px-3 py-1.5 rounded-xl text-[10px] font-mono backdrop-blur-md flex items-center space-x-1.5 border border-white/10">
+                    <Hash className="w-3 h-3 text-lime-400" />
+                    <span>SHA-256: {imageHash.slice(0, 12)}...{imageHash.slice(-6)}</span>
                   </div>
                 )}
 
@@ -309,7 +429,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
 
               {/* Image Quality Telemetry Indicator */}
               {qualityCheck && !isAnalyzing && (
-                <div className={`p-4 rounded-2xl border text-xs flex items-start space-x-3 ${
+                <div className={`p-4 rounded-2xl border text-xs flex items-start space-x-3 transition-colors ${
                   qualityCheck.isClear 
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
                     : 'bg-amber-50 border-amber-300 text-amber-900'
@@ -320,7 +440,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                     <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
                       <span className="font-bold">
                         {qualityCheck.isClear 
                           ? (lang === 'or' ? 'ଫଟୋ ଗୁଣବତ୍ତା: ଉପଯୁକ୍ତ ଓ ସ୍ପଷ୍ଟ' : 'Image Quality: Optimal for Identification') 
@@ -331,7 +451,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                       </span>
                     </div>
                     {!qualityCheck.isClear && (
-                      <p className="mt-1 font-medium text-amber-800">
+                      <p className="mt-1 font-medium text-amber-800 leading-relaxed">
                         {lang === 'or' ? qualityCheck.warningMessageOr : qualityCheck.warningMessage}
                       </p>
                     )}
@@ -343,8 +463,9 @@ export const PestScanner: React.FC<PestScannerProps> = ({
               {!isAnalyzing && (
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
+                    type="button"
                     onClick={handleStartAnalysis}
-                    className="flex-1 py-4 rounded-2xl bg-agri-800 hover:bg-agri-900 text-lime-300 font-extrabold text-base flex items-center justify-center space-x-2.5 shadow-lg shadow-agri-950/20 hover:scale-[1.01] active:scale-[0.99] transition-all"
+                    className="min-h-[48px] flex-1 py-4 px-6 rounded-2xl bg-agri-800 hover:bg-agri-900 text-lime-300 font-extrabold text-base flex items-center justify-center space-x-2.5 shadow-lg shadow-agri-950/20 hover:scale-[1.01] active:scale-[0.99] transition-all"
                   >
                     <Sparkles className="w-5 h-5 text-lime-400" />
                     <span>{lang === 'or' ? 'AI କୀଟ ବିଶ୍ଳେଷଣ ଆରମ୍ଭ କରନ୍ତୁ' : 'Run AI Pest Diagnosis'}</span>
@@ -352,8 +473,9 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                   </button>
 
                   <button
+                    type="button"
                     onClick={handleReset}
-                    className="px-6 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors"
+                    className="min-h-[48px] px-6 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors"
                   >
                     {lang === 'or' ? 'ବାତିଲ କରନ୍ତୁ' : 'Cancel'}
                   </button>
@@ -382,8 +504,9 @@ export const PestScanner: React.FC<PestScannerProps> = ({
             return (
               <button
                 key={sample.id}
+                type="button"
                 onClick={() => handleSelectSample(sample)}
-                className={`text-left p-2.5 rounded-xl border transition-all text-xs font-medium flex items-center space-x-2 ${
+                className={`min-h-[44px] text-left p-2.5 rounded-xl border transition-all text-xs font-medium flex items-center space-x-2 ${
                   isSelected 
                     ? 'border-lime-500 bg-lime-50 text-agri-950 ring-2 ring-lime-400 font-bold shadow-sm' 
                     : 'border-slate-200 hover:border-agri-500 hover:bg-agri-50/50 text-slate-800'
@@ -400,6 +523,14 @@ export const PestScanner: React.FC<PestScannerProps> = ({
           })}
         </div>
       </div>
+
+      {/* Live WebRTC Camera Viewfinder Modal */}
+      <CameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handleCameraCapture}
+        lang={lang}
+      />
     </div>
   );
 };

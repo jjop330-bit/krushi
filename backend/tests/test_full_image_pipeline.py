@@ -72,3 +72,62 @@ async def test_png_and_webp_mime_types():
             data = res.json()
             assert data["status"] == ScanStatusEnum.IDENTIFIED.value
             assert data["pest_id"] == "bph"
+            # Verify cryptographic and traceability attributes
+            assert data["image_hash"] is not None and len(data["image_hash"]) == 64
+            assert data["request_id"] is not None
+            assert data["model_version"] is not None
+
+@pytest.mark.asyncio
+async def test_empty_and_corrupted_file_rejection():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Empty file (0 bytes)
+        res_empty = await client.post(
+            "/api/v1/pest/analyze",
+            files={"file": ("empty.jpg", b"", "image/jpeg")},
+            data={"crop_id": "paddy"}
+        )
+        assert res_empty.status_code == 400
+        assert "Empty" in res_empty.json()["detail"]
+
+        # Corrupted / unreadable image bytes
+        corrupted_bytes = b"\xFF\xD8\xFF\x00\x01\x02\x03CORRUPTED_STREAM_DATA"
+        res_corrupt = await client.post(
+            "/api/v1/pest/analyze",
+            files={"file": ("corrupt.jpg", corrupted_bytes, "image/jpeg")},
+            data={"crop_id": "paddy"}
+        )
+        assert res_corrupt.status_code == 200
+        data_corrupt = res_corrupt.json()
+        assert data_corrupt["status"] == ScanStatusEnum.ERROR.value
+        assert data_corrupt["treatment_allowed"] is False
+
+@pytest.mark.asyncio
+async def test_severe_dark_and_blurry_image_quality_telemetry():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Severe dark image (pitch black, RGB 0,0,0)
+        dark_img = generate_test_image("JPEG", color=(1, 1, 1), size=(200, 200))
+        res_dark = await client.post(
+            "/api/v1/pest/analyze",
+            files={"file": ("dark.jpg", dark_img, "image/jpeg")},
+            data={"crop_id": "paddy"}
+        )
+        assert res_dark.status_code == 200
+        data_dark = res_dark.json()
+        assert data_dark["quality_assessment"]["is_clear"] is False
+        assert data_dark["quality_assessment"]["lighting_score"] < 15
+        assert data_dark["treatment_allowed"] is False
+
+        # 2. Solid color / uniform blank image (zero edge contrast)
+        blank_img = generate_test_image("JPEG", color=(128, 128, 128), size=(200, 200))
+        res_blank = await client.post(
+            "/api/v1/pest/analyze",
+            files={"file": ("blank.jpg", blank_img, "image/jpeg")},
+            data={"crop_id": "paddy"}
+        )
+        assert res_blank.status_code == 200
+        data_blank = res_blank.json()
+        assert data_blank["quality_assessment"]["is_clear"] is False
+        assert data_blank["treatment_allowed"] is False
+

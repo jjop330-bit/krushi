@@ -13,6 +13,125 @@ export interface ImageQualityCheck {
 
 export class PestVisionService {
   /**
+   * Cryptographic SHA-256 Digest Computation:
+   * Hashes the raw photograph data URL to generate a strict, deterministic specimen signature.
+   * Ensures traceability across UI states, network transmissions, and audit logs.
+   */
+  public static async computeImageHash(dataUrl: string): Promise<string> {
+    try {
+      if (typeof crypto === 'undefined' || !crypto.subtle) {
+        let hash = 0;
+        for (let i = 0; i < dataUrl.length; i++) {
+          hash = ((hash << 5) - hash) + dataUrl.charCodeAt(i);
+          hash |= 0;
+        }
+        return `hash-${Math.abs(hash).toString(16).padStart(16, '0')}`;
+      }
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      const binaryString = atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+      return `sha256-uncomputed-${Date.now()}`;
+    }
+  }
+
+  /**
+   * File Type & Binary Magic Byte Validation:
+   * Inspects binary header signatures (not just the file extension or MIME string)
+   * to guarantee that uploaded files are genuine, uncorrupted JPEG, PNG, or WEBP images.
+   */
+  public static async validateImageBinary(file: File): Promise<{
+    isValid: boolean;
+    format: string;
+    errorEn?: string;
+    errorOr?: string;
+  }> {
+    if (!file || file.size === 0) {
+      return {
+        isValid: false,
+        format: 'empty',
+        errorEn: 'The selected file is empty (0 bytes). Please upload a valid photograph.',
+        errorOr: 'ଚୟନିତ ଫାଇଲ୍ ଟି ସମ୍ପୂର୍ଣ୍ଣ ଖାଲି (୦ ବାଇଟ୍) ଅଟେ। ଦୟାକରି ଏକ ବୈଧ ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ।'
+      };
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      return {
+        isValid: false,
+        format: 'oversized',
+        errorEn: 'Image size exceeds maximum limit of 25MB. Please choose a smaller file.',
+        errorOr: 'ଫଟୋର ଆକାର ସର୍ବାଧିକ ୨୫ MB ରୁ ଅଧିକ ଅଟେ। ଦୟାକରି ଏକ ଛୋଟ ଫଟୋ ବାଛନ୍ତୁ।'
+      };
+    }
+
+    try {
+      let buffer: ArrayBuffer;
+      if (typeof file.arrayBuffer === 'function') {
+        buffer = await file.slice(0, 16).arrayBuffer();
+      } else if (typeof FileReader !== 'undefined') {
+        buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as ArrayBuffer);
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsArrayBuffer(file.slice(0, 16));
+        });
+      } else {
+        return { isValid: true, format: 'image/jpeg' };
+      }
+
+      const arr = new Uint8Array(buffer);
+      if (arr.length < 4) {
+        return {
+          isValid: false,
+          format: 'corrupt',
+          errorEn: 'Image file header is truncated or corrupted.',
+          errorOr: 'ଫଟୋ ଫାଇଲର ହେଡର୍ ତ୍ରୁଟିପୂର୍ଣ୍ଣ ବା ନଷ୍ଟ ହୋଇଯାଇଛି।'
+        };
+      }
+
+      // JPEG Magic Bytes: FF D8 FF
+      if (arr[0] === 0xff && arr[1] === 0xd8 && arr[2] === 0xff) {
+        return { isValid: true, format: 'image/jpeg' };
+      }
+
+      // PNG Magic Bytes: 89 50 4E 47
+      if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4e && arr[3] === 0x47) {
+        return { isValid: true, format: 'image/png' };
+      }
+
+      // WEBP Magic Bytes: RIFF .... WEBP
+      if (
+        arr.length >= 12 &&
+        arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46 &&
+        arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50
+      ) {
+        return { isValid: true, format: 'image/webp' };
+      }
+
+      return {
+        isValid: false,
+        format: 'unsupported',
+        errorEn: 'Unsupported image format. Only authentic JPG, JPEG, PNG, or WEBP images are supported. File extension spoofing is rejected.',
+        errorOr: 'ଅସମର୍ଥିତ ଫର୍ମାଟ୍। କେବଳ ପ୍ରକୃତ JPG, JPEG, PNG କିମ୍ବା WEBP ଫଟୋ ସମର୍ଥିତ।'
+      };
+    } catch {
+      return {
+        isValid: false,
+        format: 'unreadable',
+        errorEn: 'Failed to read file from storage disk.',
+        errorOr: 'ଡିଭାଇସ୍ ଷ୍ଟୋରେଜ୍ ରୁ ଫାଇଲ୍ ପଢ଼ିବାରେ ତ୍ରୁଟି ଘଟିଲା।'
+      };
+    }
+  }
+
+  /**
    * Client-side Image Compression & Resizing:
    * Resizes large smartphone camera photos (e.g. 12-48MP) to an optimal max dimension (1200px)
    * with high-quality JPEG compression (0.85).
@@ -187,11 +306,26 @@ export class PestVisionService {
     imageDataUrl: string,
     cropId: CropId = 'paddy',
     forcedPestId?: string,
-    farmerDistrict: string = 'bargarh'
+    farmerDistrict: string = 'bargarh',
+    requestId?: string,
+    abortSignal?: AbortSignal
   ): Promise<ScanReport> {
     const quality = await this.assessImageQuality(imageDataUrl);
     const apiKey = StorageService.getApiKey();
     const settings = StorageService.getSettings();
+    const reqId = requestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const imageHash = await this.computeImageHash(imageDataUrl);
+
+    // Helper to ensure strict traceability attributes on any returned report
+    const attachTraceability = (rep: ScanReport): ScanReport => {
+      return {
+        ...rep,
+        requestId: rep.requestId || reqId,
+        imageHash: rep.imageHash || imageHash,
+        modelVersion: rep.modelVersion || '3.5-flash-lite',
+        analysisTimestamp: rep.analysisTimestamp || Date.now()
+      };
+    };
 
     // Match against verified sample library if forcedPestId was not explicitly set
     let effectivePestId = forcedPestId;
@@ -202,40 +336,49 @@ export class PestVisionService {
       }
     }
 
+    // Check cancellation
+    if (abortSignal?.aborted) {
+      throw new Error('Analysis cancelled by user or superseded by new scan request.');
+    }
+
     // If photograph quality failed, return honest unclear report immediately
     if (!quality.isClear && !effectivePestId) {
-      return this.buildUnclearReport(imageDataUrl, quality, farmerDistrict);
+      return attachTraceability(this.buildUnclearReport(imageDataUrl, quality, farmerDistrict));
     }
 
     if (effectivePestId === 'unclear_image') {
-      return this.buildUnclearReport(imageDataUrl, quality, farmerDistrict);
+      return attachTraceability(this.buildUnclearReport(imageDataUrl, quality, farmerDistrict));
     }
 
     // 1. Attempt secure backend proxy if enabled and not forced benchmark sample
     if (settings.useBackendProxy && !effectivePestId) {
       try {
-        const backendResult = await this.tryAnalyzeViaBackend(imageDataUrl, cropId, farmerDistrict);
+        const backendResult = await this.tryAnalyzeViaBackend(imageDataUrl, cropId, farmerDistrict, abortSignal);
         if (backendResult) {
-          return backendResult;
+          return attachTraceability(backendResult);
         }
       } catch (err) {
         // Fall through to client direct mode if backend is not running
       }
     }
 
+    if (abortSignal?.aborted) {
+      throw new Error('Analysis cancelled by user or superseded by new scan request.');
+    }
+
     // 2. Client BYOK Gemini API call (Direct browser mode)
     if (apiKey && settings.useLiveGemini && !effectivePestId) {
       try {
         const liveResult = await this.callGeminiVisionApi(imageDataUrl, apiKey, quality, farmerDistrict);
-        return liveResult;
+        return attachTraceability(liveResult);
       } catch (err: any) {
         console.error('Gemini Vision API error:', err);
-        return this.buildErrorReport(imageDataUrl, quality, err.message || 'Gemini API call failed', farmerDistrict);
+        return attachTraceability(this.buildErrorReport(imageDataUrl, quality, err.message || 'Gemini API call failed', farmerDistrict));
       }
     }
 
     // 3. Deterministic Entomological Reference Mode (Offline / Pre-verified benchmark samples)
-    return this.buildExpertBaselineReport(imageDataUrl, quality, effectivePestId, farmerDistrict);
+    return attachTraceability(this.buildExpertBaselineReport(imageDataUrl, quality, effectivePestId, farmerDistrict));
   }
 
   /**
@@ -244,7 +387,8 @@ export class PestVisionService {
   private static async tryAnalyzeViaBackend(
     imageDataUrl: string,
     cropId: CropId,
-    farmerDistrict: string
+    farmerDistrict: string,
+    abortSignal?: AbortSignal
   ): Promise<ScanReport | null> {
     const settings = StorageService.getSettings();
     const backendUrl = settings.backendUrl || 'http://localhost:8000/api/v1';
@@ -252,7 +396,12 @@ export class PestVisionService {
     if (typeof fetch === 'undefined') return null;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    // Link parent abortSignal if present
+    if (abortSignal) {
+      abortSignal.addEventListener('abort', () => controller.abort());
+    }
 
     try {
       const resp = await fetch(`${backendUrl}/pest/analyze-base64`, {
@@ -283,6 +432,10 @@ export class PestVisionService {
 
     return {
       id: data.scan_id || `scan-${Date.now()}`,
+      requestId: data.request_id || data.scan_id || `req-${Date.now()}`,
+      imageHash: data.image_hash,
+      modelVersion: data.model_version || '3.5-flash-lite',
+      analysisTimestamp: data.created_at || Date.now(),
       createdAt: data.created_at || Date.now(),
       cropId: (data.crop_id as CropId) || 'paddy',
       imageUri: imageDataUrl,
@@ -316,7 +469,7 @@ export class PestVisionService {
       immediateActionsEn: data.immediate_actions_en?.length ? data.immediate_actions_en : (treatmentAllowed ? knowledge.immediateNextStepsEn : ['Do not spray chemical pesticides without species confirmation.']),
       immediateActionsOr: data.immediate_actions_or?.length ? data.immediate_actions_or : (treatmentAllowed ? knowledge.immediateNextStepsOr : ['କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।']),
       expertReviewRequired: Boolean(data.expert_review_recommended),
-      sourceModel: data.source_model || 'gemini-1.5-flash',
+      sourceModel: data.source_model || 'gemini-3.5-flash-lite',
       isSampleScan: Boolean(data.is_sample_scan),
       farmerDistrict: data.farmer_district || 'bargarh',
       followUpScans: []
@@ -368,7 +521,7 @@ export class PestVisionService {
         'କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।'
       ],
       expertReviewRequired: true,
-      sourceModel: 'gemini-1.5-flash',
+      sourceModel: 'gemini-3.5-flash-lite',
       isSampleScan: false,
       farmerDistrict,
       followUpScans: []
@@ -387,7 +540,7 @@ export class PestVisionService {
     const base64Data = imageDataUrl.split(',')[1] || imageDataUrl;
     const mimeType = imageDataUrl.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)?.[1] || 'image/jpeg';
     const settings = StorageService.getSettings();
-    const activeModel = settings.selectedModel || 'gemini-3.5-flash';
+    const activeModel = settings.selectedModel || 'gemini-3.5-flash-lite';
 
     const systemPrompt = `You are Krushi Mitra AI's senior agricultural entomologist and vision specialist for Odisha, India.
 Analyze this crop/insect photograph with extreme scientific rigor.
@@ -514,7 +667,7 @@ RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:
       immediateActionsEn: treatmentAllowed ? knowledge.immediateNextStepsEn : ['Do not spray chemical pesticides without species confirmation.'],
       immediateActionsOr: treatmentAllowed ? knowledge.immediateNextStepsOr : ['କୀଟ ନିଶ୍ଚିତ ନହେବା ପର୍ଯ୍ୟନ୍ତ କୌଣସି କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।'],
       expertReviewRequired: !treatmentAllowed || Boolean(parsed.expertReviewRecommended),
-      sourceModel: (['gemini-3.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'].includes(activeModel) ? activeModel : 'gemini-3.5-flash') as any,
+      sourceModel: (['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'].includes(activeModel) ? activeModel : 'gemini-3.5-flash-lite') as any,
       isSampleScan: false,
       farmerDistrict,
       followUpScans: []

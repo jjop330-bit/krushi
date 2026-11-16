@@ -138,7 +138,11 @@ export interface ScanReport {
   immediateActionsEn: string[];
   immediateActionsOr: string[];
   expertReviewRequired: boolean;
-  sourceModel: 'gemini-3.5-flash' | 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'gemini-1.5-pro' | 'gemini-2.5-flash' | 'expert-verified-baseline' | 'deterministic-reference-kb';
+  sourceModel: 'gemini-3.5-flash-lite' | 'gemini-3.5-flash' | 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'gemini-1.5-pro' | 'gemini-2.5-flash' | 'expert-verified-baseline' | 'deterministic-reference-kb' | string;
+  modelVersion?: string;
+  requestId?: string;
+  imageHash?: string;
+  analysisTimestamp?: number;
   isSampleScan?: boolean;
   farmerDistrict?: string;
   farmerNotes?: string;
