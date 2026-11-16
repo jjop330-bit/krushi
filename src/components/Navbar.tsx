@@ -10,7 +10,6 @@ import {
   Settings, 
   Menu, 
   X, 
-  Globe, 
   Volume2, 
   PhoneCall,
   UserCheck,
@@ -58,25 +57,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0F3822] text-white shadow-md border-b border-agri-800">
+    <header className="sticky top-0 z-50 bg-[#0F3822] text-white shadow-md border-b border-agri-800 w-full overflow-hidden">
       {/* Top Advisory & Emergency Banner */}
-      <div className="bg-[#092516] px-4 py-1.5 text-xs flex justify-between items-center text-agri-200 border-b border-agri-900">
-        <div className="flex items-center space-x-2 truncate">
-          <span className="inline-block w-2 h-2 rounded-full bg-lime-400 animate-pulse"></span>
-          <span className="font-medium text-lime-300">
-            {lang === 'or' ? 'ଓଡ଼ିଶା କୃଷି ସତର୍କତା:' : 'Odisha Agro Alert:'}
+      <div className="bg-[#092516] px-3 sm:px-4 py-1.5 text-xs flex justify-between items-center text-agri-200 border-b border-agri-900 w-full">
+        <div className="flex items-center space-x-2 min-w-0 flex-1 overflow-hidden">
+          <span className="inline-block w-2 h-2 rounded-full bg-lime-400 animate-pulse flex-shrink-0"></span>
+          <span className="font-semibold text-lime-300 flex-shrink-0">
+            {lang === 'or' ? 'କୃଷି ସତର୍କତା:' : 'Agro Alert:'}
           </span>
-          <span className="truncate">
+          <span className="truncate text-agri-200 text-[11px] sm:text-xs">
             {lang === 'or' ? 'ବରଗଡ଼ ଓ ସମ୍ବଲପୁରରେ ମାଟିଆ ଗୁଣ୍ଡି ପୋକ ସତର୍କତା' : 'High BPH hopperburn alert active in Bargarh canal irrigated belts'}
           </span>
         </div>
-        <div className="hidden sm:flex items-center space-x-3 text-xs">
+        <div className="hidden sm:flex items-center space-x-3 text-xs flex-shrink-0 ml-3">
           <a 
             href="tel:18001801551" 
             className="flex items-center space-x-1 text-lime-300 hover:text-white transition-colors"
             title="Kisan Call Centre Toll-Free"
           >
-            <PhoneCall className="w-3.5 h-3.5" />
+            <PhoneCall className="w-3.5 h-3.5 flex-shrink-0" />
             <span>1800-180-1551</span>
           </a>
           <span className="text-agri-700">|</span>
@@ -84,29 +83,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onOpenSettings}
             className="flex items-center space-x-1 hover:text-lime-300 transition-colors"
           >
-            <Settings className="w-3.5 h-3.5" />
+            <Settings className="w-3.5 h-3.5 flex-shrink-0" />
             <span>{t.navSettings}</span>
           </button>
         </div>
       </div>
 
       {/* Main Brand Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Tagline (Desktop & Mobile protected from shrinking / wrapping) */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full">
+        <div className="flex items-center justify-between h-14 sm:h-16 w-full">
+          {/* Logo & Brand Name */}
           <div 
-            className="flex items-center space-x-3 cursor-pointer group flex-shrink-0"
+            className="flex items-center space-x-2 sm:space-x-3 cursor-pointer group min-w-0"
             onClick={() => handleNavClick('dashboard')}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-lime-400 to-agri-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform flex-shrink-0">
-              <Sprout className="w-6 h-6 text-agri-950" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-lime-400 to-agri-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform flex-shrink-0">
+              <Sprout className="w-5 h-5 sm:w-6 sm:h-6 text-agri-950" />
             </div>
             <div className="flex flex-col justify-center min-w-0">
-              <div className="flex items-center space-x-2 whitespace-nowrap">
-                <span className="text-xl font-extrabold tracking-tight text-white font-sans whitespace-nowrap">
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <span className="text-base sm:text-xl font-extrabold tracking-tight text-white font-sans truncate">
                   {lang === 'or' ? 'କୃଷି ମିତ୍ର AI' : 'Krushi Mitra AI'}
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-lime-500/20 text-lime-300 border border-lime-400/30 whitespace-nowrap flex-shrink-0">
+                <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded bg-lime-500/20 text-lime-300 border border-lime-400/30 whitespace-nowrap flex-shrink-0">
                   ODISHA 2026
                 </span>
               </div>
@@ -144,12 +143,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             })}
           </nav>
 
-          {/* Right Controls: Quick Voice + Language Toggle */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
-            {/* Quick Odia Voice Button */}
+          {/* Right Controls: Quick Voice + Language Toggle + Menu */}
+          <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+            {/* Quick Odia Voice Button (Desktop & Tablet only; mobile has prominent voice button in bottom bar) */}
             <button
               onClick={onQuickVoice}
-              className="p-2 rounded-full bg-agri-800 hover:bg-agri-700 text-lime-300 border border-agri-700 hover:scale-105 transition-all shadow"
+              className="hidden sm:flex p-2 rounded-full bg-agri-800 hover:bg-agri-700 text-lime-300 border border-agri-700 hover:scale-105 transition-all shadow items-center justify-center"
               title={lang === 'or' ? 'ଓଡ଼ିଆ ଭଏସ୍ ସହାୟକ' : 'Odia Voice Assistant'}
             >
               <Volume2 className="w-4 h-4" />
@@ -159,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex rounded-lg bg-agri-900/80 p-0.5 border border-agri-700 text-xs font-medium">
               <button
                 onClick={() => setLang('or')}
-                className={`px-2.5 py-1 rounded-md transition-all ${
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-md transition-all ${
                   lang === 'or' 
                     ? 'bg-lime-500 text-agri-950 font-bold shadow' 
                     : 'text-agri-200 hover:text-white'
@@ -169,20 +168,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
               <button
                 onClick={() => setLang('en')}
-                className={`px-2.5 py-1 rounded-md transition-all ${
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-md transition-all ${
                   lang === 'en' 
                     ? 'bg-lime-500 text-agri-950 font-bold shadow' 
                     : 'text-agri-200 hover:text-white'
                 }`}
               >
-                English
+                <span className="inline sm:hidden">EN</span>
+                <span className="hidden sm:inline">English</span>
               </button>
             </div>
 
-            {/* Mobile Menu Hamburger */}
+            {/* Mobile Menu Hamburger (touch target strictly >= 44x44px) */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-agri-200 hover:text-white hover:bg-agri-800"
+              className="lg:hidden p-2 min-h-[44px] min-w-[44px] rounded-lg text-agri-200 hover:text-white hover:bg-agri-800 flex items-center justify-center transition-colors"
+              aria-label="Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -192,7 +193,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-agri-900 border-t border-agri-800 px-4 pt-3 pb-6 space-y-2 animate-fadeIn">
+        <div className="lg:hidden bg-agri-900 border-t border-agri-800 px-4 pt-3 pb-6 space-y-1 animate-fadeIn">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
@@ -201,7 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={item.id}
                 onClick={() => !item.disabled && handleNavClick(item.id)}
                 disabled={item.disabled}
-                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium ${
+                className={`w-full min-h-[44px] flex items-center space-x-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-agri-800 text-lime-300 font-bold'
                     : item.highlight
@@ -211,7 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'text-agri-100 hover:bg-agri-800'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5 flex-shrink-0" />
                 <span>{item.label}</span>
               </button>
             );
@@ -219,12 +220,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="pt-3 border-t border-agri-800 flex justify-between items-center text-xs text-agri-300">
             <button 
               onClick={() => { onOpenSettings(); setMobileMenuOpen(false); }}
-              className="flex items-center space-x-1.5 py-1 text-lime-300"
+              className="min-h-[44px] flex items-center space-x-1.5 py-1 text-lime-300"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-4 h-4 flex-shrink-0" />
               <span>{t.navSettings}</span>
             </button>
-            <a href="tel:18001801551" className="text-agri-200">
+            <a href="tel:18001801551" className="min-h-[44px] flex items-center text-agri-200">
               Kisan Helpline: 1800-180-1551
             </a>
           </div>

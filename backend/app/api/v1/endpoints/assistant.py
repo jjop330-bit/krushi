@@ -1,19 +1,128 @@
 import uuid
+import json
+import logging
+import httpx
 from fastapi import APIRouter
+from app.core.config import settings
 from app.models.chat import ChatRequest, ChatResponse
 from app.services.knowledge import get_pest_knowledge
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+async def generate_gemini_chat_response(query: str, pest_info: dict | None, district: str) -> dict | None:
+    """
+    Invokes Gemini 3.5 Flash Lite API to produce natural Odia in Odia script
+    and structured English guidance for Odisha farmers.
+    """
+    if not settings.GEMINI_API_KEY:
+        return None
+
+    pest_desc = ""
+    if pest_info:
+        pest_desc = (
+            f"Active Crop Pest Context:\n"
+            f"- Common Name: {pest_info.get('common_name_en', 'N/A')} ({pest_info.get('common_name_or', 'N/A')})\n"
+            f"- Scientific Name: {pest_info.get('scientific_name', 'N/A')}\n"
+            f"- Symptoms: {', '.join(pest_info.get('key_symptoms_en', []))}\n"
+            f"- Biological Control: {', '.join(pest_info.get('immediate_next_steps_en', []))}\n"
+        )
+        if pest_info.get("chemical_control"):
+            chem = pest_info["chemical_control"]
+            pest_desc += f"- CIBRC Chemical: {chem.get('molecule_en', '')} ({chem.get('popular_brand', '')}) @ {chem.get('dosage_per_acre_en', '')}\n"
+
+    system_prompt = (
+        "You are Krushi Mitra AI (କୃଷି ମିତ୍ର AI), an expert agricultural scientist and field advisor for farmers in Odisha, India.\n"
+        "Your duty is to provide practical, authentic, and empathetic agricultural advice for paddy and major Odisha crops.\n"
+        "\n"
+        "CRITICAL RULES:\n"
+        "1. For 'reply_or', produce natural, highly fluent Odia written strictly in Odia script (ଓଡ଼ିଆ ଲିପି). Never use Hindi words or Latin transliteration for Odia.\n"
+        "2. Preserve scientific binomials (e.g., Nilaparvata lugens, Scirpophaga incertulas) and local crop names.\n"
+        "3. Prioritize non-chemical Integrated Pest Management (cultural, mechanical, biological) before mentioning chemicals.\n"
+        "4. Never invent synthetic pesticide molecules, doses, or pre-harvest intervals (PHI). Strictly adhere to CIBRC and OUAT recommendations.\n"
+        "5. Keep the advice actionable, direct, and farmer-friendly.\n"
+        "\n"
+        f"Farmer District: {district}\n"
+        f"{pest_desc}\n"
+        f"Farmer Query: {query}\n"
+        "\n"
+        "Respond ONLY with a valid JSON object matching this exact schema:\n"
+        "{\n"
+        '  "reply_or": "Comprehensive, natural Odia advice in Odia script",\n'
+        '  "reply_en": "Clear English summary of the agricultural guidance",\n'
+        '  "suggested_action_pills_or": ["ସୁପାରିଶ ୧", "ସୁପାରିଶ ୨", "ସୁପାରିଶ ୩"],\n'
+        '  "suggested_action_pills_en": ["Action recommendation 1", "Action 2", "Action 3"]\n'
+        "}"
+    )
+
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={settings.GEMINI_API_KEY}"
+    payload = {
+        "contents": [
+            {
+                "parts": [{"text": system_prompt}]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.15,
+            "response_mime_type": "application/json"
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=14.0) as client:
+            resp = await client.post(endpoint, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(raw_text)
+                if parsed.get("reply_or") and parsed.get("reply_en"):
+                    return parsed
+            else:
+                logger.warning("Gemini Assistant call returned HTTP %s: %s", resp.status_code, resp.text[:120])
+    except Exception as exc:
+        logger.warning("Gemini Assistant generation failed or timed out: %s. Using expert baseline fallback.", exc)
+
+    return None
+
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_assistant(request: ChatRequest):
     """
     Odia & English AI Agricultural Chat Assistant.
-    Generates plain-language, practical advice grounded in authentic IPM principles.
+    Primary: Live Multimodal Gemini with authentic Odia generation in Odia script.
+    Fallback: Verified entomological knowledge base rule engine.
     """
-    q_lower = request.query.lower()
     pest = get_pest_knowledge(request.pest_context) if request.pest_context else None
     
+    # 1. Attempt Live Gemini generation if API key is configured
+    gemini_result = await generate_gemini_chat_response(
+        query=request.query,
+        pest_info=pest,
+        district=request.farmer_district
+    )
+
+    if gemini_result:
+        return ChatResponse(
+            id=f"chat-{uuid.uuid4().hex[:10]}",
+            reply_en=gemini_result.get("reply_en", ""),
+            reply_or=gemini_result.get("reply_or", ""),
+            pest_context=request.pest_context,
+            suggested_action_pills_en=gemini_result.get("suggested_action_pills_en", [
+                "Tell me about biological control",
+                "When should I contact KVK?",
+                "What is the waiting period (PHI)?"
+            ]),
+            suggested_action_pills_or=gemini_result.get("suggested_action_pills_or", [
+                "ଜୈବିକ ନିୟନ୍ତ୍ରଣ ବିଷୟରେ କୁହନ୍ତୁ",
+                "KVK କୁ କେବେ ଯୋଗାଯୋଗ କରିବି?",
+                "ଔଷଧ ସିଞ୍ଚନ ସୁରକ୍ଷା ନିୟମ କଣ?"
+            ])
+        )
+
+    # 2. Expert Entomological Baseline Fallback
+    q_lower = request.query.lower()
+
     # Query 1: Why did pest attack?
     if any(k in q_lower for k in ["କାହିଁକି", "why", "cause", "reason"]):
         if pest:

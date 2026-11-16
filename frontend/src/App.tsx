@@ -76,7 +76,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FBFBF7] text-slate-900 font-sans selection:bg-lime-200">
+    <div className="min-h-screen flex flex-col bg-[#FBFBF7] text-slate-900 font-sans selection:bg-lime-200 w-full overflow-x-hidden">
       {/* Top Main Navigation */}
       <Navbar
         currentTab={currentTab}
@@ -89,7 +89,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Page Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:pb-12">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 md:pb-12 overflow-x-hidden">
         {currentTab === 'dashboard' && (
           <Dashboard
             lang={lang}
@@ -165,10 +165,10 @@ export const App: React.FC = () => {
       </main>
 
       {/* Bottom Floating Bar for Mobile Experience */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2 flex justify-around items-center md:hidden shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))] flex justify-around items-center md:hidden shadow-lg w-full">
         <button
           onClick={() => setCurrentTab('dashboard')}
-          className={`flex flex-col items-center py-1 text-[11px] font-bold ${
+          className={`min-h-[44px] flex flex-col items-center justify-center py-1 text-[11px] font-bold ${
             currentTab === 'dashboard' ? 'text-agri-800' : 'text-slate-400'
           }`}
         >
@@ -178,7 +178,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setCurrentTab('scanner')}
-          className="flex flex-col items-center -mt-5"
+          className="min-h-[44px] flex flex-col items-center justify-center -mt-5"
         >
           <div className="w-12 h-12 rounded-full bg-lime-500 text-agri-950 flex items-center justify-center shadow-lg border-2 border-white">
             <Scan className="w-6 h-6" />
@@ -190,7 +190,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setCurrentTab(activeReport ? 'report' : 'crops')}
-          className={`flex flex-col items-center py-1 text-[11px] font-bold ${
+          className={`min-h-[44px] flex flex-col items-center justify-center py-1 text-[11px] font-bold ${
             currentTab === 'report' || currentTab === 'treatment' ? 'text-agri-800' : 'text-slate-400'
           }`}
         >
@@ -200,7 +200,7 @@ export const App: React.FC = () => {
 
         <button
           onClick={() => setCurrentTab('assistant')}
-          className={`flex flex-col items-center py-1 text-[11px] font-bold ${
+          className={`min-h-[44px] flex flex-col items-center justify-center py-1 text-[11px] font-bold ${
             currentTab === 'assistant' ? 'text-agri-800' : 'text-slate-400'
           }`}
         >

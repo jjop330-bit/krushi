@@ -1,0 +1,13 @@
+Viewport Width,Viewport Height,Device Category,Representative Hardware,Horizontal Overflow (px),Header Flush Alignment,Touch Target >=44px,Desktop 2-Col Active,Status
+320px,568px,Mobile Compact,iPhone SE (1st gen) / Feature Phone,0,PASS,PASS,No (Mobile Stack),PASS
+360px,800px,Mobile Narrow,Samsung Galaxy A10 / A12 / Redmi 9A,0,PASS,PASS,No (Mobile Stack),PASS
+375px,812px,Mobile Narrow,iPhone 12/13 Mini / iPhone SE 2nd,0,PASS,PASS,No (Mobile Stack),PASS
+390px,844px,Mobile Standard,iPhone 13 / 14 / 15 / 16,0,PASS,PASS,No (Mobile Stack),PASS
+412px,915px,Mobile Wide,Google Pixel 7/8 / Samsung S23,0,PASS,PASS,No (Mobile Stack),PASS
+430px,932px,Mobile Max,iPhone 14/15/16 Pro Max / Plus,0,PASS,PASS,No (Mobile Stack),PASS
+768px,1024px,Tablet Portrait,Apple iPad Mini / Air (Portrait),0,PASS,PASS,No (Centered Single Col),PASS
+1024px,768px,Tablet Landscape,Apple iPad Pro / Netbook,0,PASS,PASS,Yes (7/5 Desktop Grid),PASS
+1280px,720px,Desktop HD,Standard HD Laptop (720p),0,PASS,PASS,Yes (7/5 Desktop Grid),PASS
+1366px,768px,Desktop Laptop,Standard WXGA Laptop,0,PASS,PASS,Yes (7/5 Desktop Grid),PASS
+1440px,900px,Desktop Large,MacBook Pro / 1440p Display,0,PASS,PASS,Yes (7/5 Desktop Grid),PASS
+1920px,1080px,Desktop FHD,Full HD Desktop Monitor,0,PASS,PASS,Yes (7/5 Desktop Grid),PASS

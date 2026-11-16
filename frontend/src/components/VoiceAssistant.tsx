@@ -15,11 +15,13 @@ import {
   HelpCircle,
   RefreshCw,
   Sprout,
-  AlertCircle
+  AlertCircle,
+  Square
 } from 'lucide-react';
 import { ChatMessage } from '../types/chat';
 import { ScanReport } from '../types/pest';
 import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
+import { StorageService } from '../services/storageService';
 import { voiceService, AudioPlaybackState } from '../services/voiceService';
 
 interface VoiceAssistantProps {
@@ -34,6 +36,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [playbackState, setPlaybackState] = useState<AudioPlaybackState>('idle');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
@@ -82,7 +85,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isGeneratingAnswer]);
 
   const handleVoiceInput = () => {
     if (isListening) {
@@ -96,7 +99,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       (transcript) => {
         setIsListening(false);
         setInputText(transcript);
-        handleSendQuery(transcript);
+        handleSendQuery(transcript, true);
       },
       (error) => {
         setIsListening(false);
@@ -130,6 +133,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     setPlaybackError(null);
 
     voiceService.speak(text, lang, {
+      speaker: 'shubh',
       onStateChange: (state) => {
         setPlaybackState(state);
       },
@@ -161,9 +165,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
-  const handleSendQuery = (textToSend?: string) => {
+  const handleSendQuery = async (textToSend?: string, wasSpoken: boolean = false) => {
     const query = (textToSend || inputText).trim();
-    if (!query) return;
+    if (!query || isGeneratingAnswer) return;
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -175,25 +179,74 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
+    setIsGeneratingAnswer(true);
 
-    // Generate intelligent contextual response
+    const settings = StorageService.getSettings();
+    const backendUrl = settings.backendUrl || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
+      ? import.meta.env.VITE_API_URL 
+      : 'http://localhost:8000/api/v1');
+
+    try {
+      // 1. Call Backend Gemini Agricultural Assistant
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const resp = await fetch(`${backendUrl}/assistant/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          pest_context: activeReport?.identification?.pestId || undefined,
+          farmer_district: 'bargarh',
+          language: lang
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const assistantMsg: ChatMessage = {
+          id: data.id || `msg-${Date.now()}`,
+          sender: 'assistant',
+          textEn: data.reply_en || query,
+          textOr: data.reply_or || query,
+          timestamp: Date.now(),
+          suggestedActionPills: data.suggested_action_pills_en || [],
+          suggestedActionPillsOr: data.suggested_action_pills_or || []
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+        setIsGeneratingAnswer(false);
+
+        // If user used voice to ask, speak answer automatically
+        if (wasSpoken) {
+          handleSpeechOutput(assistantMsg.id, lang === 'or' ? assistantMsg.textOr : assistantMsg.textEn);
+        }
+        return;
+      }
+    } catch (apiErr) {
+      console.warn('Backend Assistant unavailable, using local baseline knowledge engine:', apiErr);
+    }
+
+    // 2. Local Fallback Knowledge Engine (if backend offline)
     setTimeout(() => {
-      const response = generateAssistantResponse(query, activePest, lang);
+      const response = generateLocalAssistantResponse(query, activePest, lang);
       setMessages(prev => [...prev, response]);
+      setIsGeneratingAnswer(false);
 
-      // Automatically speak assistant response if user used voice
-      if (isListening) {
+      if (wasSpoken) {
         handleSpeechOutput(response.id, lang === 'or' ? response.textOr : response.textEn);
       }
-    }, 600);
+    }, 400);
   };
 
-  const generateAssistantResponse = (query: string, pest: any, language: 'or' | 'en'): ChatMessage => {
+  const generateLocalAssistantResponse = (query: string, pest: any, language: 'or' | 'en'): ChatMessage => {
     const qLower = query.toLowerCase();
     let replyEn = '';
     let replyOr = '';
 
-    // Query 1: Why did pest attack? (କାହିଁକି ଲାଗିଛି?)
     if (qLower.includes('କାହିଁକି') || qLower.includes('why') || qLower.includes('cause') || qLower.includes('reason')) {
       if (pest) {
         replyOr = `${pest.commonNameOr} କ୍ଷେତରେ ଲାଗିବାର ମୁଖ୍ୟ କାରଣ ହେଉଛି: ${pest.conditionsFavoringOr[0]} ଏବଂ ${pest.conditionsFavoringOr[1] || 'କ୍ଷେତରେ ଲଗାତାର ପାଣି ବାନ୍ଧି ରଖିବା ଓ ଅଧିକ ୟୁରିଆ ସାର ପକାଇବା'}।`;
@@ -203,7 +256,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         replyEn = 'Pest infestations in rice are primarily driven by sustained humidity above 80%, cloudy skies, narrow planting spacing, and excessive application of chemical urea.';
       }
     } 
-    // Query 2: Non-chemical / biological control (ଔଷଧ ନ ପକାଇ)
     else if (qLower.includes('ଔଷଧ ନ ପକାଇ') || qLower.includes('without chemical') || qLower.includes('organic') || qLower.includes('ଜୈବିକ')) {
       if (pest) {
         replyOr = `ଔଷଧ ନ ପକାଇ ଆପଣ ଏହି ୩ଟି ପଦ୍ଧତି ଆପଣାଇପାରିବେ: ୧) ${pest.immediateNextStepsOr[0]} ୨) ${pest.immediateNextStepsOr[1]} ୩) ନିମ୍ବ ତେଲ (୧୫୦୦ ପିପିଏମ୍) ଲିଟର ପ୍ରତି ୪ ମିଲି ହିସାବରେ ସିଞ୍ଚନ କରନ୍ତୁ।`;
@@ -213,12 +265,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         replyEn = 'Non-chemical IPM methods include: Alternate Wetting and Drying (AWD), creating 30cm alleyways every 2m, installing pheromone traps, and conserving predatory spiders.';
       }
     }
-    // Query 3: Wolf Spiders / Beneficial insects (ବୁଢ଼ିଆଣୀ)
     else if (qLower.includes('ବୁଢ଼ିଆଣୀ') || qLower.includes('spider') || qLower.includes('predator') || qLower.includes('ବନ୍ଧୁ ପୋକ')) {
       replyOr = 'ବୁଢ଼ିଆଣୀ (Wolf Spider) ହେଉଛି ଚାଷୀ ଭାଇଙ୍କ ପରମ ବନ୍ଧୁ। ଗୋଟିଏ ବୁଢ଼ିଆଣୀ ଦିନକୁ ୫ରୁ ୧୫ଟି ମାଟିଆ ଗୁଣ୍ଡି ପୋକ ଖାଇ ନଷ୍ଟ କରିଥାଏ। ଯଦି ଗଛ ପ୍ରତି ୨-୩ଟି ବୁଢ଼ିଆଣୀ ଦେଖାଯାଉଛନ୍ତି, ତେବେ କୌଣସି କୀଟନାଶକ ପକାନ୍ତୁ ନାହିଁ।';
       replyEn = 'Wolf spiders (Lycosa pseudoannulata) are vital beneficial natural predators. A single spider preys on 5 to 15 brown plant hoppers per day. Conserve them by strictly avoiding prophylactic broad-spectrum insecticide sprays.';
     }
-    // Query 4: Chemical Dosage & CIBRC Approved Safe Usage
     else if (qLower.includes('କେତେ ମାତ୍ରା') || qLower.includes('dose') || qLower.includes('dosage') || qLower.includes('chemical') || qLower.includes('କୀଟନାଶକ')) {
       if (pest && pest.chemicalControl) {
         replyOr = `କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ଼ (CIBRC) ଅନୁମୋଦିତ ସୁପାରିଶ: ${pest.chemicalControl.moleculeOr} (ବ୍ୟାପାରିକ ନାମ: ${pest.chemicalControl.popularBrand})। ଏହାର ନିର୍ଦ୍ଦିଷ୍ଟ ମାତ୍ରା ଏକର ପ୍ରତି ${pest.chemicalControl.dosagePerAcreOr}। ସିଞ୍ଚନ ବେଳେ ମାସ୍କ ଓ ହାତମୋଜା ନିଶ୍ଚୟ ପିନ୍ଧନ୍ତୁ।`;
@@ -228,297 +278,259 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         replyEn = 'Before applying any chemical pesticide, always verify Economic Threshold Levels (ETL) and consult your local Assistant Agriculture Officer (AAO).';
       }
     }
-    // Query 5: Weather & District Pest Risks (ପାଗ ଓ ଜିଲ୍ଲା)
     else if (qLower.includes('ବରଗଡ଼') || qLower.includes('ସମ୍ବଲପୁର') || qLower.includes('district') || qLower.includes('weather') || qLower.includes('ପାଗ')) {
       replyOr = 'ବରଗଡ଼ ଏବଂ ସମ୍ବଲପୁର ଜିଲ୍ଲାରେ ହୀରାକୁଦ କେନାଲ ଅଞ୍ଚଳରେ ଅଧିକ ଆର୍ଦ୍ରତା ହେତୁ ମାଟିଆ ଗୁଣ୍ଡି ପୋକ (BPH) ଏବଂ କାଣ୍ଡବିନ୍ଧା ପୋକର ଆଶଙ୍କା ରହିଛି। ନିୟମିତ କ୍ଷେତ ଯାଞ୍ଚ କରନ୍ତୁ।';
       replyEn = 'Canal irrigated commands in Bargarh and Sambalpur are presently vulnerable to Brown Plant Hopper (BPH) and Yellow Stem Borer due to warm humid microclimates. Scout fields weekly.';
     }
-    // Default fallback
     else {
       if (pest) {
         replyOr = `ଆପଣ ${pest.commonNameOr} ସମ୍ପର୍କରେ ପଚାରିଛନ୍ତି। ଏହାକୁ ଦମନ କରିବା ପାଇଁ ତୁରନ୍ତ ଏହି ପଦକ୍ଷେପ ନିଅନ୍ତୁ: ${pest.immediateNextStepsOr[0]} ଏବଂ ${pest.immediateNextStepsOr[1]}। ଅଧିକ ଜାଣିବାକୁ ଚାହୁଁଥିଲେ ପ୍ରଶ୍ନ ପଚାରନ୍ତୁ।`;
         replyEn = `Regarding ${pest.commonNameEn}: The first recommended course of action is: ${pest.immediateNextStepsEn[0]} followed by ${pest.immediateNextStepsEn[1]}. Feel free to ask more specific questions.`;
       } else {
-        replyOr = 'ମୁଁ ଆପଣଙ୍କ ପ୍ରଶ୍ନ ବୁଝିପାରିଲି। ଧାନ ଫସଲର ପୋକ, ଜୈବିକ ନିୟନ୍ତ୍ରଣ, ଔଷଧ ମାତ୍ରା କିମ୍ବା ପାଣି ପରିଚାଳନା ବିଷୟରେ ଯେକୌଣସି ପ୍ରଶ୍ନ ପଚାରିପାରିବେ।';
-        replyEn = 'I understand your query. You can ask me about rice pest identification, organic remedies, approved chemical dosages, or weather-linked pest risks.';
+        replyOr = 'ନମସ୍କାର! ଧାନ କ୍ଷେତରେ ପୋକ କିମ୍ବା ରୋଗ ଚିହ୍ନଟ ପାଇଁ ଫଟୋ ସ୍କାନ୍ କରନ୍ତୁ କିମ୍ବା ପୋକ ବିଷୟରେ କିଛି ବି ପଚାରନ୍ତୁ। ମୁଁ ଆପଣଙ୍କୁ ଓଡ଼ିଆରେ ସଠିକ ପରାମର୍ଶ ଦେବି।';
+        replyEn = 'Namaste! Scan a crop photograph to identify pests or diseases, or ask any question to receive practical agricultural advice.';
       }
     }
 
     return {
-      id: `assistant-${Date.now()}`,
+      id: `msg-${Date.now()}`,
       sender: 'assistant',
       textEn: replyEn,
       textOr: replyOr,
       timestamp: Date.now(),
-      suggestedActionPills: pest ? [
-        'What is the safe chemical dosage?',
-        'How to prevent in next season?'
-      ] : undefined,
-      suggestedActionPillsOr: pest ? [
-        'ସୁରକ୍ଷିତ ଔଷଧ ମାତ୍ରା କେତେ?',
-        'ପରବର୍ତ୍ତୀ ଫସଲରେ କିପରି ସୁରକ୍ଷା ପାଇବି?'
-      ] : undefined
+      suggestedActionPills: ['Biological control methods', 'When to contact KVK?', 'Pesticide safety rules'],
+      suggestedActionPillsOr: ['ଜୈବିକ ନିୟନ୍ତ୍ରଣ ପଦ୍ଧତି', 'KVK କୁ କେବେ ଯୋଗାଯୋଗ କରିବି?', 'କୀଟନାଶକ ସୁରକ୍ଷା ନିୟମ']
     };
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      {/* Header with Title & Voice Badge */}
-      <div className="flex items-center justify-between bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-agri-800 to-agri-950 text-lime-300 flex items-center justify-center shadow-md">
+    <div className="max-w-4xl mx-auto space-y-4 animate-fadeIn pb-16 w-full">
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-agri-900 to-agri-800 rounded-2xl p-4 sm:p-5 text-white shadow-md flex items-center justify-between border border-agri-700">
+        <div className="flex items-center space-x-3 min-w-0">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-lime-400 text-agri-950 flex items-center justify-center font-bold shadow flex-shrink-0">
             <Bot className="w-6 h-6" />
           </div>
-          <div>
-            <div className="flex items-center space-x-2 flex-wrap gap-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-sans">
-                {lang === 'or' ? 'ଓଡ଼ିଆ AI କୃଷି ସାଥୀ' : 'Odia AI Agricultural Assistant'}
-              </h1>
-              <div className="flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-lime-100 text-lime-900 border border-lime-300 text-[10px] font-bold">
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-lime-500"></span>
-                </span>
-                <span>{lang === 'or' ? 'Sarvam Bulbul v3 Odia TTS' : 'Bulbul v3 Voice Engine'}</span>
-              </div>
+          <div className="min-w-0">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-base sm:text-lg font-bold text-white truncate">
+                {lang === 'or' ? 'ଓଡ଼ିଆ କୃଷି AI ଭଏସ୍ ସହାୟକ' : 'Odia Agricultural AI Assistant'}
+              </h2>
+              <span className="inline-block w-2 h-2 rounded-full bg-lime-400 animate-pulse flex-shrink-0"></span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {lang === 'or' ? 'ପ୍ରକୃତ ଓଡ଼ିଆ କଥୋପକଥନ ଓ ଅଡିଓ ସୁବିଧା' : 'Natural Odia and English speech generation for Odisha farmers'}
+            <p className="text-xs text-agri-200 truncate">
+              {lang === 'or' 
+                ? 'Gemini 3.5 AI ଓ Sarvam Bulbul v3 ଦ୍ୱାରା ପରିଚାଳିତ' 
+                : 'Powered by Multimodal Gemini & Sarvam AI Bulbul v3 Odia TTS'}
             </p>
           </div>
         </div>
 
         {activePest && (
-          <div className="bg-agri-50 border border-agri-200 px-3 py-1.5 rounded-xl text-xs flex items-center space-x-1.5 text-agri-900 font-semibold">
-            <Sprout className="w-4 h-4 text-agri-700" />
-            <span>{lang === 'or' ? `ସକ୍ରିୟ: ${activePest.commonNameOr}` : `Context: ${activePest.commonNameEn}`}</span>
+          <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs text-lime-300 flex-shrink-0">
+            <Sprout className="w-3.5 h-3.5" />
+            <span className="truncate max-w-[120px]">{lang === 'or' ? activePest.commonNameOr : activePest.commonNameEn}</span>
           </div>
         )}
       </div>
 
-      {/* Chat Messages Log */}
-      <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-200 min-h-[420px] max-h-[560px] overflow-y-auto space-y-4">
-        {messages.map((msg) => {
-          const isUser = msg.sender === 'user';
-          const isSpeaking = speakingMsgId === msg.id;
-          const displayText = lang === 'or' ? msg.textOr : msg.textEn;
+      {/* Main Chat Box */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[560px] sm:h-[600px] w-full">
+        {/* Messages Stream */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          {messages.map((msg) => {
+            const isUser = msg.sender === 'user';
+            const isSpeakingThis = speakingMsgId === msg.id;
 
-          return (
-            <div 
-              key={msg.id} 
-              className={`flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
-            >
-              {/* Avatar */}
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                isUser 
-                  ? 'bg-agri-800 text-white' 
-                  : 'bg-lime-400 text-agri-950 shadow-sm'
-              }`}>
-                {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-              </div>
+            return (
+              <div 
+                key={msg.id}
+                className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+              >
+                <div className={`flex items-start space-x-2 max-w-[92%] sm:max-w-[85%] ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1 shadow-sm ${
+                    isUser ? 'bg-agri-700 text-white' : 'bg-lime-400 text-agri-950'
+                  }`}>
+                    {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  </div>
 
-              {/* Message Bubble */}
-              <div className={`max-w-[85%] sm:max-w-md rounded-2xl p-4 text-sm leading-relaxed ${
-                isUser 
-                  ? 'bg-agri-800 text-white rounded-tr-none' 
-                  : 'bg-slate-50 text-slate-900 border border-slate-200/80 rounded-tl-none shadow-sm'
-              }`}>
-                {/* Readable transcript */}
-                <p className="font-sans leading-relaxed text-slate-800 whitespace-pre-line">{displayText}</p>
+                  <div className={`rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
+                    isUser 
+                      ? 'bg-agri-800 text-white rounded-tr-none' 
+                      : 'bg-slate-50 border border-slate-200 text-slate-900 rounded-tl-none'
+                  }`}>
+                    <p className={lang === 'or' ? 'font-odia text-[15px]' : ''}>
+                      {lang === 'or' ? msg.textOr : msg.textEn}
+                    </p>
 
-                {/* Assistant Audio Readout Controls */}
-                {!isUser && (
-                  <div className="mt-3 pt-2.5 border-t border-slate-200/70 space-y-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
-                      {isSpeaking ? (
-                        <div className="flex items-center space-x-1.5">
-                          {playbackState === 'loading' ? (
-                            <button
-                              disabled
-                              className="flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold bg-amber-100 text-amber-900 border border-amber-300"
-                            >
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
-                              <span>{lang === 'or' ? 'ଅଡିଓ ପ୍ରସ୍ତୁତ ହେଉଛି...' : 'Generating audio...'}</span>
-                            </button>
-                          ) : playbackState === 'error' ? (
-                            <button
-                              onClick={() => handleSpeechOutput(msg.id, displayText)}
-                              className="flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 transition-colors"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              <span>{lang === 'or' ? 'ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ' : 'Retry Audio'}</span>
-                            </button>
-                          ) : (
+                    {/* Voice Controls & Feedback */}
+                    {!isUser && (
+                      <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex flex-wrap items-center justify-between gap-2">
+                        {/* Audio Status Pill */}
+                        <div className="flex items-center space-x-1.5 text-xs">
+                          {isSpeakingThis && playbackState === 'loading' && (
+                            <span className="inline-flex items-center text-amber-600 font-semibold">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                              {lang === 'or' ? 'ଓଡ଼ିଆ ଭଏସ୍ ପ୍ରସ୍ତୁତ ହେଉଛି...' : 'Preparing Odia voice...'}
+                            </span>
+                          )}
+                          {isSpeakingThis && playbackState === 'playing' && (
+                            <span className="inline-flex items-center text-agri-700 font-bold animate-pulse">
+                              <span className="w-2 h-2 rounded-full bg-lime-500 mr-1.5"></span>
+                              {lang === 'or' ? 'ଓଡ଼ିଆରେ ଶୁଣାଯାଉଛି...' : 'Playing voice...'}
+                            </span>
+                          )}
+                          {isSpeakingThis && playbackState === 'paused' && (
+                            <span className="inline-flex items-center text-slate-500 font-semibold">
+                              <Pause className="w-3.5 h-3.5 mr-1" />
+                              {lang === 'or' ? 'ଅଟକାଯାଇଛି' : 'Paused'}
+                            </span>
+                          )}
+                          {isSpeakingThis && playbackState === 'error' && (
+                            <span className="inline-flex items-center text-rose-600 font-semibold">
+                              <AlertCircle className="w-3.5 h-3.5 mr-1" />
+                              {playbackError || (lang === 'or' ? 'ଭଏସ୍ ଅନୁପଲବ୍ଧ' : 'Voice unavailable')}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Interactive Buttons */}
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => handleSpeechOutput(msg.id, lang === 'or' ? msg.textOr : msg.textEn)}
+                            className="min-h-[44px] px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-sm"
+                            title={isSpeakingThis && playbackState === 'playing' ? 'Pause' : 'Listen in Odia'}
+                          >
+                            {isSpeakingThis && playbackState === 'playing' ? (
+                              <>
+                                <Pause className="w-3.5 h-3.5 text-amber-600" />
+                                <span>{lang === 'or' ? 'ଅଟକାନ୍ତୁ' : 'Pause'}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Volume2 className="w-3.5 h-3.5 text-agri-700" />
+                                <span>{lang === 'or' ? 'ଶୁଣନ୍ତୁ' : 'Listen'}</span>
+                              </>
+                            )}
+                          </button>
+
+                          {isSpeakingThis && (
                             <>
-                              {/* Play / Pause toggle */}
                               <button
-                                onClick={() => handleSpeechOutput(msg.id, displayText)}
-                                className="flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold bg-agri-700 hover:bg-agri-800 text-white shadow-sm transition-colors"
-                                title={playbackState === 'playing' ? 'Pause' : 'Resume'}
-                              >
-                                {playbackState === 'playing' ? (
-                                  <>
-                                    <Pause className="w-3.5 h-3.5" />
-                                    <span>{lang === 'or' ? 'ରଖନ୍ତୁ' : 'Pause'}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Play className="w-3.5 h-3.5" />
-                                    <span>{lang === 'or' ? 'ଚଲାନ୍ତୁ' : 'Resume'}</span>
-                                  </>
-                                )}
-                              </button>
-
-                              {/* Replay button */}
-                              <button
-                                onClick={() => handleReplay(msg.id, displayText)}
-                                className="p-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors"
-                                title={lang === 'or' ? 'ପୁନର୍ବାର ଶୁଣନ୍ତୁ' : 'Replay'}
+                                onClick={() => handleReplay(msg.id, lang === 'or' ? msg.textOr : msg.textEn)}
+                                className="min-h-[44px] min-w-[44px] p-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors shadow-sm"
+                                title="Replay"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
                               </button>
-
-                              {/* Stop button */}
                               <button
                                 onClick={handleStopSpeaking}
-                                className="p-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 transition-colors"
-                                title={lang === 'or' ? 'ଅଡିଓ ବନ୍ଦ କରନ୍ତୁ' : 'Stop'}
+                                className="min-h-[44px] min-w-[44px] p-2 rounded-lg bg-white border border-slate-300 hover:bg-rose-50 text-rose-600 flex items-center justify-center transition-colors shadow-sm"
+                                title="Stop"
                               >
-                                <VolumeX className="w-3.5 h-3.5" />
+                                <Square className="w-3.5 h-3.5" />
                               </button>
                             </>
                           )}
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => handleSpeechOutput(msg.id, displayText)}
-                          className="flex items-center space-x-1.5 px-3 py-1 rounded-lg font-bold bg-slate-200/80 hover:bg-slate-200 text-slate-800 transition-colors"
-                        >
-                          <Volume2 className="w-3.5 h-3.5 text-agri-800" />
-                          <span>{lang === 'or' ? 'ଓଡ଼ିଆରେ ଶୁଣନ୍ତୁ' : 'Read Aloud'}</span>
-                        </button>
-                      )}
-
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-
-                    {/* Error message pill */}
-                    {isSpeaking && playbackState === 'error' && playbackError && (
-                      <div className="text-xs text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 flex items-center space-x-1.5">
-                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{playbackError}</span>
                       </div>
                     )}
                   </div>
-                )}
+                </div>
 
-                {/* Suggested Action Quick Pills */}
-                {msg.suggestedActionPills && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {(lang === 'or' ? msg.suggestedActionPillsOr : msg.suggestedActionPills)?.map((pill, i) => (
+                {/* Suggested Action Pills */}
+                {!isUser && (
+                  <div className="mt-2 ml-10 flex flex-wrap gap-1.5">
+                    {(lang === 'or' ? msg.suggestedActionPillsOr : msg.suggestedActionPills)?.map((pill, idx) => (
                       <button
-                        key={i}
+                        key={idx}
                         onClick={() => handleSendQuery(pill)}
-                        className="px-2.5 py-1 rounded-full bg-agri-100 hover:bg-agri-200 text-agri-900 text-xs font-semibold border border-agri-200 transition-colors"
+                        className="min-h-[44px] text-xs px-3 py-2 rounded-full bg-agri-50 border border-agri-200 text-agri-800 hover:bg-agri-100 transition-colors flex items-center space-x-1"
                       >
-                        {pill}
+                        <HelpCircle className="w-3 h-3 text-agri-600 flex-shrink-0" />
+                        <span>{pill}</span>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+            );
+          })}
 
-      {/* Input Box with Voice & Send */}
-      <div className="bg-white rounded-3xl p-3 shadow-md border border-slate-200 space-y-2">
-        {/* Active Speech Recognition Banner */}
-        {isListening && (
-          <div className="px-3 py-2 rounded-xl bg-lime-50 border border-lime-300 flex items-center justify-between text-xs text-agri-950 font-bold">
-            <div className="flex items-center space-x-2">
-              <div className="flex space-x-1 items-center">
-                <span className="w-1.5 h-3 bg-lime-600 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span className="w-1.5 h-4 bg-lime-600 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span className="w-1.5 h-3 bg-lime-600 rounded-full animate-bounce"></span>
+          {/* Answer Generation Loading Indicator */}
+          {isGeneratingAnswer && (
+            <div className="flex items-start space-x-2 max-w-[85%]">
+              <div className="w-8 h-8 rounded-full bg-lime-400 text-agri-950 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1 shadow-sm">
+                <Bot className="w-4 h-4" />
               </div>
-              <span>{lang === 'or' ? 'ଆପଣ କହନ୍ତୁ, ମୁଁ ଶୁଣୁଛି...' : 'Listening to your voice in Odia or English...'}</span>
+              <div className="rounded-2xl rounded-tl-none p-4 bg-slate-50 border border-slate-200 text-slate-700 text-sm flex items-center space-x-2 shadow-sm">
+                <Loader2 className="w-4 h-4 animate-spin text-agri-700 flex-shrink-0" />
+                <span className="font-semibold text-agri-900">
+                  {lang === 'or' ? 'କୃଷି ମିତ୍ର AI ଉତ୍ତର ପ୍ରସ୍ତୁତ କରୁଛି...' : 'Krushi Mitra AI is generating guidance...'}
+                </span>
+              </div>
             </div>
-            <button 
-              type="button" 
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Controls Bar */}
+        <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 w-full">
+          <form 
+            onSubmit={(e) => { e.preventDefault(); handleSendQuery(); }}
+            className="flex items-center space-x-2 w-full"
+          >
+            {/* Microphone Button */}
+            <button
+              type="button"
               onClick={handleVoiceInput}
-              className="text-[10px] bg-rose-500 hover:bg-rose-600 text-white px-2 py-0.5 rounded-md"
+              className={`min-h-[48px] min-w-[48px] p-3 rounded-2xl flex items-center justify-center transition-all shadow-sm ${
+                isListening 
+                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-200' 
+                  : 'bg-agri-800 hover:bg-agri-700 text-lime-300'
+              }`}
+              title={isListening ? 'Stop listening' : 'Speak query in Odia or English'}
             >
-              {lang === 'or' ? 'ରୋକନ୍ତୁ' : 'Stop'}
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
+
+            {/* Text Input */}
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={
+                isListening 
+                  ? (lang === 'or' ? 'ଶୁଣୁଛି... କୁହନ୍ତୁ' : 'Listening... speak now') 
+                  : (lang === 'or' ? 'ଓଡ଼ିଆରେ ପ୍ରଶ୍ନ ଲେଖନ୍ତୁ କିମ୍ବା ମାଇକ୍ ବଟନ୍ ଦବାନ୍ତୁ...' : 'Type in Odia/English or tap mic to speak...')
+              }
+              className="flex-1 min-h-[48px] px-4 py-3 rounded-2xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-600 focus:border-transparent text-sm bg-white"
+            />
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!inputText.trim() || isGeneratingAnswer}
+              className="min-h-[48px] min-w-[48px] p-3 rounded-2xl bg-lime-500 hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed text-agri-950 font-bold flex items-center justify-center shadow-sm transition-colors"
+              title="Send"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+
+          {/* Subtext info */}
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 px-1">
+            <span>
+              {lang === 'or' 
+                ? 'Sarvam Bulbul v3 Odia TTS • ଉତ୍ତର ଓଡ଼ିଆରେ ଶୁଣନ୍ତୁ' 
+                : 'Sarvam Bulbul v3 Odia TTS • Audio synthesized in od-IN'}
+            </span>
+            <span className="hidden sm:inline">
+              {lang === 'or' ? 'ନିରାପଦ ଓ ପ୍ରାମାଣିକ କୃଷି ପରାମର୍ଶ' : 'Authentic Field Intelligence'}
+            </span>
           </div>
-        )}
-
-        <form 
-          onSubmit={(e) => { e.preventDefault(); handleSendQuery(); }}
-          className="flex items-center space-x-2"
-        >
-          {/* Voice Mic Button */}
-          <button
-            type="button"
-            onClick={handleVoiceInput}
-            className={`p-3 rounded-2xl transition-all shadow-sm ${
-              isListening 
-                ? 'bg-rose-600 text-white animate-pulse' 
-                : 'bg-lime-500 hover:bg-lime-400 text-agri-950'
-            }`}
-            title={lang === 'or' ? 'ଓଡ଼ିଆରେ କହିବା ପାଇଁ ମାଇକ୍ ଦବାନ୍ତୁ' : 'Click to speak in Odia / English'}
-          >
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </button>
-
-          {/* Text Input */}
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder={
-              isListening 
-                ? (lang === 'or' ? 'ଆପଣ କହନ୍ତୁ, ମୁଁ ଶୁଣୁଛି...' : 'Listening to your voice...') 
-                : (lang === 'or' ? 'ଓଡ଼ିଆରେ ନିଜ ପ୍ରଶ୍ନ ଲେଖନ୍ତୁ କିମ୍ବା ମାଇକ୍ ବଟନ୍ ଦବାନ୍ତୁ...' : 'Ask question in Odia or English...')
-            }
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
-          />
-
-          {/* Send Button */}
-          <button
-            type="submit"
-            disabled={!inputText.trim()}
-            className="p-3 rounded-2xl bg-agri-800 hover:bg-agri-900 disabled:bg-slate-200 disabled:text-slate-400 text-lime-300 font-bold transition-all shadow-sm"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </form>
-      </div>
-
-      {/* Preset Farmer Quick Questions Bar */}
-      <div className="flex items-center space-x-2 overflow-x-auto py-1 text-xs">
-        <span className="font-bold text-slate-500 whitespace-nowrap pl-1">
-          {lang === 'or' ? 'ପ୍ରଶ୍ନ ନମୁନା:' : 'Quick Questions:'}
-        </span>
-        {[
-          { or: 'ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି?', en: 'Why did this pest attack my paddy?' },
-          { or: 'ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି?', en: 'What organic methods can I use?' },
-          { or: 'ବୁଢ଼ିଆଣୀ ଥିଲେ ଔଷଧ ପକାଇବା ଉଚିତ କି?', en: 'Should I spray if spiders are in the field?' },
-          { or: 'ବରଗଡ଼ରେ ଏବେ କେଉଁ ପୋକର ବିପଦ ଅଛି?', en: 'What pest risk is active in Bargarh?' }
-        ].map((item, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSendQuery(lang === 'or' ? item.or : item.en)}
-            className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap border border-slate-200 transition-colors"
-          >
-            {lang === 'or' ? item.or : item.en}
-          </button>
-        ))}
+        </div>
       </div>
     </div>
   );

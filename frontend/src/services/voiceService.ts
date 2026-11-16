@@ -1,29 +1,29 @@
-// Sarvam AI Bulbul v3 Odia TTS & Web Speech API Voice Engine
-
 import { StorageService } from './storageService';
 
+// Audio playback state machine
 export type AudioPlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
 export interface TTSPlaybackOptions {
-  speaker?: string;
+  speaker?: 'shubh' | 'priya' | 'pooja';
   pace?: number;
   onStateChange?: (state: AudioPlaybackState) => void;
   onEnd?: () => void;
-  onError?: (errorMessage: string) => void;
+  onError?: (error: string) => void;
 }
 
-class VoiceService {
+export class VoiceService {
   private synth: SpeechSynthesis | null = null;
   private recognition: any = null;
   private isListening: boolean = false;
-  
-  // Audio playback state
   private currentAudio: HTMLAudioElement | null = null;
   private currentAbortController: AbortController | null = null;
   private currentState: AudioPlaybackState = 'idle';
+  private currentOptions: TTSPlaybackOptions = {};
   private currentText: string = '';
   private currentLang: 'or' | 'en' = 'or';
-  private currentOptions: TTSPlaybackOptions = {};
+
+  // In-memory audio payload cache to save network calls & prevent redundant billing
+  private audioMemoryCache: Map<string, { audioBase64: string; mimeType: string }> = new Map();
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -42,10 +42,6 @@ class VoiceService {
 
   public isVoiceSupported(): boolean {
     return true; // Supported via backend Sarvam AI Bulbul v3
-  }
-
-  public isSpeechRecognitionSupported(): boolean {
-    return !!this.recognition;
   }
 
   public getPlaybackState(): AudioPlaybackState {
@@ -99,6 +95,42 @@ class VoiceService {
   private async playOdiaSpeech(text: string, options: TTSPlaybackOptions): Promise<void> {
     this.setState('loading');
 
+    const cleanText = text.trim().slice(0, 2500);
+    const speaker = options.speaker || 'shubh';
+    const pace = options.pace || 1.0;
+    const cacheKey = `${speaker}_${pace}_${cleanText}`;
+
+    // 1. Check in-memory audio cache to prevent rapid repeated network requests
+    const cached = this.audioMemoryCache.get(cacheKey);
+    if (cached) {
+      try {
+        const audioUrl = `data:${cached.mimeType};base64,${cached.audioBase64}`;
+        const audio = new Audio(audioUrl);
+        this.currentAudio = audio;
+
+        audio.onplay = () => this.setState('playing');
+        audio.onpause = () => {
+          if (this.currentState === 'playing') this.setState('paused');
+        };
+        audio.onended = () => {
+          this.setState('idle');
+          this.cleanupAudio();
+          if (options.onEnd) options.onEnd();
+        };
+        audio.onerror = () => {
+          this.setState('error');
+          this.cleanupAudio();
+          if (options.onError) options.onError('ଅଡିଓ ଚଲାଇବାରେ ସମସ୍ୟା ହେଲା। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।');
+        };
+
+        await audio.play();
+        this.setState('playing');
+        return;
+      } catch (playErr) {
+        console.warn('Playback of cached audio failed:', playErr);
+      }
+    }
+
     const settings = StorageService.getSettings();
     const backendUrl = settings.backendUrl || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
       ? import.meta.env.VITE_API_URL 
@@ -113,10 +145,10 @@ class VoiceService {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          text: text.slice(0, 2500),
+          text: cleanText,
           language_code: 'od-IN',
-          speaker: options.speaker || 'shubh',
-          pace: options.pace || 1.0
+          speaker,
+          pace
         }),
         signal: this.currentAbortController.signal
       });
@@ -130,8 +162,11 @@ class VoiceService {
         throw new Error('Received empty audio payload from voice service');
       }
 
-      // Construct playable audio element from base64 WAV payload
+      // Store in memory cache
       const mimeType = data.mime_type || 'audio/wav';
+      this.audioMemoryCache.set(cacheKey, { audioBase64: data.audio_base64, mimeType });
+
+      // Construct playable audio element from base64 WAV payload
       const audioUrl = `data:${mimeType};base64,${data.audio_base64}`;
       const audio = new Audio(audioUrl);
       this.currentAudio = audio;
