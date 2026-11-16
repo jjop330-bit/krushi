@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from app.core.config import settings
 
 @pytest.mark.asyncio
 async def test_direct_treatment_without_field_observation_locks_chemicals():
@@ -72,17 +73,34 @@ async def test_above_etl_field_observation_authorizes_registered_guidance():
         assert chem["phi_days"] > 0
         assert "Litres" in chem["water_volume_per_acre"]
 
-        # Armyworm with 2 larvae/hill at tillering (ETL >= 1):
+        # Stem Borer with 8% dead hearts at tillering (ETL >= 5%):
         obs_payload = {
             "crop_stage": "tillering",
-            "sampling_unit": "larvae_per_hill",
-            "pest_count": 2.0
+            "sampling_unit": "percent_dead_hearts",
+            "pest_count": 8.0
         }
-        resp_post = await client.post("/api/v1/treatments/armyworm/authorize", json=obs_payload)
+        resp_post = await client.post("/api/v1/treatments/stem_borer/authorize", json=obs_payload)
         assert resp_post.status_code == 200
         data_post = resp_post.json()
         assert len(data_post["chemical_control"]) >= 1
         assert data_post["chemical_authorized"] is True
+        # Verify Coragen PHI is correctly set to 47 days
+        coragen = next(c for c in data_post["chemical_control"] if "Chlorantraniliprole" in c["active_ingredient"])
+        assert coragen["phi_days"] == 47
+
+        # Armyworm with 2 clipped panicles/sq m at heading (verified ETL >= 1):
+        obs_army = {
+            "crop_stage": "heading",
+            "sampling_unit": "clipped_panicles_per_sq_m",
+            "pest_count": 2.0
+        }
+        resp_army = await client.post("/api/v1/treatments/armyworm/authorize", json=obs_army)
+        assert resp_army.status_code == 200
+        data_army = resp_army.json()
+        assert len(data_army["chemical_control"]) >= 1
+        assert data_army["chemical_authorized"] is True
+        assert "Chlorpyriphos" in data_army["chemical_control"][0]["active_ingredient"]
+        assert data_army["chemical_control"][0]["phi_days"] == 30
 
 @pytest.mark.asyncio
 async def test_invalid_inconsistent_fields_fail_closed():
@@ -114,7 +132,55 @@ async def test_invalid_inconsistent_fields_fail_closed():
         assert d3["authorization_status"] == "INVALID_OBSERVATION_DATA"
 
 @pytest.mark.asyncio
+async def test_unverified_etl_rules_fail_closed():
+    """
+    Direct API security check:
+    Unverified or ambiguous ETL rules (such as larvae_per_hill for Mythimna separata)
+    MUST fail closed with status UNVERIFIED_ETL_RULE_LOCKED.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Armyworm vegetative stage with larvae_per_hill (unverified):
+        resp = await client.get("/api/v1/treatments/armyworm?crop_stage=tillering&sampling_unit=larvae_per_hill&pest_count=5.0")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["chemical_control"]) == 0
+        assert data["chemical_authorized"] is False
+        assert data["authorization_status"] == "UNVERIFIED_ETL_RULE_LOCKED"
+        assert "unverified" in data["responsible_stewardship_warning_en"].lower()
+
+@pytest.mark.asyncio
+async def test_alternate_routes_never_bypass_chemical_gate():
+    """
+    Direct API security check:
+    Verify that GET /api/v1/pest/species and GET /api/v1/pest/species/{pest_id}
+    NEVER return unlocked chemical recommendations without scouting observations.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Check GET /api/v1/pest/species list endpoint
+        resp_list = await client.get("/api/v1/pest/species")
+        assert resp_list.status_code == 200
+        species_list = resp_list.json()
+        assert len(species_list) >= 5
+        for s in species_list:
+            assert len(s.get("chemical_control", [])) == 0, f"Endpoint /pest/species leaked chemicals for {s.get('id')}"
+            assert s.get("chemical_authorized", False) is False
+
+        # Check GET /api/v1/pest/species/{pest_id} detail endpoint
+        for pid in ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm"]:
+            resp_detail = await client.get(f"/api/v1/pest/species/{pid}")
+            assert resp_detail.status_code == 200
+            data_detail = resp_detail.json()
+            assert len(data_detail.get("chemical_control", [])) == 0, f"Detail endpoint leaked chemicals for {pid}"
+            assert data_detail.get("chemical_authorized", False) is False
+
+@pytest.mark.asyncio
 async def test_treatment_endpoint_locks_chemical_molecules_for_non_pests():
+    """
+    Direct API security check:
+    Non-target organisms, beneficial predators, and healthy crops must NEVER authorize chemicals.
+    """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         non_pests = ["beneficial_spider", "healthy_paddy", "uncertain", "other_insect", "unknown_pest"]
@@ -126,3 +192,12 @@ async def test_treatment_endpoint_locks_chemical_molecules_for_non_pests():
             assert len(data["chemical_control"]) == 0, f"Non-target {np} must return 0 chemical molecules"
             assert data["chemical_authorized"] is False
             assert data["authorization_status"] == "UNSUPPORTED_OR_NON_TARGET"
+
+@pytest.mark.asyncio
+async def test_production_vision_model_matches_benchmark():
+    """
+    Verification check:
+    The active vision model configured in settings MUST match the model used for the benchmark evaluation.
+    """
+    assert settings.GEMINI_MODEL == "gemini-3.5-flash-lite", f"Configured model '{settings.GEMINI_MODEL}' must match benchmark"
+    assert settings.PROJECT_NAME == "Krushi Mitra AI Backend"

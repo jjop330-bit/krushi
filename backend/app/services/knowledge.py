@@ -253,7 +253,7 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
                 "trade_names": ["Coragen", "Ferterra"],
                 "dosage_per_acre": "60 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 14,
+                "phi_days": 47,
                 "cibrc_registered": True,
                 "toxicity_class": "Green (Slightly Toxic)",
                 "safety_precautions_en": "Safe for beneficial predatory spiders when used at recommended dose. Wear full protective clothing and boots.",
@@ -376,7 +376,7 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
                 "trade_names": ["Coragen"],
                 "dosage_per_acre": "60 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 14,
+                "phi_days": 47,
                 "cibrc_registered": True,
                 "toxicity_class": "Green (Slightly Toxic)",
                 "safety_precautions_en": "Target foliar canopy during early morning or late afternoon. Wear eye shield and gloves.",
@@ -448,7 +448,7 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
                 "trade_names": ["Dursban", "Tricel"],
                 "dosage_per_acre": "500 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 21,
+                "phi_days": 30,
                 "cibrc_registered": True,
                 "toxicity_class": "Yellow (Highly Toxic)",
                 "safety_precautions_en": "Strong organophosphate. MUST wear respirator mask, rubber gloves, and apron.",
@@ -516,16 +516,16 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
         ],
         "chemical_control": [
             {
-                "active_ingredient": "Chlorantraniliprole 18.5% SC",
-                "trade_names": ["Coragen"],
-                "dosage_per_acre": "60 ml in 200 Litres water per acre",
+                "active_ingredient": "Chlorpyriphos 20% EC",
+                "trade_names": ["Dursban", "Tricel"],
+                "dosage_per_acre": "500 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 14,
+                "phi_days": 30,
                 "cibrc_registered": True,
-                "toxicity_class": "Green (Slightly Toxic)",
-                "safety_precautions_en": "Apply in late afternoon when armyworms climb up stems.",
-                "safety_precautions_or": "ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ ଯେତେବେଳେ ପୋକ ଗଛ ଉପରକୁ ଚଢ଼ନ୍ତି।",
-                "water_spray_instructions": "Spray plant canopy and soil base uniformly with high pressure coarse spray."
+                "toxicity_class": "Yellow (Highly Toxic)",
+                "safety_precautions_en": "Apply strictly in late afternoon or dusk when armyworms climb up stems. Full PPE required. Highly toxic to fish and bees; do not spray near water canals.",
+                "safety_precautions_or": "ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ। ମୁହଁରେ ମାସ୍କ ଓ ହାତରେ ଗ୍ଲୋଭ୍ସ ପିନ୍ଧିବା ବାଧ୍ୟତାମୂଳକ। ମାଛ ପୋଖରୀ ଓ କେନାଲ ପାଣିରୁ ଦୂରରେ ରଖନ୍ତୁ।",
+                "water_spray_instructions": "Direct coarse spray towards lower foliage, soil surface, and panicle necks."
             }
         ],
         "expert_consultation_criteria_en": ["If mature standing crops suffer neck clipping within 10 days of harvest."],
@@ -776,17 +776,17 @@ ETL_RULES = {
         "description_or": "ଗଛ ବୃଦ୍ଧି ସମୟରେ ୧-୨ଟି ବୟସ୍କ ପୋକ/ଗୁଚ୍ଛ କିମ୍ବା ୫% କ୍ଷତିଗ୍ରସ୍ତ ପତ୍ର।"
     },
     "armyworm": {
-        "valid_units": ["larvae_per_hill", "clipped_panicles_per_sq_m"],
+        "valid_units": ["clipped_panicles_per_sq_m", "larvae_per_hill"],
         "stages": {
-            "vegetative": {"larvae_per_hill": 1.0},
-            "tillering": {"larvae_per_hill": 1.0},
-            "reproductive": {"larvae_per_hill": 0.5, "clipped_panicles_per_sq_m": 1.0},
-            "heading": {"larvae_per_hill": 0.5, "clipped_panicles_per_sq_m": 1.0},
-            "flowering": {"larvae_per_hill": 0.5, "clipped_panicles_per_sq_m": 1.0},
-            "panicle": {"larvae_per_hill": 0.5, "clipped_panicles_per_sq_m": 1.0}
+            "vegetative": {"larvae_per_hill": "UNVERIFIED"},
+            "tillering": {"larvae_per_hill": "UNVERIFIED"},
+            "reproductive": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"},
+            "heading": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"},
+            "flowering": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"},
+            "panicle": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"}
         },
-        "description_en": "1 larva/hill (tillering); 1 larva/2 hills or 1-2 clipped panicles/m² (heading - emergency)",
-        "description_or": "ଗଛ ବୃଦ୍ଧି ସମୟରେ ୧ଟି ପୋକ/ଗୁଚ୍ଛ; ଶିଁଷା ବାହାରିବା ସମୟରେ ୨ଟି ଗୁଚ୍ଛରେ ୧ଟି ପୋକ ବା ୧ଟି କଟା ଶିଁଷା/ବର୍ଗ ମି।"
+        "description_en": "1-2 clipped panicles/m² (heading - emergency); vegetative larvae/hill unverified for M. separata",
+        "description_or": "ଶିଁଷା ବାହାରିବା ସମୟରେ ୧ଟି କଟା ଶିଁଷା/ବର୍ଗ ମି (ଜରୁରୀକାଳୀନ); ଗଛ ବୃଦ୍ଧି ସମୟରେ ପୋକ/ଗୁଚ୍ଛ ସୀମା ଅନିଶ୍ଚିତ।"
     }
 }
 
@@ -864,9 +864,28 @@ def evaluate_treatment_authorization(
                 []
             )
     else:
-        threshold = float(stage_spec)
+        threshold = stage_spec
+
+    if threshold == "UNVERIFIED":
+        return (
+            False,
+            "UNVERIFIED_ETL_RULE_LOCKED",
+            f"Chemical authorization locked: ETL threshold for {pest_id} with sampling unit '{sampling_unit}' is scientifically unverified or ambiguous for Mythimna separata in Odisha. Agricultural expert consultation required.",
+            f"ରାସାୟନିକ ପରାମର୍ଶ ସ୍ଥଗିତ: ଏହି ପର୍ଯ୍ୟାୟ ଓ ମାପ ଏକକ ପାଇଁ ETL ସୀମା ବୈଜ୍ଞାନିକ ଭାବେ ଅନିଶ୍ଚିତ। କୃଷି ବିଶେଷଜ୍ଞଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।",
+            []
+        )
+
+    threshold = float(threshold)
 
     if pest_count >= threshold:
+        if not raw_chemicals:
+            return (
+                False,
+                "NO_CIBRC_REGISTERED_CHEMICAL",
+                f"Economic Threshold Level breached ({pest_count} {norm_unit} >= {threshold} threshold at {norm_stage} stage). However, zero synthetic chemical insecticides hold verified on-label CIBRC registration for {pest_id} on Rice. Chemical guidance is strictly withheld to prevent off-label hazard. Implement biological (Bt microbial) and cultural barrier trenching, and immediately consult local KVK/DAO.",
+                f"ETL ସୀମା ଅତିକ୍ରମ କରିଛି ({pest_count} >= {threshold})। କିନ୍ତୁ ଧାନ ଫସଲରେ ଏହି କୀଟ ପାଇଁ କୌଣସି କେନ୍ଦ୍ରୀୟ ଅନୁମୋଦିତ (CIBRC) ରାସାୟନିକ ଔଷଧ ନାହିଁ। ବେଆଇନ କୀଟନାଶକ ପ୍ରୟୋଗ ନିଷେଧ। ଜୈବିକ ବିଟି (Bt) ଓ ସୁରକ୍ଷା ନାଳ ଆପଣାନ୍ତୁ ଏବଂ କୃଷି ବିଶେଷଜ୍ଞଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।",
+                []
+            )
         return (
             True,
             "ETL_BREACHED_CHEMICAL_AUTHORIZED",
@@ -914,7 +933,7 @@ def get_pest_knowledge(
     return data
 
 def get_all_pests() -> List[Dict[str, Any]]:
-    return list(PEST_KNOWLEDGE_DICT.values())
+    return [get_pest_knowledge(p_id) for p_id in PEST_KNOWLEDGE_DICT.keys()]
 
 def get_districts_telemetry() -> List[Dict[str, Any]]:
     return DISTRICT_RISK_TELEMETRY
