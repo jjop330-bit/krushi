@@ -1,6 +1,7 @@
 import base64
 from typing import List, Optional
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Depends
+from pydantic import BaseModel
 from app.models.pest import (
     PestAnalysisResponse,
     PestAnalysisRequestBase64
@@ -32,6 +33,9 @@ async def analyze_crop_image(
     image_bytes = await file.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty image file provided.")
+
+    if len(image_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image file exceeds maximum allowable limit of 20MB.")
 
     # Upload to Supabase Storage (or mock local storage)
     user_id = auth_ctx.get("user_id", "anonymous")
@@ -73,6 +77,12 @@ async def analyze_crop_image_base64(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {str(e)}")
 
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Empty image payload provided.")
+
+    if len(image_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image payload exceeds maximum allowable limit of 20MB.")
+
     user_id = auth_ctx.get("user_id", "anonymous")
     image_url = await supabase_service.upload_crop_photograph(image_bytes, "base64_scan.jpg", user_id)
 
@@ -101,3 +111,39 @@ async def get_species_detail(pest_id: str):
     if not knowledge or knowledge.get("id") == "uncertain" and pest_id != "uncertain":
         raise HTTPException(status_code=404, detail=f"Pest species '{pest_id}' not found.")
     return knowledge
+
+class SignatureVerificationRequest(BaseModel):
+    scan_id: str
+    image_hash: Optional[str] = None
+    status: str
+    pest_id: Optional[str] = None
+    created_at: int
+    report_signature: str
+    signature_key_version: Optional[str] = "v1"
+
+@router.post("/verify-signature")
+async def verify_report_signature_endpoint(request: SignatureVerificationRequest):
+    """
+    Server-authenticated tamper-evident report verification endpoint.
+    Validates HMAC-SHA256 Message Authentication Code (MAC) using the server's protected
+    REPORT_SIGNING_SECRET with support for secure key rotation across versions.
+    Does not expose secret keys or leak private report internals.
+    """
+    from app.core.security import verify_report_signature
+    valid = verify_report_signature(
+        scan_id=request.scan_id,
+        image_hash=request.image_hash or "",
+        status=request.status,
+        pest_id=request.pest_id,
+        created_at=request.created_at,
+        signature=request.report_signature,
+        key_version=request.signature_key_version or "v1"
+    )
+    return {
+        "valid": valid,
+        "status": "VERIFIED" if valid else "TAMPERED_OR_INVALID",
+        "scan_id": request.scan_id,
+        "algorithm": "HMAC-SHA256",
+        "key_version": request.signature_key_version or "v1"
+    }
+

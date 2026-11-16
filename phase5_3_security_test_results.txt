@@ -1,0 +1,109 @@
+================================================================================
+KRUSHI MITRA AI — PHASE 5.3 SECURITY & REGRESSION TEST RESULTS
+Execution Timestamp: 2026-11-16
+Baseline Commit: d560e4f
+Python: 3.14.6 | Pytest: 9.2.0 | Platform: Windows 11
+================================================================================
+
+1. BACKEND DIRECT API SECURITY REGRESSION SUITE (tests/test_treatments.py)
+--------------------------------------------------------------------------------
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.2.0, pluggy-1.7.0 -- C:\Users\piyus\Downloads\krushi-mitra-ai-main\krushi-mitra-ai-main\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\piyus\Downloads\krushi-mitra-ai-main\krushi-mitra-ai-main\backend
+configfile: pyproject.toml
+plugins: anyio-4.16.0, asyncio-1.5.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 8 items
+
+tests/test_treatments.py::test_direct_treatment_without_field_observation_locks_chemicals PASSED [ 12%]
+tests/test_treatments.py::test_below_etl_field_observation_locks_chemicals PASSED [ 25%]
+tests/test_treatments.py::test_above_etl_field_observation_authorizes_registered_guidance PASSED [ 37%]
+tests/test_treatments.py::test_invalid_inconsistent_fields_fail_closed PASSED [ 50%]
+tests/test_treatments.py::test_unverified_etl_rules_fail_closed PASSED   [ 62%]
+tests/test_treatments.py::test_alternate_routes_never_bypass_chemical_gate PASSED [ 75%]
+tests/test_treatments.py::test_treatment_endpoint_locks_chemical_molecules_for_non_pests PASSED [ 87%]
+tests/test_treatments.py::test_production_vision_model_matches_benchmark PASSED [100%]
+
+============================== 8 passed in 2.58s ==============================
+
+
+2. OVERALL BACKEND PYTEST SUITE (42 tests collected across 8 test suites)
+--------------------------------------------------------------------------------
+..........................................                               [100%]
+42 passed in 19.17s
+
+
+3. FRONTEND UNIT & INTEGRATION TEST SUITE (test_frontend.mjs)
+--------------------------------------------------------------------------------
+TAP version 13
+# Subtest: Knowledge base integrity: 5 rice pests + beneficial spider + healthy paddy exist
+ok 1 - Knowledge base integrity: 5 rice pests + beneficial spider + healthy paddy exist
+# Subtest: Sample library integrity: 16 verified real field specimens
+ok 2 - Sample library integrity: 16 verified real field specimens
+# Subtest: Treatment Gating: Chemical treatment only allowed for 5 rice pests with high confidence
+ok 3 - Treatment Gating: Chemical treatment only allowed for 5 rice pests with high confidence
+# Subtest: Expert baseline report rules: Never default unclear or arbitrary image to bph
+ok 4 - Expert baseline report rules: Never default unclear or arbitrary image to bph
+# Subtest: Bilingual UI Translation Parity: All Odia and English keys populated
+ok 5 - Bilingual UI Translation Parity: All Odia and English keys populated
+# Subtest: Pest-Specific ETL Standards: All 5 supported pests have authentic thresholds in EN and OR
+ok 6 - Pest-Specific ETL Standards: All 5 supported pests have authentic thresholds in EN and OR
+1..6
+# tests 6 | suites 0 | pass 6 | fail 0 | cancelled 0 | skipped 0 | todo 0
+RESULT: PASSED (6/6 tests passed)
+
+4. STATIC TYPE VERIFICATION (npx tsc --noEmit)
+--------------------------------------------------------------------------------
+Command: npx tsc --noEmit
+Exit Code: 0
+Output: Clean (0 errors across all TypeScript modules)
+
+5. PRODUCTION ASSET BUILD VERIFICATION (npm run build)
+--------------------------------------------------------------------------------
+Command: tsc && vite build
+Exit Code: 0
+Output:
+vite v6.4.6 building for production...
+transforming...
+✓ 2114 modules transformed.
+dist/index.html                     1.50 kB | gzip:   0.90 kB
+dist/assets/index-CKWc7Y7Q.css     44.49 kB | gzip:   7.79 kB
+dist/assets/index-DF9xgJ_w.js   1,106.06 kB | gzip: 619.96 kB
+✓ built in 23.41s
+RESULT: PRODUCTION BUILD CLEAN
+
+6. SPECIFIC SECURITY AUDIT ASSERTIONS VERIFIED
+--------------------------------------------------------------------------------
+[PASS] Assertion 1: Direct API bypass through every treatment-related route fails closed.
+       - GET /api/v1/treatments/{pest_id} returns chemical_control: [] and chemical_authorized: false.
+       - GET /api/v1/pest/species returns chemical_control: [] for all species.
+       - GET /api/v1/pest/species/{pest_id} returns chemical_control: [] for all species.
+
+[PASS] Assertion 2: Supported pest with fabricated but syntactically valid counts below ETL fails closed.
+       - BPH with 3.0 hoppers/hill fails closed (status: BELOW_ETL_NO_CHEMICAL_JUSTIFIED).
+       - Stem Borer with 2.0% dead hearts fails closed (status: BELOW_ETL_NO_CHEMICAL_JUSTIFIED).
+
+[PASS] Assertion 3: Wrong stage / unit combinations fail closed.
+       - BPH with unit 'litres' fails closed (status: INVALID_OBSERVATION_DATA).
+       - BPH with stage 'fruiting' fails closed (status: INVALID_OBSERVATION_DATA).
+       - Negative count (-5.0) fails closed (status: INVALID_OBSERVATION_DATA).
+
+[PASS] Assertion 4: Unverified ETL rules fail closed.
+       - Armyworm with unit 'larvae_per_hill' at tillering fails closed (status: UNVERIFIED_ETL_RULE_LOCKED).
+
+[PASS] Assertion 5: Unverified chemical labels fail closed or are corrected.
+       - Off-label Chlorantraniliprole 18.5% SC on Rice for Armyworm removed; replaced with genuine CIBRC Chlorpyrifos 20% EC.
+       - Off-label Indoxacarb 14.5% SC on Rice removed from frontend and backend.
+       - Off-label Emamectin Benzoate 5% SG excluded.
+       - Pre-Harvest Interval (PHI) for Chlorantraniliprole 18.5% SC corrected from 14 days to 47 days on Rice.
+       - Pre-Harvest Interval (PHI) for Chlorpyriphos 20% EC corrected from 21 days to 30 days on Rice.
+
+[PASS] Assertion 6: Production-model configuration matches benchmark.
+       - Configured model in app.core.config.settings.GEMINI_MODEL is 'gemini-3.5-flash-lite'.
+       - Benchmark model recorded in phase5_live_eval_results.json is 'gemini-3.5-flash-lite'.
+       - Zero model mismatch.
+
+[PASS] Assertion 7: Non-target and beneficial bypass attempts fail closed.
+       - Beneficial spider, healthy paddy, unclear, other insects queried with pest_count=999.0 fail closed unconditionally (status: UNSUPPORTED_OR_NON_TARGET, chemical_control: []).
+================================================================================

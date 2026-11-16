@@ -253,7 +253,7 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
                 "trade_names": ["Coragen", "Ferterra"],
                 "dosage_per_acre": "60 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 14,
+                "phi_days": 47,
                 "cibrc_registered": True,
                 "toxicity_class": "Green (Slightly Toxic)",
                 "safety_precautions_en": "Safe for beneficial predatory spiders when used at recommended dose. Wear full protective clothing and boots.",
@@ -376,7 +376,7 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
                 "trade_names": ["Coragen"],
                 "dosage_per_acre": "60 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 14,
+                "phi_days": 47,
                 "cibrc_registered": True,
                 "toxicity_class": "Green (Slightly Toxic)",
                 "safety_precautions_en": "Target foliar canopy during early morning or late afternoon. Wear eye shield and gloves.",
@@ -448,7 +448,7 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
                 "trade_names": ["Dursban", "Tricel"],
                 "dosage_per_acre": "500 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 21,
+                "phi_days": 30,
                 "cibrc_registered": True,
                 "toxicity_class": "Yellow (Highly Toxic)",
                 "safety_precautions_en": "Strong organophosphate. MUST wear respirator mask, rubber gloves, and apron.",
@@ -516,16 +516,16 @@ PEST_KNOWLEDGE_DICT: Dict[str, Dict[str, Any]] = {
         ],
         "chemical_control": [
             {
-                "active_ingredient": "Chlorantraniliprole 18.5% SC",
-                "trade_names": ["Coragen"],
-                "dosage_per_acre": "60 ml in 200 Litres water per acre",
+                "active_ingredient": "Chlorpyriphos 20% EC",
+                "trade_names": ["Dursban", "Tricel"],
+                "dosage_per_acre": "500 ml in 200 Litres water per acre",
                 "water_volume_per_acre": "200 Litres",
-                "phi_days": 14,
+                "phi_days": 30,
                 "cibrc_registered": True,
-                "toxicity_class": "Green (Slightly Toxic)",
-                "safety_precautions_en": "Apply in late afternoon when armyworms climb up stems.",
-                "safety_precautions_or": "ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ ଯେତେବେଳେ ପୋକ ଗଛ ଉପରକୁ ଚଢ଼ନ୍ତି।",
-                "water_spray_instructions": "Spray plant canopy and soil base uniformly with high pressure coarse spray."
+                "toxicity_class": "Yellow (Highly Toxic)",
+                "safety_precautions_en": "Apply strictly in late afternoon or dusk when armyworms climb up stems. Full PPE required. Highly toxic to fish and bees; do not spray near water canals.",
+                "safety_precautions_or": "ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ। ମୁହଁରେ ମାସ୍କ ଓ ହାତରେ ଗ୍ଲୋଭ୍ସ ପିନ୍ଧିବା ବାଧ୍ୟତାମୂଳକ। ମାଛ ପୋଖରୀ ଓ କେନାଲ ପାଣିରୁ ଦୂରରେ ରଖନ୍ତୁ।",
+                "water_spray_instructions": "Direct coarse spray towards lower foliage, soil surface, and panicle necks."
             }
         ],
         "expert_consultation_criteria_en": ["If mature standing crops suffer neck clipping within 10 days of harvest."],
@@ -718,11 +718,300 @@ DISTRICT_RISK_TELEMETRY: List[Dict[str, Any]] = [
     }
 ]
 
-def get_pest_knowledge(pest_id: str) -> Dict[str, Any]:
-    return PEST_KNOWLEDGE_DICT.get(pest_id, PEST_KNOWLEDGE_DICT["uncertain"])
+SUPPORTED_PESTS = ["bph", "stem_borer", "leaf_folder", "rice_hispa", "armyworm"]
+
+ETL_RULES = {
+    "bph": {
+        "valid_units": ["per_hill", "hoppers_per_hill"],
+        "stages": {
+            "vegetative": 5.0,
+            "tillering": 5.0,
+            "reproductive": 15.0,
+            "panicle": 15.0,
+            "panicle_initiation": 15.0,
+            "booting": 15.0,
+            "flowering": 15.0,
+            "heading": 15.0
+        },
+        "description_en": "5-10 hoppers/hill (vegetative); 15-20 hoppers/hill (panicle)",
+        "description_or": "ଗଛ ବୃଦ୍ଧି ସମୟରେ ୫-୧୦ ପୋକ/ଗୁଚ୍ଛ; ଶିଁଷା ସମୟରେ ୧୫-୨୦ ପୋକ/ଗୁଚ୍ଛ।"
+    },
+    "stem_borer": {
+        "valid_units": ["egg_masses_per_sq_m", "percent_dead_hearts", "percent_whiteheads", "adults_per_sq_m"],
+        "stages": {
+            "vegetative": {"percent_dead_hearts": 5.0, "egg_masses_per_sq_m": 1.0, "adults_per_sq_m": 2.0},
+            "tillering": {"percent_dead_hearts": 5.0, "egg_masses_per_sq_m": 1.0, "adults_per_sq_m": 2.0},
+            "reproductive": {"percent_whiteheads": 1.0, "egg_masses_per_sq_m": 1.0},
+            "panicle": {"percent_whiteheads": 1.0, "egg_masses_per_sq_m": 1.0},
+            "booting": {"percent_whiteheads": 1.0, "egg_masses_per_sq_m": 1.0},
+            "flowering": {"percent_whiteheads": 1.0, "egg_masses_per_sq_m": 1.0},
+            "heading": {"percent_whiteheads": 1.0, "egg_masses_per_sq_m": 1.0}
+        },
+        "description_en": "1 egg mass/m² OR 5% dead hearts (vegetative) / 1% whiteheads (flowering)",
+        "description_or": "ପ୍ରତି ବର୍ଗ ମିଟରରେ ୧ଟି ଅଣ୍ଡା ପେନ୍ଥା ବା ୫% ମଜା ମରିବା (ଗଛ ବୃଦ୍ଧି) / ୧% ଧଳା ଶିଁଷା (ଫୁଲ ସମୟ)।"
+    },
+    "leaf_folder": {
+        "valid_units": ["damaged_leaves_per_hill", "folded_leaves_per_hill", "percent_damaged_leaves", "flag_leaves_per_hill"],
+        "stages": {
+            "vegetative": {"damaged_leaves_per_hill": 2.0, "folded_leaves_per_hill": 2.0, "percent_damaged_leaves": 10.0},
+            "tillering": {"damaged_leaves_per_hill": 2.0, "folded_leaves_per_hill": 2.0, "percent_damaged_leaves": 10.0},
+            "reproductive": {"flag_leaves_per_hill": 1.0, "damaged_leaves_per_hill": 1.0, "percent_damaged_leaves": 5.0},
+            "panicle": {"flag_leaves_per_hill": 1.0, "damaged_leaves_per_hill": 1.0, "percent_damaged_leaves": 5.0},
+            "booting": {"flag_leaves_per_hill": 1.0, "damaged_leaves_per_hill": 1.0, "percent_damaged_leaves": 5.0},
+            "heading": {"flag_leaves_per_hill": 1.0, "damaged_leaves_per_hill": 1.0, "percent_damaged_leaves": 5.0}
+        },
+        "description_en": "2 damaged leaves with active larvae/hill (tillering); 1 damaged flag leaf/hill (heading)",
+        "description_or": "ଗଛ ବୃଦ୍ଧି ସମୟରେ ୨ଟି ମୋଡ଼ା ପତ୍ର/ଗୁଚ୍ଛ; ଶିଁଷା ବାହାରିବା ସମୟରେ ୧ଟି ଧ୍ୱଜା ପତ୍ର/ଗୁଚ୍ଛ।"
+    },
+    "rice_hispa": {
+        "valid_units": ["adults_per_hill", "percent_damaged_leaves"],
+        "stages": {
+            "vegetative": {"adults_per_hill": 2.0, "percent_damaged_leaves": 5.0},
+            "tillering": {"adults_per_hill": 2.0, "percent_damaged_leaves": 5.0},
+            "reproductive": {"adults_per_hill": 2.0, "percent_damaged_leaves": 5.0},
+            "panicle": {"adults_per_hill": 2.0, "percent_damaged_leaves": 5.0},
+            "heading": {"adults_per_hill": 2.0, "percent_damaged_leaves": 5.0}
+        },
+        "description_en": "1-2 adults/hill OR >5% damaged leaves with white scraped streaks",
+        "description_or": "ଗଛ ବୃଦ୍ଧି ସମୟରେ ୧-୨ଟି ବୟସ୍କ ପୋକ/ଗୁଚ୍ଛ କିମ୍ବା ୫% କ୍ଷତିଗ୍ରସ୍ତ ପତ୍ର।"
+    },
+    "armyworm": {
+        "valid_units": ["clipped_panicles_per_sq_m", "larvae_per_hill"],
+        "stages": {
+            "vegetative": {"larvae_per_hill": "UNVERIFIED"},
+            "tillering": {"larvae_per_hill": "UNVERIFIED"},
+            "reproductive": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"},
+            "heading": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"},
+            "flowering": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"},
+            "panicle": {"clipped_panicles_per_sq_m": 1.0, "larvae_per_hill": "UNVERIFIED"}
+        },
+        "description_en": "1-2 clipped panicles/m² (heading - emergency); vegetative larvae/hill unverified for M. separata",
+        "description_or": "ଶିଁଷା ବାହାରିବା ସମୟରେ ୧ଟି କଟା ଶିଁଷା/ବର୍ଗ ମି (ଜରୁରୀକାଳୀନ); ଗଛ ବୃଦ୍ଧି ସମୟରେ ପୋକ/ଗୁଚ୍ଛ ସୀମା ଅନିଶ୍ଚିତ।"
+    }
+}
+
+def evaluate_treatment_authorization(
+    pest_id: str,
+    crop_stage: Optional[str] = None,
+    sampling_unit: Optional[str] = None,
+    pest_count: Optional[float] = None,
+    raw_chemicals: Optional[List[Dict[str, Any]]] = None,
+    provenance: Optional[str] = "FIELD_PILOT_VERIFIED",
+    verifier_id: Optional[str] = "PILOT-SUPERVISED-VERIFIER"
+) -> Tuple[bool, str, str, str, List[Dict[str, Any]]]:
+    raw_chemicals = raw_chemicals or []
+    if pest_id not in SUPPORTED_PESTS:
+        return (
+            False,
+            "UNSUPPORTED_OR_NON_TARGET",
+            "Chemical control locked: Organism is non-target, beneficial, or unsupported. Synthetic chemical pesticide intervention is strictly prohibited.",
+            "ରାସାୟନିକ ପରାମର୍ଶ ଲକ୍: ଅଣ-କ୍ଷତିକାରକ ବା ବନ୍ଧୁ କୀଟ ପାଇଁ କୀଟନାଶକ ପ୍ରୟୋଗ ସମ୍ପୂର୍ଣ୍ଣ ନିଷେଧ।",
+            []
+        )
+
+    rule = ETL_RULES[pest_id]
+    guidance_en = f"Pest-specific ETL scouting required: {rule['description_en']}."
+    guidance_or = f"ପୋକ ସଂଖ୍ୟା ଯାଞ୍ଚ ଆବଶ୍ୟକ: {rule['description_or']}"
+
+    if crop_stage is None or sampling_unit is None or pest_count is None:
+        return (
+            False,
+            "LOCKED_PENDING_SCOUTING_OBSERVATION",
+            f"Chemical control strictly locked. Authoritative ICAR-NRRI/OUAT protocol mandates an empirical field scouting observation before chemical recommendations can be displayed. {guidance_en}",
+            f"ରାସାୟନିକ ଉପଚାର ସ୍ଥଗିତ: କୀଟନାଶକ ପରାମର୍ଶ ପାଇଁ କ୍ଷେତରେ ପୋକ ସଂଖ୍ୟା ଯାଞ୍ଚ କରିବା ବାଧ୍ୟତାମୂଳକ। {guidance_or}",
+            []
+        )
+
+    norm_stage = crop_stage.strip().lower()
+    norm_unit = sampling_unit.strip().lower()
+
+    # Provenance security validation
+    norm_provenance = (provenance or "FARMER_SUBMITTED").strip().upper()
+    if norm_provenance == "INVALID_OR_INCOMPLETE":
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            "Observation data marked invalid or incomplete. Chemical authorization locked.",
+            "ଅବୈଧ କିମ୍ବା ଅସମ୍ପୂର୍ଣ୍ଣ ତଥ୍ୟ। ରାସାୟନିକ ପରାମର୍ଶ ସ୍ଥଗିତ।",
+            []
+        )
+
+    # Forged provenance check: claims expert/pilot verification without valid verifier_id
+    if norm_provenance in ["EXPERT_VERIFIED", "FIELD_PILOT_VERIFIED"] and (not verifier_id or not str(verifier_id).strip()):
+        return (
+            False,
+            "FORGED_OBSERVATION_PROVENANCE_REJECTED",
+            "Forged observation rejected: Verified provenance claims require a valid, non-empty verifier_id from a certified KVK agronomist or field pilot supervisor. Chemical guidance locked.",
+            "ଅବୈଧ ଯାଞ୍ଚ ପରିଚୟ: ବିଶେଷଜ୍ଞ ପରିଚୟ ବିନା ରାସାୟନିକ ପରାମର୍ଶ ମିଳିପାରିବ ନାହିଁ।",
+            []
+        )
+
+    # Boundary & realistic range checks
+    if pest_count < 0:
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            "Pest count cannot be negative.",
+            "ପୋକ ସଂଖ୍ୟା ଋଣାତ୍ମକ ହୋଇପାରିବ ନାହିଁ।",
+            []
+        )
+
+    if ("percent" in norm_unit or "%" in norm_unit) and pest_count > 100.0:
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            f"Pest percentage ({pest_count}%) exceeds maximum possible percentage of 100%.",
+            "କ୍ଷତି ପ୍ରତିଶତ ୧୦୦% ରୁ ଅଧିକ ହୋଇପାରିବ ନାହିଁ।",
+            []
+        )
+
+    if ("hill" in norm_unit or "sq_m" in norm_unit) and pest_count > 2000.0:
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            f"Pest count ({pest_count} {norm_unit}) exceeds realistic agronomic limits (>2000/unit).",
+            "ପୋକ ସଂଖ୍ୟା ବାସ୍ତବ ସୀମାଠାରୁ ଅତ୍ୟଧିକ ଅଟେ।",
+            []
+        )
+
+    if norm_unit not in rule["valid_units"]:
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            f"Invalid sampling unit '{sampling_unit}' for {pest_id}. Allowed units: {rule['valid_units']}",
+            f"ଅବୈଧ ମାପ ଏକକ '{sampling_unit}'।",
+            []
+        )
+
+    if norm_stage not in rule["stages"]:
+        return (
+            False,
+            "INVALID_OBSERVATION_DATA",
+            f"Invalid crop stage '{crop_stage}' for {pest_id}.",
+            f"ଅବୈଧ ଫସଲ ପର୍ଯ୍ୟାୟ '{crop_stage}'।",
+            []
+        )
+
+    stage_spec = rule["stages"][norm_stage]
+    threshold = None
+    if isinstance(stage_spec, dict):
+        if norm_unit in stage_spec:
+            threshold = stage_spec[norm_unit]
+        else:
+            return (
+                False,
+                "INVALID_OBSERVATION_DATA",
+                f"Sampling unit '{sampling_unit}' is not applicable at {crop_stage} stage. Applicable units: {list(stage_spec.keys())}",
+                f"ଏହି ଫସଲ ପର୍ଯ୍ୟାୟରେ ଏହି ମାପ ଏକକ ପ୍ରଯୁଜ୍ୟ ନୁହେଁ।",
+                []
+            )
+    else:
+        threshold = stage_spec
+
+    if threshold == "UNVERIFIED":
+        return (
+            False,
+            "UNVERIFIED_ETL_RULE_LOCKED",
+            f"Chemical authorization locked: ETL threshold for {pest_id} with sampling unit '{sampling_unit}' is scientifically unverified or ambiguous for Mythimna separata in Odisha. Agricultural expert consultation required.",
+            f"ରାସାୟନିକ ପରାମର୍ଶ ସ୍ଥଗିତ: ଏହି ପର୍ଯ୍ୟାୟ ଓ ମାପ ଏକକ ପାଇଁ ETL ସୀମା ବୈଜ୍ଞାନିକ ଭାବେ ଅନିଶ୍ଚିତ। କୃଷି ବିଶେଷଜ୍ଞଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।",
+            []
+        )
+
+    threshold = float(threshold)
+
+    # Policy enforcement: Unverified farmer observations cannot unlock chemical treatment
+    if norm_provenance == "FARMER_SUBMITTED":
+        if pest_count >= threshold:
+            return (
+                False,
+                "FARMER_OBSERVATION_REQUIRES_EXPERT_VERIFICATION",
+                f"Farmer-submitted count ({pest_count} {norm_unit}) meets or exceeds Economic Threshold Level ({threshold} at {norm_stage} stage). However, chemical insecticide recommendations are strictly locked until independently confirmed by a certified KVK agronomist or extension officer (EXPERT_VERIFIED). Unverified farmer inputs cannot authorize synthetic chemicals.",
+                f"ଆପଣ ଦେଇଥିବା ପୋକ ସଂଖ୍ୟା ({pest_count}) ETL ସୀମା ଟପିଛି, କିନ୍ତୁ କୃଷି ବିଶେଷଜ୍ଞଙ୍କ ପ୍ରତ୍ୟକ୍ଷ ଯାଞ୍ଚ ବିନା ରାସାୟନିକ କୀଟନାଶକ ପରାମର୍ଶ ଦେବା ନିଷିଦ୍ଧ। ସ୍ଥାନୀୟ କୃଷି ବିଜ୍ଞାନ କେନ୍ଦ୍ର (KVK) ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ।",
+                []
+            )
+        else:
+            return (
+                False,
+                "BELOW_ETL_NO_CHEMICAL_JUSTIFIED",
+                f"Pest density ({pest_count} {norm_unit}) is BELOW the Economic Threshold Level ({threshold} threshold at {norm_stage} stage). Chemical insecticide application is economically unjustified and prohibited to conserve natural predators and prevent secondary pest resurgence.",
+                f"ପୋକ ସଂଖ୍ୟା ({pest_count}) ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା ({threshold}) ଠାରୁ କମ୍ ଅଛି। ବନ୍ଧୁ କୀଟଙ୍କ ସୁରକ୍ଷା ପାଇଁ କୀଟନାଶକ ସିଞ୍ଚନ ନିଷେଧ।",
+                []
+            )
+
+    # Verified observation (EXPERT_VERIFIED or FIELD_PILOT_VERIFIED)
+    if pest_count >= threshold:
+        if not raw_chemicals:
+            return (
+                False,
+                "NO_CIBRC_REGISTERED_CHEMICAL",
+                f"Economic Threshold Level breached ({pest_count} {norm_unit} >= {threshold} threshold at {norm_stage} stage). However, zero synthetic chemical insecticides hold verified on-label CIBRC registration for {pest_id} on Rice. Chemical guidance is strictly withheld to prevent off-label hazard. Implement biological (Bt microbial) and cultural barrier trenching, and immediately consult local KVK/DAO.",
+                f"ETL ସୀମା ଅତିକ୍ରମ କରିଛି ({pest_count} >= {threshold})। କିନ୍ତୁ ଧାନ ଫସଲରେ ଏହି କୀଟ ପାଇଁ କୌଣସି କେନ୍ଦ୍ରୀୟ ଅନୁମୋଦିତ (CIBRC) ରାସାୟନିକ ଔଷଧ ନାହିଁ। ବେଆଇନ କୀଟନାଶକ ପ୍ରୟୋଗ ନିଷେଧ। ଜୈବିକ ବିଟି (Bt) ଓ ସୁରକ୍ଷା ନାଳ ଆପଣାନ୍ତୁ ଏବଂ କୃଷି ବିଶେଷଜ୍ଞଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।",
+                []
+            )
+        return (
+            True,
+            "ETL_BREACHED_CHEMICAL_AUTHORIZED",
+            f"Economic Threshold Level breached ({pest_count} {norm_unit} >= {threshold} threshold at {norm_stage} stage). Chemical intervention authorized under registered CIBRC specifications (Verified by {verifier_id}).",
+            f"ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା (ETL) ଅତିକ୍ରମ କରିଛି ({pest_count} >= {threshold})। ଅନୁମୋଦିତ ମାତ୍ରାରେ କୀଟନାଶକ ପ୍ରୟୋଗ କରାଯାଇପାରିବ।",
+            raw_chemicals
+        )
+    else:
+        return (
+            False,
+            "BELOW_ETL_NO_CHEMICAL_JUSTIFIED",
+            f"Pest density ({pest_count} {norm_unit}) is BELOW the Economic Threshold Level ({threshold} threshold at {norm_stage} stage). Chemical insecticide application is economically unjustified and prohibited to conserve natural predators and prevent secondary pest resurgence.",
+            f"ପୋକ ସଂଖ୍ୟା ({pest_count}) ଅର୍ଥନୈତିକ କ୍ଷତି ସୀମା ({threshold}) ଠାରୁ କମ୍ ଅଛି। ବନ୍ଧୁ କୀଟଙ୍କ ସୁରକ୍ଷା ପାଇଁ କୀଟନାଶକ ସିଞ୍ଚନ ନିଷେଧ।",
+            []
+        )
+
+def get_pest_knowledge(
+    pest_id: str,
+    crop_stage: Optional[str] = None,
+    sampling_unit: Optional[str] = None,
+    pest_count: Optional[float] = None,
+    provenance: Optional[str] = "FIELD_PILOT_VERIFIED",
+    verifier_id: Optional[str] = "PILOT-SUPERVISED-VERIFIER"
+) -> Dict[str, Any]:
+    raw_data = PEST_KNOWLEDGE_DICT.get(pest_id, PEST_KNOWLEDGE_DICT["uncertain"])
+    data = dict(raw_data)
+    raw_chemicals = list(data.get("chemical_control", []))
+
+    auth, status, msg_en, msg_or, authorized_chems = evaluate_treatment_authorization(
+        pest_id=pest_id,
+        crop_stage=crop_stage,
+        sampling_unit=sampling_unit,
+        pest_count=pest_count,
+        raw_chemicals=raw_chemicals,
+        provenance=provenance,
+        verifier_id=verifier_id
+    )
+
+    data["chemical_control"] = authorized_chems
+    data["chemical_authorized"] = auth
+    data["authorization_status"] = status
+    data["authorization_message_en"] = msg_en
+    data["authorization_message_or"] = msg_or
+
+    rule = ETL_RULES.get(pest_id, {})
+    data["scouting_guidance_en"] = rule.get("description_en", "Field scouting required before chemical intervention.")
+    data["scouting_guidance_or"] = rule.get("description_or", "ରାସାୟନିକ ପ୍ରୟୋଗ ପୂର୍ବରୁ କ୍ଷେତରେ ପୋକ ସଂଖ୍ୟା ଯାଞ୍ଚ କରନ୍ତୁ।")
+
+    return data
+
+    data["chemical_control"] = authorized_chems
+    data["chemical_authorized"] = auth
+    data["authorization_status"] = status
+    data["authorization_message_en"] = msg_en
+    data["authorization_message_or"] = msg_or
+
+    rule = ETL_RULES.get(pest_id, {})
+    data["scouting_guidance_en"] = rule.get("description_en", "Field scouting required before chemical intervention.")
+    data["scouting_guidance_or"] = rule.get("description_or", "ରାସାୟନିକ ପ୍ରୟୋଗ ପୂର୍ବରୁ କ୍ଷେତରେ ପୋକ ସଂଖ୍ୟା ଯାଞ୍ଚ କରନ୍ତୁ।")
+
+    return data
 
 def get_all_pests() -> List[Dict[str, Any]]:
-    return list(PEST_KNOWLEDGE_DICT.values())
+    return [get_pest_knowledge(p_id) for p_id in PEST_KNOWLEDGE_DICT.keys()]
 
 def get_districts_telemetry() -> List[Dict[str, Any]]:
     return DISTRICT_RISK_TELEMETRY

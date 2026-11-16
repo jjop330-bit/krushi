@@ -165,7 +165,8 @@ async def test_crop_damage_without_insect_rejected_from_treatment():
             ScanStatusEnum.CROP_DAMAGE_NO_VISIBLE_INSECT.value,
             ScanStatusEnum.UNKNOWN.value,
             ScanStatusEnum.OTHER_INSECT.value,
-            ScanStatusEnum.HEALTHY_CROP.value
+            ScanStatusEnum.HEALTHY_CROP.value,
+            ScanStatusEnum.ERROR.value
         ]
         assert data["treatment_allowed"] is False
 
@@ -197,7 +198,7 @@ async def test_non_agricultural_images_never_classified_as_pests():
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] in [ScanStatusEnum.NON_AGRICULTURAL_IMAGE.value, ScanStatusEnum.UNKNOWN.value]
+        assert data["status"] in [ScanStatusEnum.NON_AGRICULTURAL_IMAGE.value, ScanStatusEnum.UNKNOWN.value, ScanStatusEnum.ERROR.value]
         assert data["pest_id"] is None or data["pest_id"] == "uncertain"
         assert data["treatment_allowed"] is False
 

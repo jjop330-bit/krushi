@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 class ScanStatusEnum(str, Enum):
     IDENTIFIED = "IDENTIFIED"
@@ -40,6 +40,10 @@ class ImageQualityAssessment(BaseModel):
     sharpness_score: int = Field(ge=0, le=100)
     warning_message_en: Optional[str] = None
     warning_message_or: Optional[str] = None
+    # Scientific raw metric telemetry
+    raw_mean_luminance: Optional[float] = None  # Rec. 601 Y luminance (0-255)
+    raw_contrast_std: Optional[float] = None    # Channel standard deviation (0-255)
+    raw_edge_variance: Optional[float] = None   # High-frequency edge variance (Laplacian)
 
 class AlternativeDiagnosis(BaseModel):
     pest_id: str
@@ -62,6 +66,9 @@ class PestAnalysisResponse(BaseModel):
     Implements two-stage subject validation, rejection states, and treatment gating.
     """
     scan_id: str
+    request_id: Optional[str] = None
+    image_hash: Optional[str] = None
+    model_version: Optional[str] = "3.5-flash-lite"
     created_at: int
     status: ScanStatusEnum
     common_name: Optional[str] = None
@@ -96,12 +103,37 @@ class PestAnalysisResponse(BaseModel):
     crop_damage_analysis: Optional[str] = None
     crop_damage_analysis_or: Optional[str] = None
 
+    # Cryptographic Tamper-Evident Report Signature (HMAC-SHA256)
+    report_signature: Optional[str] = None
+    signature_algorithm: Optional[str] = "HMAC-SHA256"
+    signature_key_version: Optional[str] = "v1"
+
     # Backwards compatibility layer for legacy components
     identification: Optional[PestIdentification] = None
     ai_inferred_damage_en: Optional[str] = None
     ai_inferred_damage_or: Optional[str] = None
     observed_visual_features: List[str] = []
     expert_review_required: bool = False
+
+    @model_validator(mode="after")
+    def compute_signature_if_missing(self):
+        if not self.report_signature and self.scan_id:
+            try:
+                from app.core.security import generate_report_signature
+                status_str = self.status.value if hasattr(self.status, "value") else str(self.status)
+                sig_data = generate_report_signature(
+                    scan_id=self.scan_id,
+                    image_hash=self.image_hash,
+                    status=status_str,
+                    pest_id=self.pest_id,
+                    created_at=self.created_at
+                )
+                self.report_signature = sig_data["signature"]
+                self.signature_algorithm = sig_data["algorithm"]
+                self.signature_key_version = sig_data["key_version"]
+            except Exception:
+                pass
+        return self
 
 class PestAnalysisRequestBase64(BaseModel):
     image_base64: str

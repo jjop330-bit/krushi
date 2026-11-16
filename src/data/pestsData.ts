@@ -249,7 +249,7 @@ export const PEST_KNOWLEDGE_BASE: Record<PestId, PestKnowledge> = {
         tradeNames: ['Coragen', 'Ferterra'],
         dosagePerAcre: '60 ml in 200 Litres water per acre',
         waterVolumePerAcre: '200 Litres',
-        phiDays: 14,
+        phiDays: 47,
         cibrcRegistered: true,
         toxicityClass: 'Green (Slightly Toxic)',
         safetyPrecautionsEn: 'Safe for beneficial predatory spiders and aquatic organisms when used at recommended dose. Wear full protective clothing and boots.',
@@ -377,7 +377,7 @@ export const PEST_KNOWLEDGE_BASE: Record<PestId, PestKnowledge> = {
         tradeNames: ['Coragen'],
         dosagePerAcre: '60 ml in 200 Litres water per acre',
         waterVolumePerAcre: '200 Litres',
-        phiDays: 14,
+        phiDays: 47,
         cibrcRegistered: true,
         toxicityClass: 'Green (Slightly Toxic)',
         safetyPrecautionsEn: 'Target foliar canopy during early morning or late afternoon. Wear eye shield and hand gloves.',
@@ -496,7 +496,7 @@ export const PEST_KNOWLEDGE_BASE: Record<PestId, PestKnowledge> = {
         tradeNames: ['Dursban', 'Tricel'],
         dosagePerAcre: '500 ml in 200 Litres water per acre',
         waterVolumePerAcre: '200 Litres',
-        phiDays: 21,
+        phiDays: 30,
         cibrcRegistered: true,
         toxicityClass: 'Yellow (Highly Toxic)',
         safetyPrecautionsEn: 'Strong organophosphate insecticide. MUST wear respirator mask, rubber gloves, and protective apron. Wash thoroughly with soap after application. Keep children and cattle away.',
@@ -619,28 +619,16 @@ export const PEST_KNOWLEDGE_BASE: Record<PestId, PestKnowledge> = {
     ],
     chemicalControl: [
       {
-        activeIngredient: 'Chlorantraniliprole 18.5% SC',
-        tradeNames: ['Coragen'],
-        dosagePerAcre: '60 ml in 200 Litres water per acre',
+        activeIngredient: 'Chlorpyriphos 20% EC',
+        tradeNames: ['Dursban', 'Tricel'],
+        dosagePerAcre: '500 ml in 200 Litres water per acre',
         waterVolumePerAcre: '200 Litres',
-        phiDays: 14,
+        phiDays: 30,
         cibrcRegistered: true,
-        toxicityClass: 'Green (Slightly Toxic)',
-        safetyPrecautionsEn: 'Apply in the evening when armyworms begin climbing up the stems. Wear boots, mask, and full protective coveralls.',
-        safetyPrecautionsOr: 'ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ ଯେତେବେଳେ ପୋକ ଗଛ ଉପରକୁ ଚଢ଼ନ୍ତି। ସୁରକ୍ଷିତ ପୋଷାକ ଓ ମାସ୍କ ପିନ୍ଧନ୍ତୁ।',
-        waterSprayInstructions: 'Spray plant canopy and soil base uniformly with high pressure coarse spray.'
-      },
-      {
-        activeIngredient: 'Indoxacarb 14.5% SC',
-        tradeNames: ['Avaunt', 'Dakar'],
-        dosagePerAcre: '200 ml in 200 Litres water per acre',
-        waterVolumePerAcre: '200 Litres',
-        phiDays: 14,
-        cibrcRegistered: true,
-        toxicityClass: 'Blue (Moderately Toxic)',
-        safetyPrecautionsEn: 'Very fast knockdown of voracious caterpillar pests. Toxic to aquatic organisms; prevent wash-off into irrigation channels.',
-        safetyPrecautionsOr: 'ଖୁବ୍ ଶୀଘ୍ର ପୋକକୁ ମାରିଦିଏ। ନାଳ କିମ୍ବା ପୋଖରୀ ପାଣିରେ ଯେପରି ଔଷଧ ନ ମିଶେ ଧ୍ୟାନ ଦିଅନ୍ତୁ।',
-        waterSprayInstructions: 'Spray between 4:30 PM and 6:30 PM for maximum contact efficacy.'
+        toxicityClass: 'Yellow (Highly Toxic)',
+        safetyPrecautionsEn: 'Strong organophosphate insecticide. Apply strictly in late afternoon or dusk when armyworms climb up stems. Full PPE required: mask, gloves, apron. Highly toxic to fish and bees; do not spray near aquaculture ponds or drainage canals.',
+        safetyPrecautionsOr: 'ଏହା ଏକ ତୀବ୍ର ବିଷାକ୍ତ କୀଟନାଶକ। ଅପରାହ୍ନ ବା ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ। ମୁହଁରେ ମାସ୍କ ଓ ହାତରେ ଗ୍ଲୋଭ୍ସ ପିନ୍ଧିବା ବାଧ୍ୟତାମୂଳକ। ମାଛ ପୋଖରୀ ଓ କେନାଲ ପାଣିରୁ ଦୂରରେ ରଖନ୍ତୁ।',
+        waterSprayInstructions: 'Direct coarse spray towards lower foliage, soil surface, and panicle necks.'
       }
     ],
     expertConsultationCriteriaEn: [
