@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { 
   Camera, 
   Upload, 
@@ -14,12 +14,17 @@ import {
   Hash,
   Activity,
   Layers,
-  FileCheck
+  FileCheck,
+  ChevronDown,
+  Search,
+  X,
+  Sprout
 } from 'lucide-react';
 import { ODIA_TRANSLATIONS } from '../data/odiaTranslations';
 import { SAMPLE_PEST_IMAGES, SamplePestImage } from '../data/sampleImages';
 import { PestVisionService, ImageQualityCheck } from '../services/pestVisionService';
-import { ScanReport, CropId } from '../types/pest';
+import { ScanReport, CropId, PlantPart } from '../types/pest';
+import { SUPPORTED_CROPS, CROP_CATEGORIES, getCropById } from '../data/cropKnowledge';
 import { CameraModal } from './CameraModal';
 
 export type ScannerLifecycleState = 
@@ -28,6 +33,32 @@ export type ScannerLifecycleState =
   | 'IMAGE_VALIDATED' 
   | 'ANALYZING' 
   | 'RESULT_RECEIVED';
+
+export const PLANT_PARTS: Array<{
+  id: PlantPart;
+  labelEn: string;
+  labelOr: string;
+  icon: string;
+}> = [
+  { id: 'leaf', labelEn: 'Leaf / Blade', labelOr: 'ପତ୍ର (Leaf)', icon: '🍃' },
+  { id: 'stem', labelEn: 'Stem / Tiller', labelOr: 'କାଣ୍ଡ / ଗଛ ମୂଳ (Stem)', icon: '🎋' },
+  { id: 'root', labelEn: 'Root / Crown', labelOr: 'ଚେର (Root)', icon: '🌱' },
+  { id: 'flower', labelEn: 'Flower / Bud', labelOr: 'ଫୁଲ / କଢି (Flower)', icon: '🌸' },
+  { id: 'fruit', labelEn: 'Fruit / Pod', labelOr: 'ଫଳ / ଛୁଇଁ (Fruit)', icon: '🍅' },
+  { id: 'grain', labelEn: 'Grain / Earhead', labelOr: 'ଶିଷା / ଦାନା (Grain)', icon: '🌾' },
+  { id: 'whole_plant', labelEn: 'Whole Plant', labelOr: 'ସମ୍ପୂର୍ଣ୍ଣ ଗଛ (Whole)', icon: '🪴' }
+];
+
+const POPULAR_CROPS: CropId[] = [
+  'paddy',
+  'maize',
+  'tomato',
+  'brinjal',
+  'chilli',
+  'groundnut',
+  'ragi',
+  'cabbage'
+];
 
 interface PestScannerProps {
   lang: 'or' | 'en';
@@ -42,12 +73,15 @@ export const PestScanner: React.FC<PestScannerProps> = ({
   selectedSample,
   onClearSample
 }) => {
-  // Deterministic state machine
   const [lifecycleState, setLifecycleState] = useState<ScannerLifecycleState>('IDLE');
   const [currentSample, setCurrentSample] = useState<SamplePestImage | null>(selectedSample || null);
   const [imageUri, setImageUri] = useState<string | null>(selectedSample?.imageUri || null);
   const [imageHash, setImageHash] = useState<string | null>(null);
   const [selectedCrop, setSelectedCrop] = useState<CropId>('paddy');
+  const [selectedPlantPart, setSelectedPlantPart] = useState<PlantPart>('leaf');
+  const [isCropModalOpen, setIsCropModalOpen] = useState<boolean>(false);
+  const [cropSearchQuery, setCropSearchQuery] = useState<string>('');
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>('all');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisStep, setAnalysisStep] = useState<string>('');
   const [qualityCheck, setQualityCheck] = useState<ImageQualityCheck | null>(null);
@@ -60,8 +94,8 @@ export const PestScanner: React.FC<PestScannerProps> = ({
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const t = ODIA_TRANSLATIONS[lang];
+  const activeCropInfo = getCropById(selectedCrop);
 
-  // Abort any ongoing network inference when unmounting
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -70,9 +104,20 @@ export const PestScanner: React.FC<PestScannerProps> = ({
     };
   }, []);
 
-  // Compute image hash and quality whenever an image is selected
+  const filteredCrops = useMemo(() => {
+    return SUPPORTED_CROPS.filter(crop => {
+      const matchesCategory = selectedCategoryTab === 'all' || crop.category === selectedCategoryTab;
+      const q = cropSearchQuery.toLowerCase().trim();
+      if (!q) return matchesCategory;
+      const matchesSearch = 
+        crop.commonNameEn.toLowerCase().includes(q) ||
+        crop.commonNameOr.toLowerCase().includes(q) ||
+        crop.scientificName.toLowerCase().includes(q);
+      return matchesCategory && matchesSearch;
+    });
+  }, [selectedCategoryTab, cropSearchQuery]);
+
   const processNewImage = useCallback(async (uri: string, sample?: SamplePestImage | null) => {
-    // Reset previous execution context to avoid race conditions
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -95,18 +140,15 @@ export const PestScanner: React.FC<PestScannerProps> = ({
     }
   }, []);
 
-  // React to parent sample selection
   useEffect(() => {
     if (selectedSample) {
       processNewImage(selectedSample.imageUri, selectedSample);
     }
   }, [selectedSample, processNewImage]);
 
-  // Handle uploaded file (via input or drag-and-drop)
   const handleRawFile = async (file: File) => {
     setErrorMsg(null);
 
-    // 1. Strict binary magic byte validation
     const validation = await PestVisionService.validateImageBinary(file);
     if (!validation.isValid) {
       setErrorMsg(lang === 'or' ? validation.errorOr || 'ଅବୈଧ ଫଟୋ ଫାଇଲ୍।' : validation.errorEn || 'Invalid image file.');
@@ -116,7 +158,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
     if (onClearSample) onClearSample();
 
     try {
-      // 2. High-fidelity compression preserving microscopic insect anatomy
       const compressedUri = await PestVisionService.compressAndResizeImage(file, 1200, 0.85);
       await processNewImage(compressedUri, null);
     } catch (err: any) {
@@ -130,7 +171,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
     await handleRawFile(file);
   };
 
-  // Drag and Drop handlers for desktop browsers
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -159,21 +199,17 @@ export const PestScanner: React.FC<PestScannerProps> = ({
     await processNewImage(sample.imageUri, sample);
   };
 
-  // Live camera snapshot capture handler
   const handleCameraCapture = async (capturedDataUrl: string) => {
     if (onClearSample) onClearSample();
     await processNewImage(capturedDataUrl, null);
   };
 
-  // Analysis trigger with strict concurrency protection
   const handleStartAnalysis = async () => {
     if (!imageUri) return;
 
-    // Generate unique request ID
     const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     activeRequestIdRef.current = requestId;
 
-    // Prepare abort controller for request cancellation
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -182,38 +218,36 @@ export const PestScanner: React.FC<PestScannerProps> = ({
     setErrorMsg(null);
 
     try {
-      // Diagnostic progress stages
       setAnalysisStep(lang === 'or' ? '୧/୪: ଫଟୋ ଗୁଣବତ୍ତା ଓ ରେଜୋଲ୍ୟୁସନ ଯାଞ୍ଚ ହେଉଛି...' : '1/4: Validating image resolution & lighting contrast...');
-      await new Promise(r => setTimeout(r, 400));
-
-      if (controller.signal.aborted) return;
-
-      setAnalysisStep(lang === 'or' ? '୨/୪: କୀଟର ବାହ୍ୟ ଗଠନ ଓ ଲକ୍ଷଣ ଅନୁସନ୍ଧାନ ହେଉଛି...' : '2/4: Analyzing insect morphology & plant damage signatures...');
-      await new Promise(r => setTimeout(r, 450));
-
-      if (controller.signal.aborted) return;
-
-      setAnalysisStep(lang === 'or' ? '୩/୪: ICAR-NRRI ଓ OUAT କୀଟ ତଥ୍ୟାବଳୀ ସହିତ ମେଳ କରାଯାଉଛି...' : '3/4: Cross-referencing with ICAR-NRRI & OUAT pest knowledge base...');
-      await new Promise(r => setTimeout(r, 400));
-
-      if (controller.signal.aborted) return;
-
-      setAnalysisStep(lang === 'or' ? '୪/୪: ଜୈବିକ ଓ ରାସାୟନିକ ଉପଚାର ପରାମର୍ଶ ପ୍ରସ୍ତୁତ ହେଉଛି...' : '4/4: Formulating 3-tier IPM recommendations & safety checks...');
       await new Promise(r => setTimeout(r, 350));
 
       if (controller.signal.aborted) return;
 
-      // Execute vision diagnosis
+      setAnalysisStep(lang === 'or' ? `୨/୪: ${activeCropInfo?.commonNameOr || 'ଫସଲ'}ର ${selectedPlantPart}ରେ କୀଟ ବା ରୋଗ ଲକ୍ଷଣ ଅନୁସନ୍ଧାନ ହେଉଛି...` : `2/4: Analyzing insect morphology on ${activeCropInfo?.commonNameEn || 'crop'} ${selectedPlantPart}...`);
+      await new Promise(r => setTimeout(r, 400));
+
+      if (controller.signal.aborted) return;
+
+      setAnalysisStep(lang === 'or' ? '୩/୪: ICAR, OUAT ଓ ଓଡ଼ିଶା କୃଷି ଡାଟାବେସ୍ ସହିତ ମେଳ କରାଯାଉଛି...' : '3/4: Cross-referencing ICAR, OUAT & Odisha crop knowledge registry...');
+      await new Promise(r => setTimeout(r, 350));
+
+      if (controller.signal.aborted) return;
+
+      setAnalysisStep(lang === 'or' ? '୪/୪: ଜୈବିକ ଓ ରାସାୟନିକ ଉପଚାର ପରାମର୍ଶ ପ୍ରସ୍ତୁତ ହେଉଛି...' : '4/4: Formulating 3-tier IPM recommendations & safety checks...');
+      await new Promise(r => setTimeout(r, 300));
+
+      if (controller.signal.aborted) return;
+
       const report = await PestVisionService.analyzeCropImage(
         imageUri,
         selectedCrop,
+        selectedPlantPart,
         currentSample?.pestId,
         'bargarh',
         requestId,
         controller.signal
       );
 
-      // Verify response belongs to active request (prevent race conditions)
       if (activeRequestIdRef.current !== requestId) {
         return;
       }
@@ -248,45 +282,111 @@ export const PestScanner: React.FC<PestScannerProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-fadeIn">
-      {/* Title Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
+      <div className="bg-white rounded-3xl p-5 sm:p-8 shadow-sm border border-slate-200">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <div className="flex items-center space-x-2">
               <span className="px-2.5 py-0.5 rounded-full bg-agri-100 text-agri-800 text-xs font-bold uppercase tracking-wide">
-                {lang === 'or' ? 'AI କୀଟ ସ୍କାନର' : 'Multimodal Vision Scanner'}
+                {lang === 'or' ? 'ସାର୍ବଜନୀନ ଫସଲ AI ସ୍କାନର' : 'Universal Crop AI Scanner'}
               </span>
               <span className="text-xs text-slate-500 font-medium">
-                {lang === 'or' ? 'ଓଡ଼ିଶା ଧାନ ଫସଲ ସଂସ୍କରଣ' : 'Odisha Paddy Edition'}
+                {lang === 'or' ? 'ଓଡ଼ିଶା କୃଷି ସଂସ୍କରଣ' : 'Odisha Agro Edition'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
-              {lang === 'or' ? 'ଧାନ କ୍ଷେତର ଫଟୋ ଉଠାନ୍ତୁ ବା ଅପଲୋଡ୍ କରନ୍ତୁ' : 'Photograph or Upload Crop Pest'}
+              {lang === 'or' ? 'ଫସଲ ଫଟୋ ଉଠାନ୍ତୁ ବା ଅପଲୋଡ୍ କରନ୍ତୁ' : 'Photograph or Upload Crop Pest'}
             </h1>
             <p className="text-sm text-slate-600 mt-1">
               {lang === 'or' 
-                ? 'ଗଛ ମୂଳ, ପତ୍ର କିମ୍ବା ଆକ୍ରାନ୍ତ ଅଂଶର ଏକ ସ୍ପଷ୍ଟ ଫଟୋ ନିଅନ୍ତୁ। AI ତୁରନ୍ତ ପୋକ ଚିହ୍ନଟ କରି ନିରାପଦ ଉପଚାର ବତାଇବ।'
-                : 'Capture stem bases, leaf sheaths, or damaged foliage. The AI accurately identifies pest species, assesses severity, and delivers 3-tier IPM guidance.'}
+                ? 'ପ୍ରଥମେ ଫସଲ ଓ ଆକ୍ରାନ୍ତ ଅଂଶ ବାଛନ୍ତୁ। ତା’ପରେ ସ୍ପଷ୍ଟ ଫଟୋ ନିଅନ୍ତୁ।'
+                : 'Select crop and plant part, then capture a steady photograph. AI delivers species identification & verified IPM guidance.'}
             </p>
           </div>
 
-          {/* Active Crop Selector */}
-          <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center space-x-1 border border-slate-200">
-            <span className="text-xs font-bold text-slate-700 px-2">
-              {lang === 'or' ? 'ଫସଲ:' : 'Crop:'}
+          <button
+            type="button"
+            onClick={() => setIsCropModalOpen(true)}
+            className="min-h-[44px] px-3.5 py-2 rounded-2xl bg-agri-50 hover:bg-agri-100 border border-agri-300 text-agri-950 font-bold text-xs flex items-center space-x-2 shadow-sm transition-all focus:ring-2 focus:ring-agri-500"
+          >
+            <span className="text-base">{activeCropInfo?.category === 'cereals_millets' ? '🌾' : activeCropInfo?.category === 'vegetables' ? '🥦' : activeCropInfo?.category === 'fruits_horticulture' ? '🥭' : '🌱'}</span>
+            <div className="text-left">
+              <span className="text-[10px] text-agri-700 block uppercase font-extrabold">{lang === 'or' ? 'ଚୟନିତ ଫସଲ' : 'Selected Crop'}</span>
+              <span className="font-extrabold">{lang === 'or' ? activeCropInfo?.commonNameOr : activeCropInfo?.commonNameEn}</span>
+            </div>
+            <ChevronDown className="w-4 h-4 text-agri-700 ml-1" />
+          </button>
+        </div>
+
+        {/* STEP 1: CROP SELECTOR QUICK BAR */}
+        <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
+          <div className="flex items-center justify-between text-xs font-extrabold text-slate-700">
+            <span className="flex items-center space-x-1.5">
+              <span className="w-5 h-5 rounded-full bg-agri-700 text-white flex items-center justify-center text-[11px]">1</span>
+              <span>{lang === 'or' ? 'ଫସଲ ବାଛନ୍ତୁ (Select Crop):' : 'Step 1: Select Your Crop:'}</span>
             </span>
             <button
               type="button"
-              onClick={() => setSelectedCrop('paddy')}
-              className="px-3 py-1.5 rounded-xl bg-agri-800 text-white font-bold text-xs shadow-sm flex items-center space-x-1"
+              onClick={() => setIsCropModalOpen(true)}
+              className="min-h-[44px] text-agri-700 hover:text-agri-900 font-bold flex items-center space-x-1 text-xs"
             >
-              <span>🌾</span>
-              <span>{lang === 'or' ? 'ଧାନ (Paddy)' : 'Paddy (Rice)'}</span>
+              <span>{lang === 'or' ? 'ସମସ୍ତ ୩୨ ଫସଲ ଦେଖନ୍ତୁ' : 'All 32 Odisha Crops'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+            {POPULAR_CROPS.map((cid) => {
+              const c = getCropById(cid);
+              if (!c) return null;
+              const isSelected = selectedCrop === cid;
+              return (
+                <button
+                  key={cid}
+                  type="button"
+                  onClick={() => setSelectedCrop(cid)}
+                  className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border flex items-center space-x-1.5 ${
+                    isSelected
+                      ? 'bg-agri-800 text-white border-agri-900 shadow-sm ring-2 ring-lime-400'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <span>{cid === 'paddy' ? '🌾' : cid === 'maize' ? '🌽' : cid === 'tomato' ? '🍅' : cid === 'brinjal' ? '🍆' : cid === 'chilli' ? '🌶️' : cid === 'groundnut' ? '🥜' : cid === 'ragi' ? '🥣' : '🥬'}</span>
+                  <span>{lang === 'or' ? c.commonNameOr : c.commonNameEn}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Error Notification */}
+        {/* STEP 2: PLANT PART SELECTOR */}
+        <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+          <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-700">
+            <span className="w-5 h-5 rounded-full bg-agri-700 text-white flex items-center justify-center text-[11px]">2</span>
+            <span>{lang === 'or' ? 'ଆକ୍ରାନ୍ତ ଗଛର ଅଂଶ ବାଛନ୍ତୁ (Select Plant Part):' : 'Step 2: Select Plant Part Photographed:'}</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
+            {PLANT_PARTS.map((part) => {
+              const isSelected = selectedPlantPart === part.id;
+              return (
+                <button
+                  key={part.id}
+                  type="button"
+                  onClick={() => setSelectedPlantPart(part.id)}
+                  className={`min-h-[44px] px-2.5 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center space-x-1.5 text-center ${
+                    isSelected
+                      ? 'bg-lime-500 text-agri-950 border-lime-600 shadow-sm ring-2 ring-agri-800'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <span className="text-sm">{part.icon}</span>
+                  <span className="truncate">{lang === 'or' ? part.labelOr.split(' ')[0] : part.labelEn.split(' ')[0]}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {errorMsg && (
           <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start space-x-3 text-rose-800 text-sm animate-fadeIn">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
@@ -297,15 +397,19 @@ export const PestScanner: React.FC<PestScannerProps> = ({
           </div>
         )}
 
-        {/* Main Photo Interaction Area */}
-        <div className="mt-6">
+        {/* STEP 3: PHOTO INTERACTION AREA */}
+        <div className="mt-5 pt-4 border-t border-slate-100">
+          <div className="flex items-center space-x-1.5 text-xs font-extrabold text-slate-700 mb-3">
+            <span className="w-5 h-5 rounded-full bg-agri-700 text-white flex items-center justify-center text-[11px]">3</span>
+            <span>{lang === 'or' ? 'ଫଟୋ ଉଠାନ୍ତୁ ବା ଅପଲୋଡ୍ କରନ୍ତୁ:' : 'Step 3: Capture or Upload Specimen:'}</span>
+          </div>
+
           {!imageUri ? (
-            /* Upload & Camera Buttons */
             <div 
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all ${
+              className={`border-2 border-dashed rounded-3xl p-6 sm:p-10 text-center transition-all ${
                 isDragOver 
                   ? 'border-agri-600 bg-agri-50 scale-[1.01]' 
                   : 'border-slate-300 bg-slate-50/70 hover:bg-slate-50'
@@ -317,8 +421,10 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">
-                    {lang === 'or' ? 'ଫଟୋ ଉଠାନ୍ତୁ କିମ୍ବା ଡ୍ରପ୍ କରନ୍ତୁ' : 'Take a photo or drag & drop image'}
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                    {lang === 'or' 
+                      ? `${activeCropInfo?.commonNameOr || 'ଫସଲ'}ର ଫଟୋ ନିଅନ୍ତୁ କିମ୍ବା ଡ୍ରପ୍ କରନ୍ତୁ` 
+                      : `Take a photo of ${activeCropInfo?.commonNameEn || 'crop'} or drag & drop`}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
                     {lang === 'or' ? 'ସମର୍ଥିତ ଫର୍ମାଟ୍: JPG, JPEG, PNG, WEBP (ସର୍ବାଧିକ ୨୫ MB)' : 'Supported formats: JPG, JPEG, PNG, WEBP (up to 25MB)'}
@@ -326,7 +432,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                  {/* Live WebRTC Camera Button (Primary on Mobile and Desktop) */}
                   <button 
                     type="button"
                     onClick={() => setIsCameraModalOpen(true)}
@@ -336,7 +441,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                     <span>{lang === 'or' ? 'ଲାଇଭ୍ କ୍ୟାମେରା ଖୋଲନ୍ତୁ' : 'Open Live Camera'}</span>
                   </button>
 
-                  {/* Gallery File Upload */}
                   <label className="min-h-[44px] cursor-pointer px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-sm border border-slate-300 flex items-center justify-center space-x-2 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all">
                     <Upload className="w-4 h-4 text-agri-700" />
                     <span>{lang === 'or' ? 'ଗ୍ୟାଲେରୀରୁ ଆଣନ୍ତୁ' : 'Browse Gallery'}</span>
@@ -350,8 +454,7 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                   </label>
                 </div>
 
-                {/* Field Photography Guide for Reliable AI Identification */}
-                <div className="pt-4 text-left bg-white p-4.5 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-2">
+                <div className="pt-3 text-left bg-white p-4 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-2">
                   <span className="font-extrabold text-slate-900 flex items-center space-x-1.5 text-xs">
                     <HelpCircle className="w-4 h-4 text-agri-700 flex-shrink-0" />
                     <span>{lang === 'or' ? 'ନିର୍ଭୁଲ ଚିହ୍ନଟ ପାଇଁ ଫଟୋ ଉଠାଇବାର ନିୟମ:' : 'Field Photography Guide for Reliable AI Identification:'}</span>
@@ -378,7 +481,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
               </div>
             </div>
           ) : (
-            /* Image Preview & Analysis Card */
             <div className="space-y-4">
               <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-300 shadow-md aspect-[16/10] sm:aspect-[16/9] flex items-center justify-center">
                 <img 
@@ -387,7 +489,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                   className="w-full h-full object-contain" 
                 />
 
-                {/* Retake / Replace Action Overlay */}
                 {!isAnalyzing && (
                   <div className="absolute top-4 right-4 flex space-x-2">
                     <button
@@ -401,7 +502,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                   </div>
                 )}
 
-                {/* Specimen Signature Pill (Audit Traceability) */}
                 {imageHash && (
                   <div className="absolute bottom-3 left-3 bg-black/75 text-slate-300 px-3 py-1.5 rounded-xl text-[10px] font-mono backdrop-blur-md flex items-center space-x-1.5 border border-white/10">
                     <Hash className="w-3 h-3 text-lime-400" />
@@ -409,7 +509,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                   </div>
                 )}
 
-                {/* Analysis Overlay Progress */}
                 {isAnalyzing && (
                   <div className="absolute inset-0 bg-agri-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-white text-center space-y-4 animate-fadeIn">
                     <div className="w-16 h-16 rounded-full border-4 border-lime-400 border-t-transparent animate-spin flex items-center justify-center">
@@ -427,7 +526,6 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                 )}
               </div>
 
-              {/* Image Quality Telemetry Indicator */}
               {qualityCheck && !isAnalyzing && (
                 <div className={`p-4 rounded-2xl border text-xs flex items-start space-x-3 transition-colors ${
                   qualityCheck.isClear 
@@ -459,7 +557,22 @@ export const PestScanner: React.FC<PestScannerProps> = ({
                 </div>
               )}
 
-              {/* Primary Analyze CTA Button */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs flex items-center justify-between flex-wrap gap-2 text-slate-700">
+                <div className="flex items-center space-x-2">
+                  <span className="font-extrabold text-agri-800">{lang === 'or' ? 'ଫସଲ:' : 'Crop:'}</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 font-bold">{lang === 'or' ? activeCropInfo?.commonNameOr : activeCropInfo?.commonNameEn}</span>
+                  <span className="font-extrabold text-agri-800 ml-2">{lang === 'or' ? 'ଅଂଶ:' : 'Part:'}</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 font-bold">{selectedPlantPart}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCropModalOpen(true)}
+                  className="min-h-[44px] text-xs font-bold text-agri-700 hover:text-agri-900 underline"
+                >
+                  {lang === 'or' ? 'ଫସଲ ବଦଳାନ୍ତୁ' : 'Change Crop'}
+                </button>
+              </div>
+
               {!isAnalyzing && (
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
@@ -486,8 +599,8 @@ export const PestScanner: React.FC<PestScannerProps> = ({
         </div>
       </div>
 
-      {/* 1-Click Fast Test Strip (Quick Testing of all 8 Classes) */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+      {/* 1-Click Fast Test Strip */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center space-x-1.5">
             <Sliders className="w-3.5 h-3.5 text-agri-700" />
@@ -524,7 +637,118 @@ export const PestScanner: React.FC<PestScannerProps> = ({
         </div>
       </div>
 
-      {/* Live WebRTC Camera Viewfinder Modal */}
+      {/* FULL 32-CROP SELECTION MODAL */}
+      {isCropModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-agri-900 text-white">
+              <div>
+                <h3 className="text-lg font-bold">
+                  {lang === 'or' ? 'ଓଡ଼ିଶାର ଫସଲ ଚୟନ କରନ୍ତୁ' : 'Select Odisha Crop (32 Registered)'}
+                </h3>
+                <p className="text-xs text-agri-200 mt-0.5">
+                  {lang === 'or' ? 'ସଠିକ ରୋଗ ଓ ପୋକ ଚିହ୍ନଟ ପାଇଁ ଉପଯୁକ୍ତ ଫସଲ ବାଛନ୍ତୁ' : 'Choose crop for accurate diagnostic threshold lookup'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCropModalOpen(false)}
+                className="min-h-[44px] min-w-[44px] p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-b border-slate-200">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={cropSearchQuery}
+                  onChange={(e) => setCropSearchQuery(e.target.value)}
+                  placeholder={lang === 'or' ? 'ଫସଲ ଖୋଜନ୍ତୁ (ଯଥା: ଧାନ, ମକା, ବାଇଗଣ)...' : 'Search crop by name (e.g. Paddy, Maize, Tomato)...'}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500 bg-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 mt-3 overflow-x-auto pb-1 scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategoryTab('all')}
+                  className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    selectedCategoryTab === 'all'
+                      ? 'bg-agri-800 text-white'
+                      : 'bg-white text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  {lang === 'or' ? 'ସବୁ ଫସଲ (୩୨)' : 'All Crops (32)'}
+                </button>
+                {CROP_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategoryTab(cat.id)}
+                    className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                      selectedCategoryTab === cat.id
+                        ? 'bg-agri-800 text-white'
+                        : 'bg-white text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <span>{cat.icon} {lang === 'or' ? cat.nameOr : cat.nameEn}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1 space-y-2">
+              {filteredCrops.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 text-sm">
+                  {lang === 'or' ? 'କୌଣସି ଫସଲ ମିଳିଲା ନାହିଁ।' : 'No crops found matching your search.'}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {filteredCrops.map((c) => {
+                    const isSelected = selectedCrop === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCrop(c.id);
+                          setIsCropModalOpen(false);
+                        }}
+                        className={`min-h-[44px] p-3 rounded-2xl border text-left transition-all flex items-start space-x-3 ${
+                          isSelected
+                            ? 'bg-agri-50 border-agri-600 ring-2 ring-lime-400'
+                            : 'bg-white hover:bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <span className="text-2xl mt-0.5">
+                          {c.category === 'cereals_millets' ? '🌾' : c.category === 'pulses' ? '🌱' : c.category === 'oilseeds' ? '🌻' : c.category === 'vegetables' ? '🥦' : '🥭'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-sm text-slate-900 truncate">
+                              {lang === 'or' ? c.commonNameOr : c.commonNameEn}
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                              {c.status === 'FULL_VALIDATED' ? '✓ Validated' : 'Field Pilot'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 truncate">
+                            {lang === 'or' ? c.commonNameEn : c.commonNameOr} • <span className="italic">{c.scientificName}</span>
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <CameraModal
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}

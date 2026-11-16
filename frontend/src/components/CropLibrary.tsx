@@ -1,6 +1,19 @@
-import React from 'react';
-import { Wheat, CheckCircle2, Clock, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
-import { SUPPORTED_CROPS, CropInfo } from '../data/cropKnowledge';
+import React, { useState, useMemo } from 'react';
+import { 
+  Wheat, 
+  CheckCircle2, 
+  Clock, 
+  AlertCircle, 
+  ArrowRight, 
+  ShieldCheck, 
+  Search,
+  Filter,
+  Layers,
+  Bug,
+  Activity,
+  Award
+} from 'lucide-react';
+import { SUPPORTED_CROPS, CROP_CATEGORIES, CropInfo } from '../data/cropKnowledge';
 
 interface CropLibraryProps {
   lang: 'or' | 'en';
@@ -11,27 +24,44 @@ export const CropLibrary: React.FC<CropLibraryProps> = ({
   lang,
   onSelectCrop
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const filteredCrops = useMemo(() => {
+    return SUPPORTED_CROPS.filter(crop => {
+      const matchesCategory = selectedCategory === 'all' || crop.category === selectedCategory;
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return matchesCategory;
+      const matchesSearch = 
+        crop.commonNameEn.toLowerCase().includes(q) ||
+        crop.commonNameOr.toLowerCase().includes(q) ||
+        crop.scientificName.toLowerCase().includes(q) ||
+        crop.majorInsectPests.some(p => p.toLowerCase().includes(q));
+      return matchesCategory && matchesSearch;
+    });
+  }, [selectedCategory, searchQuery]);
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12 animate-fadeIn">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-fadeIn">
       {/* Title Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <div className="flex items-center space-x-2">
               <span className="px-2.5 py-0.5 rounded-full bg-agri-100 text-agri-800 text-xs font-bold uppercase tracking-wider">
-                {lang === 'or' ? 'ଓଡ଼ିଶା ଫସଲ ତାଲିକା' : 'Odisha Crop Architecture'}
+                {lang === 'or' ? 'ଓଡ଼ିଶା ଫସଲ ସୂଚୀ (୩୨ ଫସଲ)' : 'Odisha Crop Architecture (32 Crops)'}
               </span>
               <span className="text-xs text-slate-500 font-medium">
-                Extensible Diagnostic Framework
+                Universal Agro-Ecological Register
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
-              {lang === 'or' ? 'ସମର୍ଥିତ ଓ ବିକାଶାଧୀନ ଫସଲ ସମୂହ' : 'Crop Diagnostic Directory & Extension Roadmap'}
+              {lang === 'or' ? 'ଓଡ଼ିଶାର ପ୍ରମୁଖ ଫସଲ ଓ କୀଟ ପରିଚାଳନା କୋଷ' : 'Odisha Major Crops & Entomology Knowledge Registry'}
             </h1>
             <p className="text-sm text-slate-600 mt-1">
               {lang === 'or' 
-                ? 'ବର୍ତ୍ତମାନ ଧାନ ଫସଲ ସମ୍ପୂର୍ଣ୍ଣ ସକ୍ରିୟ। ଅନ୍ୟାନ୍ୟ ଫସଲଗୁଡ଼ିକ ଗବେଷଣାଗାରରେ ପରୀକ୍ଷଣ ପରେ ହିଁ ଉନ୍ମୋଚିତ ହେବ।'
-                : 'Paddy is actively deployed with 5 validated entomological models. Other regional crops are staged in strict validation pipelines.'}
+                ? 'ଧାନ, ମକା, ଡାଲି, ତୈଳବୀଜ, ପନିପରିବା ଓ ଫଳ ଚାଷ ପାଇଁ ବୈଜ୍ଞାନିକ ତଥ୍ୟ, କୀଟ ଲକ୍ଷଣ ଓ ନିରୀକ୍ଷଣ ପଦ୍ଧତି।'
+                : 'Comprehensive structured knowledge for 32 major crops in 5 agro-climatic categories across Odisha.'}
             </p>
           </div>
         </div>
@@ -43,88 +73,146 @@ export const CropLibrary: React.FC<CropLibraryProps> = ({
             <span className="font-bold text-slate-900 block">
               {lang === 'or' ? 'ନୈତିକ କୃଷି AI ପ୍ରତିବଦ୍ଧତା (Ethical AI Mandate):' : 'Ethical Model Deployment Principle:'}
             </span>
-            <p className="mt-0.5">
+            <p className="mt-0.5 leading-relaxed">
               {lang === 'or'
-                ? 'କୌଣସି ଫସଲକୁ ସକ୍ରିୟ ଘୋଷଣା କରାଯାଏ ନାହିଁ ଯେପର୍ଯ୍ୟନ୍ତ ଏହାର କୀଟ ଡାଟାବେସ୍ ଓ AI ମଡେଲ ସଠିକତା ୯୦% ରୁ ଅଧିକ ପ୍ରମାଣିତ ନ ହୋଇଛି।'
-                : 'Krushi Mitra AI adheres to strict diagnostic safety: We never claim support for a crop until its regional pest knowledge and computer-vision accuracy exceed 90% benchmark in field validation trials.'}
+                ? 'ପ୍ରତିଟି ଫସଲର ତଥ୍ୟ OUAT, ICAR-NRRI, IIHR, IIPR ଓ ଓଡ଼ିଶା କୃଷି ବିଭାଗ ଦ୍ୱାରା ପ୍ରମାଣିତ। କୌଣସି ଅଣ-ପ୍ରମାଣିତ କୀଟନାଶକ ଡୋଜ୍ ବା ଔଷଧ ସୁପାରିଶ କରାଯାଏ ନାହିଁ।'
+                : 'All crop entomological data is sourced from OUAT, ICAR-NRRI, IIHR, IIPR, and CIBRC label claims. Krushi Mitra AI enforces fail-closed chemical gating.'}
             </p>
+          </div>
+        </div>
+
+        {/* Search & Category Filter Controls */}
+        <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={lang === 'or' ? 'ଫସଲ ନାମ, ବୈଜ୍ଞାନିକ ନାମ ବା ପୋକ ଖୋଜନ୍ତୁ...' : 'Search crop, scientific name, or pest...'}
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500 bg-white"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('all')}
+              className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                selectedCategory === 'all'
+                  ? 'bg-agri-800 text-white border-agri-900 shadow-sm'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
+            >
+              {lang === 'or' ? 'ସମସ୍ତ (୩୨)' : 'All Crops (32)'}
+            </button>
+            {CROP_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border flex items-center space-x-1.5 ${
+                  selectedCategory === cat.id
+                    ? 'bg-agri-800 text-white border-agri-900 shadow-sm'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+              >
+                <span>{cat.icon}</span>
+                <span>{lang === 'or' ? cat.nameOr.split(' ')[0] : cat.nameEn.split(' ')[0]}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Crops Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {SUPPORTED_CROPS.map((crop) => {
-          const isActive = crop.status === 'active';
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredCrops.map((crop) => {
+          const isValidated = crop.status === 'FULL_VALIDATED';
           return (
             <div
               key={crop.id}
-              className={`bg-white rounded-3xl p-6 border transition-all flex flex-col justify-between ${
-                isActive 
-                  ? 'border-agri-500 shadow-md ring-1 ring-agri-500/20' 
-                  : 'border-slate-200 shadow-sm opacity-90'
+              className={`bg-white rounded-3xl p-5 border transition-all flex flex-col justify-between ${
+                isValidated 
+                  ? 'border-agri-300 shadow-sm hover:shadow-md' 
+                  : 'border-slate-200 shadow-sm'
               }`}
             >
-              <div>
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center space-x-3">
+              <div className="space-y-3">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex items-center space-x-2.5">
                     <span className="text-3xl p-2 rounded-2xl bg-slate-100 flex items-center justify-center">
                       {crop.icon}
                     </span>
                     <div>
-                      <h3 className="font-extrabold text-lg text-slate-900">
-                        {lang === 'or' ? crop.nameOr : crop.nameEn}
+                      <h3 className="font-extrabold text-base text-slate-900">
+                        {lang === 'or' ? crop.commonNameOr : crop.commonNameEn}
                       </h3>
-                      <p className="text-xs text-slate-500 italic">{crop.scientificName}</p>
+                      <p className="text-[11px] text-slate-500 italic truncate max-w-[180px]">{crop.scientificName}</p>
                     </div>
                   </div>
 
-                  {isActive ? (
-                    <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-extrabold flex items-center space-x-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>{lang === 'or' ? 'ସମ୍ପୂର୍ଣ୍ଣ ସକ୍ରିୟ' : 'Active & Validated'}</span>
+                  {isValidated ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-extrabold flex items-center space-x-1 flex-shrink-0">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                      <span>{lang === 'or' ? 'ପ୍ରମାଣିତ' : 'Validated'}</span>
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold flex items-center space-x-1">
-                      <Clock className="w-3.5 h-3.5 text-amber-700" />
-                      <span>{lang === 'or' ? 'ପରୀକ୍ଷଣ ଚାଲିଛି' : 'In Field Validation'}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold flex items-center space-x-1 flex-shrink-0">
+                      <Clock className="w-3 h-3 text-amber-700" />
+                      <span>{lang === 'or' ? 'କ୍ଷେତ୍ର ପରୀକ୍ଷଣ' : 'Field Pilot'}</span>
                     </span>
                   )}
                 </div>
 
-                {/* Key Pests Supported or Targeted */}
-                <div className="mt-4 space-y-1.5">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                    {lang === 'or' ? 'ପ୍ରମୁଖ ପୋକ ତାଲିକା:' : 'Target Pest Species:'}
+                {/* Major Insect Pests */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    {lang === 'or' ? 'ପ୍ରମୁଖ କୀଟ:' : 'Major Insect Pests:'}
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {crop.keyTargetPests.map((pest, i) => (
-                      <span key={i} className="px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">
-                        {pest}
+                  <div className="flex flex-wrap gap-1">
+                    {crop.majorInsectPests.slice(0, 4).map((pest, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
+                        {pest.split('(')[0].trim()}
                       </span>
                     ))}
+                    {crop.majorInsectPests.length > 4 && (
+                      <span className="px-1.5 py-0.5 rounded-md bg-slate-50 text-slate-400 text-[10px]">
+                        +{crop.majorInsectPests.length - 4}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Validation Notice if Pending */}
-                {!isActive && crop.validationNoticeEn && (
-                  <div className="mt-3 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/60 text-xs text-amber-900">
-                    <strong>{lang === 'or' ? 'ଗବେଷଣା ସୂଚନା:' : 'Validation Status: '}</strong>
-                    {lang === 'or' ? crop.validationNoticeOr : crop.validationNoticeEn}
-                  </div>
-                )}
+                {/* Scouting Protocol Preview */}
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-0.5">
+                  <span className="font-bold text-slate-800 block text-[10px] uppercase">
+                    {lang === 'or' ? 'ନିରୀକ୍ଷଣ ପଦ୍ଧତି:' : 'Scouting Method:'}
+                  </span>
+                  <p className="line-clamp-2 leading-relaxed">{crop.scoutingMethod}</p>
+                </div>
+
+                {/* Source Institution */}
+                <div className="text-[10px] text-slate-400 flex items-center space-x-1">
+                  <Award className="w-3 h-3 text-agri-700 flex-shrink-0" />
+                  <span className="truncate">{crop.sourceInstitution}</span>
+                </div>
               </div>
 
               {/* Action */}
-              <div className="mt-5 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-                {isActive ? (
-                  <span className="text-agri-700 font-extrabold flex items-center space-x-1">
-                    <span>{lang === 'or' ? '୫ ପ୍ରମୁଖ କୀଟ ମଡେଲ ଉପଲବ୍ଧ' : '5 Entomological Models Ready'}</span>
+              <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                {onSelectCrop ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectCrop(crop.id)}
+                    className="min-h-[44px] text-agri-700 hover:text-agri-900 font-extrabold flex items-center space-x-1"
+                  >
+                    <span>{lang === 'or' ? 'ଏହି ଫସଲ ସ୍କାନ୍ କରନ୍ତୁ' : 'Scan this crop'}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
+                  </button>
                 ) : (
-                  <span className="text-slate-400 font-medium">
-                    {lang === 'or' ? 'ପରବର୍ତ୍ତୀ ସଂସ୍କରଣରେ ଯୋଡ଼ାଯିବ' : 'Scheduled for future release'}
+                  <span className="text-agri-800 font-bold text-[11px]">
+                    {isValidated ? '✓ Model Ready' : 'Pilot Supervised'}
                   </span>
                 )}
               </div>

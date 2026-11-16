@@ -1,4 +1,4 @@
-import { ScanReport, PestId, CropId, SeverityLevel, ScanStatus } from '../types/pest';
+import { ScanReport, PestId, CropId, SeverityLevel, ScanStatus, PlantPart } from '../types/pest';
 import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
 import { StorageService } from './storageService';
 import { SAMPLE_PEST_IMAGES } from '../data/sampleImages';
@@ -305,11 +305,26 @@ export class PestVisionService {
   public static async analyzeCropImage(
     imageDataUrl: string,
     cropId: CropId = 'paddy',
-    forcedPestId?: string,
-    farmerDistrict: string = 'bargarh',
+    plantPartOrForcedPest?: PlantPart | string,
+    forcedPestOrDistrict?: string,
+    districtOrReqId?: string,
     requestId?: string,
     abortSignal?: AbortSignal
   ): Promise<ScanReport> {
+    const PLANT_PARTS_LIST = ['leaf', 'stem', 'stem_base', 'root', 'flower', 'fruit', 'pod', 'grain', 'whole_plant'];
+    let plantPart: PlantPart = 'leaf';
+    let forcedPestId: string | undefined = undefined;
+    let farmerDistrict: string = 'bargarh';
+
+    if (plantPartOrForcedPest && PLANT_PARTS_LIST.includes(plantPartOrForcedPest)) {
+      plantPart = plantPartOrForcedPest as PlantPart;
+      forcedPestId = forcedPestOrDistrict;
+      farmerDistrict = districtOrReqId || 'bargarh';
+    } else {
+      forcedPestId = plantPartOrForcedPest;
+      farmerDistrict = forcedPestOrDistrict || 'bargarh';
+      requestId = districtOrReqId || requestId;
+    }
     const quality = await this.assessImageQuality(imageDataUrl);
     const apiKey = StorageService.getApiKey();
     const settings = StorageService.getSettings();
@@ -322,6 +337,8 @@ export class PestVisionService {
         ...rep,
         requestId: rep.requestId || reqId,
         imageHash: rep.imageHash || imageHash,
+        cropId: rep.cropId || cropId,
+        plantPart: rep.plantPart || plantPart,
         modelVersion: rep.modelVersion || '3.5-flash-lite',
         analysisTimestamp: rep.analysisTimestamp || Date.now()
       };
@@ -353,7 +370,7 @@ export class PestVisionService {
     // 1. Attempt secure backend proxy if enabled and not forced benchmark sample
     if (settings.useBackendProxy && !effectivePestId) {
       try {
-        const backendResult = await this.tryAnalyzeViaBackend(imageDataUrl, cropId, farmerDistrict, abortSignal);
+        const backendResult = await this.tryAnalyzeViaBackend(imageDataUrl, cropId, plantPart, farmerDistrict, abortSignal);
         if (backendResult) {
           return attachTraceability(backendResult);
         }
@@ -387,7 +404,8 @@ export class PestVisionService {
   private static async tryAnalyzeViaBackend(
     imageDataUrl: string,
     cropId: CropId,
-    farmerDistrict: string,
+    plantPart?: PlantPart,
+    farmerDistrict: string = 'bargarh',
     abortSignal?: AbortSignal
   ): Promise<ScanReport | null> {
     const settings = StorageService.getSettings();
@@ -411,6 +429,7 @@ export class PestVisionService {
         body: JSON.stringify({
           image_base64: imageDataUrl,
           crop_id: cropId,
+          plant_part: plantPart || 'leaf',
           farmer_district: farmerDistrict
         }),
         signal: controller.signal
@@ -853,8 +872,8 @@ RESPOND ONLY WITH A VALID JSON OBJECT WITH THIS EXACT STRUCTURE:
         return this.buildUnclearReport(imageDataUrl, quality, farmerDistrict);
       }
 
-      // If forcedPestId is not one of the 5 supported pests, do NOT default to bph!
-      if (!['bph', 'stem_borer', 'leaf_folder', 'rice_hispa', 'armyworm'].includes(forcedPestId as PestId)) {
+      // If forcedPestId is not in supported PEST_KNOWLEDGE_BASE, do NOT default to bph!
+      if (!(forcedPestId in PEST_KNOWLEDGE_BASE)) {
         return this.buildUnclearReport(imageDataUrl, quality, farmerDistrict);
       }
 

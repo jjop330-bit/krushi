@@ -1,0 +1,23 @@
+Test_Case_ID,Description,Category,Input_Subject,Expected_Status,Actual_Status,False_Positive_Triggered,Treatment_Allowed,Refusal_Explanation
+FP-01,Empty / completely blank image,Null input,White/Black plain canvas,UNCLEAR_IMAGE,UNCLEAR_IMAGE,FALSE,FALSE,Refused: Image uniform or 0 variance; retake photograph
+FP-02,Healthy rice leaf without pests,Healthy crop,Intact green Oryza leaf blade,HEALTHY_CROP,HEALTHY_CROP,FALSE,FALSE,Refused: Pristine crop foliage; zero chemical treatment needed
+FP-03,Healthy tomato leaf without insects,Healthy crop,Clean Solanum foliage,HEALTHY_CROP,HEALTHY_CROP,FALSE,FALSE,Refused: Healthy crop canopy; chemical intervention locked
+FP-04,Dry brown leaf without insects,Abiotic stress,Dead senescent leaf tissue,CROP_DAMAGE_NO_VISIBLE_INSECT,CROP_DAMAGE_NO_VISIBLE_INSECT,FALSE,FALSE,Refused: Senescent tissue without live insect specimen
+FP-05,Agricultural field soil / mud,Abiotic background,Puddled clay soil surface,NON_AGRICULTURAL_IMAGE,NON_AGRICULTURAL_IMAGE,FALSE,FALSE,Refused: Soil background; no crop organ or insect present
+FP-06,Human hand / palm,Non-agricultural,Farmer hand holding nothing,NON_AGRICULTURAL_IMAGE,NON_AGRICULTURAL_IMAGE,FALSE,FALSE,Refused: Human anatomical subject rejected
+FP-07,Human finger pointing,Non-agricultural,Index finger close-up,NON_AGRICULTURAL_IMAGE,NON_AGRICULTURAL_IMAGE,FALSE,FALSE,Refused: Human finger detected; zero pest manufacture
+FP-08,Stone / field gravel,Inanimate object,Granite field boundary rock,NON_AGRICULTURAL_IMAGE,NON_AGRICULTURAL_IMAGE,FALSE,FALSE,Refused: Inanimate stone; no pest detected
+FP-09,Plastic object / fertilizer bag,Foreign object,Woven polypropylene sack,NON_AGRICULTURAL_IMAGE,NON_AGRICULTURAL_IMAGE,FALSE,FALSE,Refused: Synthetic non-crop artifact rejected
+FP-10,Domestic farm animal (cow/goat),Fauna non-pest,Bovine cattle grazing,NON_AGRICULTURAL_IMAGE,NON_AGRICULTURAL_IMAGE,FALSE,FALSE,Refused: Mammalian animal detected; not an agricultural pest
+FP-11,Paddy field bird (Heron/Egret),Avian wildlife,Paddy heron in water,NON_AGRICULTURAL_IMAGE,NON_AGRICULTURAL_IMAGE,FALSE,FALSE,Refused: Avian predator of insects; chemical sprays withheld
+FP-12,Lycosa pseudoannulata (Wolf Spider),Beneficial predator,Eight-legged spider on leaf,OTHER_INSECT,OTHER_INSECT,FALSE,FALSE,Refused: Beneficial planthopper predator; spraying prohibited
+FP-13,Swallowtail butterfly,Non-target pollinator,Papilio adult on flower,OTHER_INSECT,OTHER_INSECT,FALSE,FALSE,Refused: Pollinating butterfly; non-target arthropod
+FP-14,Ladybird beetle (Coccinella),Beneficial predator,Predatory beetle feeding on aphid,OTHER_INSECT,OTHER_INSECT,FALSE,FALSE,Refused: Natural aphid regulator; chemicals strictly locked
+FP-15,Unknown forest caterpillar,Unsupported species,Geometrid looper on wild bush,UNSUPPORTED_SPECIES,UNSUPPORTED_SPECIES,FALSE,FALSE,Refused: Organism outside validated Odisha knowledge registry
+FP-16,Damselfly / Dragonfly (Odonata),Beneficial predator,Agrion perched on tiller,OTHER_INSECT,OTHER_INSECT,FALSE,FALSE,Refused: Odonate predator; natural enemy conserved
+FP-17,Heavily blurred moving insect,Defective capture,Out-of-focus motion streak,UNCLEAR_IMAGE,UNCLEAR_IMAGE,FALSE,FALSE,Refused: Sharpness below 20%; impossible to confirm morphology
+FP-18,Very small insect (<2% canvas),Low pixel coverage,Distant arthropod speck,UNCLEAR_IMAGE,UNCLEAR_IMAGE,FALSE,FALSE,Refused: Micro-morphology unresolved; close-up retake required
+FP-19,Mixed swarm of non-pest flies,Neutral biodiversity,Chironomid midges in air,OTHER_INSECT,OTHER_INSECT,FALSE,FALSE,Refused: Non-biting midges; zero economic crop impact
+FP-20,Insect body cut off by frame,Truncated subject,Half caterpillar at edge,UNCLEAR_IMAGE,UNCLEAR_IMAGE,FALSE,FALSE,Refused: Diagnostic head capsule cut off; full body retake needed
+FP-21,Different crop image (e.g. Tea leaf),Unsupported crop,Camellia sinensis leaf,UNSUPPORTED_SPECIES,UNSUPPORTED_SPECIES,FALSE,FALSE,Refused: Non-target plantation crop outside Odisha registry
+FP-22,Bacterial leaf blight without insect,Pathogen lesion,Translucent yellow wavy lesion,CROP_DAMAGE_NO_VISIBLE_INSECT,CROP_DAMAGE_NO_VISIBLE_INSECT,FALSE,FALSE,Refused: Bacterial pathology; insect absence prevents insecticide

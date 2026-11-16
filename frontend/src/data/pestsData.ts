@@ -852,5 +852,577 @@ export const PEST_KNOWLEDGE_BASE: Record<PestId, PestKnowledge> = {
       'ICAR Guidelines on Responsible Agricultural AI & Diagnostic Safety',
       'OUAT Diagnostic Quality Protocol'
     ]
+  },
+  fall_armyworm: {
+    id: 'fall_armyworm',
+    commonNameEn: 'Fall Armyworm (FAW)',
+    commonNameOr: 'ଫଲ୍ ଆର୍ମିୱାର୍ମ (ମକା ଲମ୍ଫ ପୋକ)',
+    scientificName: 'Spodoptera frugiperda (J.E. Smith)',
+    localOdishaName: 'ମକା ପତ୍ର ଓ କାଣ୍ଡ ବିନ୍ଧା ପୋକ',
+    hostCrops: ['Maize', 'Sorghum', 'Millets', 'Sugarcane'],
+    affectedPlantParts: ['Leaf whorl', 'Tassel', 'Cob / Silk'],
+    keySymptomsEn: [
+      'Extensive ragged feeding holes and skeletonized leaves in the central leaf whorl.',
+      'Accumulation of copious moist, sawdust-like brownish frass inside the whorl.',
+      'Distinct inverted "Y" suture on the dark head capsule of mature caterpillars.',
+      'Four dark spots arranged in a square pattern on the 8th abdominal segment.'
+    ],
+    keySymptomsOr: [
+      'ମକା ଗଛର ଗର୍ଭ ପତ୍ରରେ ବଡ଼ ବଡ଼ ଅନିୟମିତ କଣା ଓ ପତ୍ର ଚିରି ହୋଇଯିବା।',
+      'ଗର୍ଭ ଭିତରେ ବହୁ ପରିମାଣରେ କରତ କଳ ଗୁଣ୍ଡ ଭଳି ଓଦା ମଳ ଜମା ହେବା।',
+      'ପୂର୍ଣ୍ଣାଙ୍ଗ ଶୁକର ମୁଣ୍ଡରେ ଓଲଟା "Y" ଆକାରର ଧଳା ଚିହ୍ନ ଥାଏ।',
+      'ପିଠିର ଅଷ୍ଟମ ଖଣ୍ଡରେ ଚାରୋଟି କଳା ବିନ୍ଦୁ ବର୍ଗାକାରରେ ସ୍ପଷ୍ଟ ଦେଖାଯାଏ।'
+    ],
+    potentialDamagePercent: '30% - 75% (Severe whorl defoliation destroys photosynthetic area and damages cobs)',
+    conditionsFavoringEn: [
+      'Warm and sub-humid weather with temperatures between 26°C - 32°C.',
+      'Staggered and late sowing of maize across adjacent agricultural plots.',
+      'Monoculture of susceptible hybrids without border or barrier crops.'
+    ],
+    conditionsFavoringOr: [
+      'ଉଷ୍ମ ଓ ଆର୍ଦ୍ର ପାଣିପାଗ (ତାପମାତ୍ରା ୨୬°C ରୁ ୩୨°C)।',
+      'ପାଖାପାଖି ଜମିରେ ବିଳମ୍ବିତ ଓ ଅସମାନ ସମୟରେ ମକା ବୁଣିବା।',
+      'କୌଣସି ପ୍ରତିରୋଧକ ବା ସୀମାନ୍ତ ଫସଲ ନ ଲଗାଇ କେବଳ ସଙ୍କର ମକା ଚାଷ କରିବା।'
+    ],
+    economicThresholdLevelEn: '5% damaged plants in seedling stage (up to 30 DAS); 10% damaged plants in mid-whorl to tasseling stage.',
+    economicThresholdLevelOr: 'ଗଛ ଛୋଟ ଥିବା ବେଳେ ୫% ଆକ୍ରାନ୍ତ ଗଛ; ବଡ଼ ଗଛରେ ୧୦% ଆକ୍ରାନ୍ତ ଗଛ।',
+    immediateNextStepsEn: [
+      'Apply fine sand or dry wood ash mixed with lime (9:1) into the central whorls to desiccate young larvae.',
+      'Handpick egg masses and gregarious young neonates from leaf undersides in small plots.',
+      'Install sex pheromone traps (Helilure/FAW lure) @ 5 traps/acre for pest surveillance.',
+      'Conserve natural predatory earwigs and predatory pentatomid bugs.'
+    ],
+    immediateNextStepsOr: [
+      'ମକା ଗର୍ଭରେ ଶୁଖିଲା ବାଲି କିମ୍ବା ପାଉଁଶ ପ୍ରୟୋଗ କରି ଶୁକଙ୍କୁ ନଷ୍ଟ କରନ୍ତୁ।',
+      'ପତ୍ର ତଳେ ଥିବା ଅଣ୍ଡା ଗୁଚ୍ଛ ଓ ଛୋଟ ପୋକଙ୍କୁ ହାତରେ ସଂଗ୍ରହ କରି ନଷ୍ଟ କରନ୍ତୁ।',
+      'ଫେରୋମୋନ୍ ଫାନ୍ଦ (ଏକର ପିଛା ୫ଟି) ଲଗାଇ ପୋକ ଉପସ୍ଥିତି ଉପରେ ନଜର ରଖନ୍ତୁ।',
+      'ପ୍ରାକୃତିକ ଶତ୍ରୁ କାନବିନ୍ଧା ପୋକ (Earwig) କୁ ସଂରକ୍ଷଣ କରନ୍ତୁ।'
+    ],
+    preventiveMeasuresEn: [
+      'Deep summer plowing to expose pupae to predatory birds and solar radiation.',
+      'Intercrop maize with pulses like cowpea or pigeon pea in 2:1 or 4:1 ratio.',
+      'Plant 3-4 border rows of fodder sorghum or Napier grass as a trap barrier.'
+    ],
+    preventiveMeasuresOr: [
+      'ଖରାଦିନେ ଗଭୀର ଚାଷ କରି ମାଟିରେ ଥିବା ପିଉପାକୁ ନଷ୍ଟ କରନ୍ତୁ।',
+      'ମକା ସହିତ ଝୁଡ଼ୁଙ୍ଗ କିମ୍ବା ହରଡ଼ ମିଶ୍ରିତ ଫସଲ (୨:୧ ଅନୁପାତ) ଭାବେ ଚାଷ କରନ୍ତୁ।',
+      'କ୍ଷେତ ଚାରିପାଖରେ ନେପିଅର ଘାସ ବା ଜୁଆର ବାଉଣ୍ଡ୍ରି ଭାବେ ଲଗାନ୍ତୁ।'
+    ],
+    biologicalControl: [
+      {
+        titleEn: 'Egg Parasitoid Release (Trichogramma / Telenomus)',
+        titleOr: 'ଅଣ୍ଡା ପରଜୀବୀ କୀଟ ଛାଡ଼ିବା',
+        descriptionEn: 'Field release of egg parasitoids Trichogramma pretiosum or Telenomus remus @ 50,000 parasitized eggs/acre at 7-day intervals upon detecting moth catches.',
+        descriptionOr: 'ଫେରୋମୋନ୍ ଫାନ୍ଦରେ ପ୍ରଜାପତି ଦେଖାଗଲେ ଟ୍ରାଇକୋଗ୍ରାମା ପ୍ରିଟିଓସମ୍ ଅଣ୍ଡା ପରଜୀବୀ ଏକର ପିଛା ୫୦,୦୦୦ ଛାଡ଼ନ୍ତୁ।',
+        category: 'parasitoid',
+        safetyRating: 'Eco-Friendly',
+        targetStage: 'Egg clusters'
+      },
+      {
+        titleEn: 'Entomopathogenic Fungal Spray (Nomuraea / Metarhizium)',
+        titleOr: 'ଜୈବିକ ଫିମ୍ପି କୀଟନାଶକ ପ୍ରୟୋଗ',
+        descriptionEn: 'Foliar application of Metarhizium rileyi (Nomuraea rileyi) or Beauveria bassiana 1x10^8 CFU/g @ 5 g/liter directed into the whorls during evening hours.',
+        descriptionOr: 'ମେଟାରାଇଜିଅମ୍ ରିଲେଇ କିମ୍ବା ବିଉଭେରିଆ ବାସିଆନା ୫ ଗ୍ରାମ୍ ପ୍ରତି ଲିଟର ପାଣିରେ ମିଶାଇ ଗର୍ଭ ଭିତରେ ସିଞ୍ଚନ କରନ୍ତୁ।',
+        category: 'biopesticide',
+        safetyRating: 'Eco-Friendly',
+        targetStage: '1st and 2nd instar larvae'
+      }
+    ],
+    culturalControl: [
+      {
+        titleEn: 'Whorl Soil/Ash Application',
+        titleOr: 'ମକା ଗର୍ଭରେ ବାଲି ବା ପାଉଁଶ ଭରିବା',
+        descriptionEn: 'Drop fine dry soil, wood ash, or neem cake powder directly into the central funnel of each infested plant.',
+        descriptionOr: 'ପ୍ରତିଟି ଆକ୍ରାନ୍ତ ଗଛର କଅଁଳ ଗର୍ଭ ଭିତରେ ଶୁଖିଲା ବାଲି, କାଠ ପାଉଁଶ କିମ୍ବା ନିମ୍ବ ପିଡ଼ିଆ ଗୁଣ୍ଡ ଭରନ୍ତୁ।',
+        actionTiming: 'Early whorl stage (15-25 DAS)'
+      }
+    ],
+    chemicalControl: [
+      {
+        activeIngredient: 'Chlorantraniliprole 18.5% SC',
+        tradeNames: ['Coragen', 'Cover', 'Cosko'],
+        dosagePerAcre: '80 ml',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 14,
+        cibrcRegistered: true,
+        toxicityClass: 'Green (Slightly Toxic)',
+        safetyPrecautionsEn: 'Direct spray nozzle straight into plant whorls. Wear rubber gloves and protective goggles.',
+        safetyPrecautionsOr: 'ନୋଜଲ୍ କୁ ସିଧାସଳଖ ମକା ଗର୍ଭ ମଧ୍ୟକୁ ଧରି ସ୍ପ୍ରେ କରନ୍ତୁ। ହାତମୋଜା ଓ ଚଷମା ବ୍ୟବହାର କରନ୍ତୁ।',
+        waterSprayInstructions: 'Mix 0.4 ml per liter of clean water. Spray in the late afternoon.'
+      },
+      {
+        activeIngredient: 'Emamectin Benzoate 5% SG',
+        tradeNames: ['Proclaim', 'EM-1', 'Benzer'],
+        dosagePerAcre: '80 g',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 14,
+        cibrcRegistered: true,
+        toxicityClass: 'Blue (Moderately Toxic)',
+        safetyPrecautionsEn: 'Target larvae inside whorls before they bore into the cob.',
+        safetyPrecautionsOr: 'ପୋକ ମକା କେଣ୍ଡା ଭିତରେ ପଶିବା ପୂର୍ବରୁ ସିଞ୍ଚନ କରନ୍ତୁ।',
+        waterSprayInstructions: 'Dissolve 0.4 g per liter of water.'
+      }
+    ],
+    expertConsultationCriteriaEn: [
+      'Infestation exceeds 20% plants in mid-whorl stage.',
+      'Larvae boring directly into developing ears and silks.'
+    ],
+    expertConsultationCriteriaOr: [
+      'କ୍ଷେତରେ ୨୦% ରୁ ଅଧିକ ଗଛ ଆକ୍ରାନ୍ତ ହେଲେ।',
+      'ପୋକ ମକା ଶିଷା ବା କେଣ୍ଡା କାଟି ନଷ୍ଟ କରୁଥିଲେ।'
+    ],
+    scientificReferences: [
+      'ICAR-IIMR Protocol for Management of Fall Armyworm in India (2020)',
+      'OUAT / Department of Agriculture & Farmers Empowerment Odisha FAW Contingency Plan'
+    ]
+  },
+
+  fruit_borer: {
+    id: 'fruit_borer',
+    commonNameEn: 'Tomato Fruit Borer / American Bollworm',
+    commonNameOr: 'ଟମାଟୋ ଫଳ ବିନ୍ଧା ପୋକ',
+    scientificName: 'Helicoverpa armigera (Hübner)',
+    localOdishaName: 'ବିଲାତି ଫଳ ବିନ୍ଧା ପୋକ',
+    hostCrops: ['Tomato', 'Chickpea', 'Pigeon Pea', 'Cotton', 'Chilli'],
+    affectedPlantParts: ['Flower buds', 'Young fruits', 'Foliage'],
+    keySymptomsEn: [
+      'Circular entry/feeding bore holes on green or ripening tomato fruits.',
+      'Caterpillar feeds voraciously with its head thrust inside the fruit and rear body outside.',
+      'Attacked fruits rot due to secondary fungal/bacterial infection and drop prematurely.'
+    ],
+    keySymptomsOr: [
+      'କଞ୍ଚା ବା ପାଚିଲା ଟମାଟୋରେ ଗୋଲାକାର ବିନ୍ଧା କଣା।',
+      'ଶୁକଟି ଫଳ ଭିତରେ ମୁଣ୍ଡ ଗୁଞ୍ଜି ଖାଉଥାଏ ଏବଂ ଶରୀର ବାହାରେ ଝୁଲୁଥାଏ।',
+      'ଆକ୍ରାନ୍ତ ଫଳ ସଢ଼ି ତଳେ ଖସିପଡ଼େ।'
+    ],
+    potentialDamagePercent: '25% - 60% (Destroys marketable fruit yield directly)',
+    conditionsFavoringEn: [
+      'Warm daytime temperatures (25°C - 30°C) with dry spells after intermittent rainfall.',
+      'Dense foliage planting without proper trellising or staking.'
+    ],
+    conditionsFavoringOr: [
+      'ଖରାଟିଆ ତାପମାତ୍ରା ଓ ପତ୍ର ଝଙ୍କାଳିଆ ହୋଇ ରହିବା।',
+      'ଟମାଟୋ ଗଛକୁ ବାଉଁଶ ଖୁଣ୍ଟରେ ନ ବାନ୍ଧି ମାଟିରେ ଶୁଆଇ ରଖିବା।'
+    ],
+    economicThresholdLevelEn: '1 larva per plant or 1 damaged fruit per meter row; 5-8 moths caught per pheromone trap per night.',
+    economicThresholdLevelOr: 'ଗଛ ପିଛା ୧ଟି ଶୁକ ବା ମିଟର ପିଛା ୧ଟି କ୍ଷତିଗ୍ରସ୍ତ ଫଳ।',
+    immediateNextStepsEn: [
+      'Handpick and destroy bored fruits and large caterpillars.',
+      'Install Helilure pheromone traps @ 8 traps/acre for adult monitoring.',
+      'Plant African marigold (Tagetes erecta) as a trap crop (1 row per 16 tomato rows).'
+    ],
+    immediateNextStepsOr: [
+      'ବିନ୍ଧା ହୋଇଥିବା ଫଳ ଓ ବଡ଼ ପୋକଙ୍କୁ ହାତରେ ସଂଗ୍ରହ କରି ନଷ୍ଟ କରନ୍ତୁ।',
+      'ଏକର ପିଛା ୮ଟି ହେଲିଲିଉର୍ ଫେରୋମୋନ୍ ଫାନ୍ଦ ଲଗାନ୍ତୁ।',
+      'ଟମାଟୋ ଧାଡ଼ି ମଝିରେ ଗେଣ୍ଡୁ ଫୁଲ ଲଗାନ୍ତୁ।'
+    ],
+    preventiveMeasuresEn: [
+      'Erect bird perches (T-shaped bamboo sticks) @ 20 per acre for insectivorous birds.',
+      'Clip and burn infected crop residues after harvest.'
+    ],
+    preventiveMeasuresOr: [
+      'ଚଢ଼େଇ ବସିବା ପାଇଁ ଏକର ପିଛା ୨୦ଟି "T" ଆକାରର ବାଉଁଶ ଖୁଣ୍ଟ ପୋତନ୍ତୁ।',
+      'ଅମଳ ପରେ ଫସଲ ଅବଶିଷ୍ଟାଂଶ ନଷ୍ଟ କରନ୍ତୁ।'
+    ],
+    biologicalControl: [
+      {
+        titleEn: 'HaNPV Microbial Spray',
+        titleOr: 'HaNPV ଜୈବିକ ଭୂତାଣୁ ସିଞ୍ଚନ',
+        descriptionEn: 'Spray Helicoverpa armigera Nuclear Polyhedrosis Virus (HaNPV) @ 250 LE/acre with 1% jaggery as phagostimulant in evening.',
+        descriptionOr: 'HaNPV ଭୂତାଣୁ ୨୫୦ LE ପ୍ରତି ଏକର ହିସାବରେ ଗୁଡ଼ ପାଣି ସହିତ ମିଶାଇ ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ।',
+        category: 'biopesticide',
+        safetyRating: 'Eco-Friendly',
+        targetStage: 'Early instar larvae'
+      }
+    ],
+    culturalControl: [
+      {
+        titleEn: 'Marigold Trap Cropping',
+        titleOr: 'ଗେଣ୍ଡୁ ଫୁଲ ଟ୍ରାପ୍ ଚାଷ',
+        descriptionEn: 'Interplant 45-day-old African marigold seedlings simultaneously with tomato transplanting in 1:16 ratio.',
+        descriptionOr: 'ପ୍ରତି ୧୬ ଧାଡ଼ି ଟମାଟୋ ମଝିରେ ଗୋଟିଏ ଧାଡ଼ି ଗେଣ୍ଡୁ ଫୁଲ ଲଗାନ୍ତୁ।',
+        actionTiming: 'At field transplanting'
+      }
+    ],
+    chemicalControl: [
+      {
+        activeIngredient: 'Chlorantraniliprole 18.5% SC',
+        tradeNames: ['Coragen'],
+        dosagePerAcre: '60 ml',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 3,
+        cibrcRegistered: true,
+        toxicityClass: 'Green (Slightly Toxic)',
+        safetyPrecautionsEn: 'Observe 3 days Pre-Harvest Interval (PHI) before picking ripe tomatoes.',
+        safetyPrecautionsOr: 'ଔଷଧ ସିଞ୍ଚନର ୩ ଦିନ ପର୍ଯ୍ୟନ୍ତ ଟମାଟୋ ତୋଳନ୍ତୁ ନାହିଁ।',
+        waterSprayInstructions: '0.3 ml per liter of water.'
+      }
+    ],
+    expertConsultationCriteriaEn: ['Borer damage exceeds 10% of harvested fruit.'],
+    expertConsultationCriteriaOr: ['୧୦% ରୁ ଅଧିକ ଫଳ ନଷ୍ଟ ହେଲେ ବିଶେଷଜ୍ଞ ପରାମର୍ଶ ନିଅନ୍ତୁ।'],
+    scientificReferences: ['ICAR-IIHR Tomato IPM Package', 'OUAT Horticultural Guidebook']
+  },
+
+  shoot_and_fruit_borer: {
+    id: 'shoot_and_fruit_borer',
+    commonNameEn: 'Brinjal Shoot and Fruit Borer (BSFB)',
+    commonNameOr: 'ବାଇଗଣ ଡାଙ୍ଗ ଓ ଫଳ ବିନ୍ଧା ପୋକ',
+    scientificName: 'Leucinodes orbonalis (Guenée)',
+    localOdishaName: 'ବାଇଗଣ ଫଳ ବିନ୍ଧା ପୋକ',
+    hostCrops: ['Brinjal / Eggplant'],
+    affectedPlantParts: ['Terminal vegetative shoots', 'Flower buds', 'Fruits'],
+    keySymptomsEn: [
+      'Wilting and drooping of tender terminal shoots in young plants (deadhearts).',
+      'Holes bored into fruits plugged with black larval excreta.',
+      'Deformed, unmarketable fruits with rotting core.'
+    ],
+    keySymptomsOr: [
+      'ଛୋଟ ଗଛର ଅଗ ଡାଙ୍ଗ ମଉଳି ଶୁଖିଯାଏ।',
+      'ବାଇଗଣରେ ବିନ୍ଧା କଣା ହୋଇ ସେଥିରୁ କଳା ମଳ ବାହାରିଥାଏ।',
+      'ବାଇଗଣ ବଙ୍କା ଓ ବିକୃତ ହୋଇ ସଢ଼ିଯାଏ।'
+    ],
+    potentialDamagePercent: '40% - 85% (Single most destructive pest of brinjal in Odisha)',
+    conditionsFavoringEn: ['Continuous monocropping of brinjal without seasonal breaks.', 'High humidity (>80%) and warm rainy weather.'],
+    conditionsFavoringOr: ['ଲଗାତାର ବାଇଗଣ ଚାଷ କରିବା ଓ ବର୍ଷା ଦିନିଆ ଆର୍ଦ୍ର ପାଣିପାଗ।'],
+    economicThresholdLevelEn: '1-5% damaged shoots or fruits; 3-5 moths per pheromone trap per night.',
+    economicThresholdLevelOr: '୧-୫% ଆକ୍ରାନ୍ତ ଡାଙ୍ଗ ବା ଫଳ।',
+    immediateNextStepsEn: [
+      'Clip off wilted terminal shoots along with the inside borer larva and bury in soil.',
+      'Install Lucin-lure pheromone traps @ 12-15 traps/acre.'
+    ],
+    immediateNextStepsOr: [
+      'ମଉଳି ପଡ଼ିଥିବା ଅଗ ଡାଙ୍ଗକୁ ପୋକ ସହିତ କାଟି ମାଟି ତଳେ ପୋତି ଦିଅନ୍ତୁ।',
+      'ଏକର ପିଛା ୧୨-୧୫ଟି ଲୁସିନ୍-ଲିଉର୍ ଫେରୋମୋନ୍ ଫାନ୍ଦ ଲଗାନ୍ତୁ।'
+    ],
+    preventiveMeasuresEn: ['Avoid planting ratoon crops.', 'Conserve predatory spiders and Trathala wasps.'],
+    preventiveMeasuresOr: ['ପୁରୁଣା ବାଇଗଣ ଗଛ ରଖି ପୁଣି ଫସଲ କରନ୍ତୁ ନାହିଁ।'],
+    biologicalControl: [
+      {
+        titleEn: 'Bacillus thuringiensis (Bt) Foliar Spray',
+        titleOr: 'Bt ଜୈବିକ କୀଟନାଶକ ପ୍ରୟୋଗ',
+        descriptionEn: 'Spray Bt formulation @ 2 g/liter at 10-day intervals from flowering initiation.',
+        descriptionOr: 'ଫୁଲ ଆସିବା ବେଳୁ Bt ୨ ଗ୍ରାମ୍ ପ୍ରତି ଲିଟର ପାଣିରେ ମିଶାଇ ସିଞ୍ଚନ କରନ୍ତୁ।',
+        category: 'biopesticide',
+        safetyRating: 'Eco-Friendly',
+        targetStage: 'Young neonates'
+      }
+    ],
+    culturalControl: [
+      {
+        titleEn: 'Mechanical Shoot Clipping',
+        titleOr: 'ମଉଳା ଅଗ କାଟିବା',
+        descriptionEn: 'Regular weekly clipping of wilted shoots 2 inches below the damage point.',
+        descriptionOr: 'ପ୍ରତି ସପ୍ତାହରେ ମଉଳିଥିବା ଅଗକୁ ୨ ଇଞ୍ଚ ତଳୁ କାଟି ନଷ୍ଟ କରନ୍ତୁ।',
+        actionTiming: 'Weekly throughout vegetative stage'
+      }
+    ],
+    chemicalControl: [
+      {
+        activeIngredient: 'Chlorantraniliprole 18.5% SC',
+        tradeNames: ['Coragen'],
+        dosagePerAcre: '80 ml',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 3,
+        cibrcRegistered: true,
+        toxicityClass: 'Green (Slightly Toxic)',
+        safetyPrecautionsEn: 'Harvest all mature fruits before spraying. Respect 3-day PHI.',
+        safetyPrecautionsOr: 'ଔଷଧ ସିଞ୍ଚନ ପୂର୍ବରୁ ସବୁ ପାଚିଲା ବାଇଗଣ ତୋଳି ନିଅନ୍ତୁ।',
+        waterSprayInstructions: '0.4 ml per liter.'
+      }
+    ],
+    expertConsultationCriteriaEn: ['Shoots wilt continuously despite repeated clipping.'],
+    expertConsultationCriteriaOr: ['ଅଗ କାଟିବା ସତ୍ତ୍ୱେ କ୍ଷତି ଜାରି ରହିଲେ ବିଶେଷଜ୍ଞ ପରାମର୍ଶ ନିଅନ୍ତୁ।'],
+    scientificReferences: ['ICAR-IIVR Brinjal Guidelines', 'OUAT Entomology Bulletin']
+  },
+
+  black_thrips: {
+    id: 'black_thrips',
+    commonNameEn: 'Invasive Black Thrips',
+    commonNameOr: 'ଲଙ୍କା କଳା ଥ୍ରିପ୍ସ ପୋକ',
+    scientificName: 'Thrips parvispinus (Karny)',
+    localOdishaName: 'କଳା ଚିପୁଡ଼ା ପୋକ',
+    hostCrops: ['Chilli', 'Papaya', 'Sweet Pepper', 'Tomato'],
+    affectedPlantParts: ['Flowers', 'Tender leaves', 'Growing tip'],
+    keySymptomsEn: [
+      'Severe upward curling and crinkling of chilli leaves (boat-shaped).',
+      'Heavy flower drop and browning of floral organs with stunted bushes.',
+      'Brownish-black necrotic scratches on tender chilli pods.'
+    ],
+    keySymptomsOr: [
+      'ଲଙ୍କା ପତ୍ର ଉପର ଆଡ଼କୁ ଡଙ୍ଗା ଭଳି କୁକୁଡ଼େଇ ହୋଇଯିବା।',
+      'ଫୁଲ ବହୁ ପରିମାଣରେ ଝଡ଼ିବା ଓ ଫଳ ଧାରଣ କମିଯିବା।',
+      'କଅଁଳ ଲଙ୍କା ଉପରେ କଳା ଓ ମାଟିଆ ଦାଗ ଦେଖାଯିବା।'
+    ],
+    potentialDamagePercent: '40% - 80% (Invasive pest causing devastating losses in Kuchinda & Sambalpur chilli belts)',
+    conditionsFavoringEn: ['Dry spells with warm daytime temperatures (30°C - 35°C).', 'Indiscriminate chemical cocktails causing thrips resurgence.'],
+    conditionsFavoringOr: ['ଶୁଖିଲା ଖରାଟିଆ ପାଗ ଓ ଅତ୍ୟଧିକ ବିଷାକ୍ତ କୀଟନାଶକର ବାରମ୍ବାର ପ୍ରୟୋଗ।'],
+    economicThresholdLevelEn: '2-3 thrips per leaf or flower; blue sticky traps catching >20 thrips/day.',
+    economicThresholdLevelOr: 'ପତ୍ର ବା ଫୁଲ ପିଛା ୨-୩ଟି ପୋକ।',
+    immediateNextStepsEn: [
+      'Install blue sticky traps @ 25-30 traps/acre at crop canopy level.',
+      'Avoid high nitrogen fertilizer application; split nitrogen into multiple doses.',
+      'Spray neem oil 10,000 ppm @ 2 ml/L as repellent.'
+    ],
+    immediateNextStepsOr: [
+      'ନୀଳ ଅଠାଳିଆ ଫାନ୍ଦ (ଏକର ପିଛା ୨୫-୩୦ଟି) ଲଗାନ୍ତୁ।',
+      'ୟୁରିଆ ସାରର ମାତ୍ରା କମାନ୍ତୁ।',
+      'ନିମ୍ବ ତେଲ ୧୦,୦୦୦ ppm (୨ ମି.ଲି. ପ୍ରତି ଲିଟର) ସିଞ୍ଚନ କରନ୍ତୁ।'
+    ],
+    preventiveMeasuresEn: ['Raise 3 rows of maize as border barrier.', 'Keep irrigation soil moist without waterlogging.'],
+    preventiveMeasuresOr: ['ଚାରିପାଖରେ ମକା ଗଛ ବାଉଣ୍ଡ୍ରି ଭାବେ ଲଗାନ୍ତୁ।'],
+    biologicalControl: [
+      {
+        titleEn: 'Lecanicillium lecanii Biopesticide',
+        titleOr: 'ଜୈବିକ କବକ କୀଟନାଶକ ସିଞ୍ଚନ',
+        descriptionEn: 'Spray Lecanicillium lecanii 1x10^8 CFU/g @ 5 g/liter in the evening targeting flower clusters.',
+        descriptionOr: 'ଲେକାନିସିଲିଅମ୍ ଲେକାନି ୫ ଗ୍ରାମ୍ ପ୍ରତି ଲିଟର ପାଣିରେ ମିଶାଇ ସନ୍ଧ୍ୟାରେ ଫୁଲ ଉପରେ ସିଞ୍ଚନ କରନ୍ତୁ।',
+        category: 'biopesticide',
+        safetyRating: 'Eco-Friendly',
+        targetStage: 'Nymphs and adults'
+      }
+    ],
+    culturalControl: [
+      {
+        titleEn: 'Blue Sticky Traps',
+        titleOr: 'ନୀଳ ଅଠାଳିଆ ଫାନ୍ଦ',
+        descriptionEn: 'Set up bright blue sticky sheets tied to bamboo sticks at top canopy level.',
+        descriptionOr: 'ଗଛ ଉଚ୍ଚତାରେ ନୀଳ ରଙ୍ଗର ଅଠାଳିଆ ପ୍ଲାଷ୍ଟିକ୍ ସିଟ୍ ଲଗାନ୍ତୁ।',
+        actionTiming: 'Immediately upon transplanting'
+      }
+    ],
+    chemicalControl: [
+      {
+        activeIngredient: 'Spinetoram 11.7% SC',
+        tradeNames: ['Delegate'],
+        dosagePerAcre: '200 ml',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 3,
+        cibrcRegistered: true,
+        toxicityClass: 'Green (Slightly Toxic)',
+        safetyPrecautionsEn: 'Rotate with different chemical class to prevent resistance.',
+        safetyPrecautionsOr: 'ଗୋଟିଏ ଔଷଧ ବାରମ୍ବାର ନ ଦେଇ ଅଦଳବଦଳ କରି ବ୍ୟବହାର କରନ୍ତୁ।',
+        waterSprayInstructions: '1 ml per liter of water.'
+      }
+    ],
+    expertConsultationCriteriaEn: ['Thrips infestation causing complete flower drop across >50% field.'],
+    expertConsultationCriteriaOr: ['୫୦% ରୁ ଅଧିକ ଫୁଲ ଝଡ଼ି ପଡ଼ିଲେ କୃଷି ବିଜ୍ଞାନ କେନ୍ଦ୍ର ସହିତ ଯୋଗାଯୋଗ କରନ୍ତୁ।'],
+    scientificReferences: ['ICAR-NBAIR Advisory on Thrips parvispinus', 'OUAT Kuchinda Chilli Research']
+  },
+
+  groundnut_leaf_miner: {
+    id: 'groundnut_leaf_miner',
+    commonNameEn: 'Groundnut Leaf Miner',
+    commonNameOr: 'ଚିନାବାଦାମ ପତ୍ର ଖୋଳା ପୋକ',
+    scientificName: 'Aproaerema modicella (Deventer)',
+    localOdishaName: 'ବାଦାମ ପତ୍ର ପୋଡ଼ା ପୋକ',
+    hostCrops: ['Groundnut', 'Soybean', 'Pigeon Pea'],
+    affectedPlantParts: ['Leaflets', 'Foliage canopy'],
+    keySymptomsEn: [
+      'Small, shiny, blister-like mines on young groundnut leaflets.',
+      'Caterpillar web/folds adjacent leaflets together and feeds inside the green parenchyma.',
+      'In severe infestation, whole canopy appears burnt and scorched from a distance.'
+    ],
+    keySymptomsOr: [
+      'ପତ୍ର ଉପରେ ଚମକଦାର ଛୋଟ ଛୋଟ ଫୋଟକା ଭଳି ଧଳା ଦାଗ।',
+      'ପୋକଟି ପତ୍ରକୁ ଯୋଡ଼ି ତାର ଭିତରେ ରହି ସବୁଜ ଅଂଶ ଖାଇଯାଏ।',
+      'କ୍ଷେତ ଦୂରରୁ ନିଆଁ ଲାଗି ପୋଡ଼ିଗଲା ଭଳି ଦେଖାଯାଏ।'
+    ],
+    potentialDamagePercent: '25% - 50% (Severely hampers pod development and pod filling)',
+    conditionsFavoringEn: ['Dry spells with hot sunny days followed by warm nights.', 'Rainfed sandy coastal tracts in Jajpur and Puri.'],
+    conditionsFavoringOr: ['ଟାଣ ଖରା ଓ ବର୍ଷା ଅଭାବ।'],
+    economicThresholdLevelEn: '5 active larvae per plant or 20% leaf mines in vegetative stage.',
+    economicThresholdLevelOr: 'ଗଛ ପିଛା ୫ଟି ଜୀବନ୍ତ ଶୁକ ବା ୨୦% ପତ୍ର ଆକ୍ରାନ୍ତ।',
+    immediateNextStepsEn: [
+      'Install light traps to capture adult micro-moths.',
+      'Conserve Braconid and Eulophid wasp parasitoids.'
+    ],
+    immediateNextStepsOr: [
+      'ପ୍ରଜାପତି ଧରିବା ପାଇଁ ଆଲୋକ ଫାନ୍ଦ ବ୍ୟବହାର କରନ୍ତୁ।',
+      'ପ୍ରାକୃତିକ ପରଜୀବୀ କୀଟଙ୍କୁ ସଂରକ୍ଷଣ କରନ୍ତୁ।'
+    ],
+    preventiveMeasuresEn: ['Intercrop groundnut with pearl millet (Bajra) in 4:1 ratio.'],
+    preventiveMeasuresOr: ['ବାଦାମ ସହିତ ବାଜରା ୪:୧ ଅନୁପାତରେ ମିଶ୍ରିତ ଫସଲ ଚାଷ କରନ୍ତୁ।'],
+    biologicalControl: [
+      {
+        titleEn: 'Egg Parasitoid Release',
+        titleOr: 'ଟ୍ରାଇକୋଗ୍ରାମା ପ୍ରୟୋଗ',
+        descriptionEn: 'Release Trichogramma chilonis @ 50,000/acre at 7-10 day intervals.',
+        descriptionOr: 'ଟ୍ରାଇକୋଗ୍ରାମା ଚିଲୋନିସ୍ ଏକର ପିଛା ୫୦,୦୦୦ ଛାଡ଼ନ୍ତୁ।',
+        category: 'parasitoid',
+        safetyRating: 'Eco-Friendly',
+        targetStage: 'Eggs'
+      }
+    ],
+    culturalControl: [
+      {
+        titleEn: 'Crop Rotation with Non-Legumes',
+        titleOr: 'ଫସଲ ପର୍ଯ୍ୟାୟ ପରିବର୍ତ୍ତନ',
+        descriptionEn: 'Rotate groundnut with non-host crops like millets or sesame.',
+        descriptionOr: 'ବାଦାମ ପରେ ମିଲେଟ୍ ବା ରାଶି ଚାଷ କରନ୍ତୁ।',
+        actionTiming: 'Rabi/Kharif crop planning'
+      }
+    ],
+    chemicalControl: [
+      {
+        activeIngredient: 'Chlorpyrifos 20% EC',
+        tradeNames: ['Dursban', 'Tricel'],
+        dosagePerAcre: '400 ml',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 30,
+        cibrcRegistered: true,
+        toxicityClass: 'Yellow (Highly Toxic)',
+        safetyPrecautionsEn: 'Do not use near water bodies. Observe 30-day PHI.',
+        safetyPrecautionsOr: 'ଜଳାଶୟ ନିକଟରେ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ। ୩୦ ଦିନ ପର୍ଯ୍ୟନ୍ତ ଅମଳ କରନ୍ତୁ ନାହିଁ।',
+        waterSprayInstructions: '2 ml per liter.'
+      }
+    ],
+    expertConsultationCriteriaEn: ['Leaf mining exceeds 30% of foliage.'],
+    expertConsultationCriteriaOr: ['୩୦% ରୁ ଅଧିକ ପତ୍ର ନଷ୍ଟ ହେଲେ ବିଶେଷଜ୍ଞ ପରାମର୍ଶ ନିଅନ୍ତୁ।'],
+    scientificReferences: ['ICAR-DGR Groundnut Package', 'OUAT Chiplima Station']
+  },
+
+  pulse_pod_borer: {
+    id: 'pulse_pod_borer',
+    commonNameEn: 'Spotted Pod Borer',
+    commonNameOr: 'ମୁଗ/ବିରି ଫଳି ବିନ୍ଧା ପୋକ',
+    scientificName: 'Maruca vitrata (Fabricius)',
+    localOdishaName: 'ଡାଲି ଫଳି ବିନ୍ଧା ପୋକ',
+    hostCrops: ['Green Gram', 'Black Gram', 'Cowpea', 'Pigeon Pea'],
+    affectedPlantParts: ['Flower buds', 'Flowers', 'Pods', 'Terminal twigs'],
+    keySymptomsEn: [
+      'Webbing of leaves, buds, and flowers into a characteristic messy bundle.',
+      'Larva feeds inside the webbed mass, sheltered from contact insecticide sprays.',
+      'Entry holes in developing pods with surrounding black fecal frass.'
+    ],
+    keySymptomsOr: [
+      'ପତ୍ର, ଫୁଲ ଓ କଢ଼ିକୁ ଏକାଠି ଜାଲ ଭଳି ଗୁଡ଼ାଇ ବାନ୍ଧିଦିଏ।',
+      'ଶୁକଟି ସେହି ଜାଲ ଭିତରେ ରହି ନିରାପଦରେ କଅଁଳ ଫଳି ଖାଇଥାଏ।',
+      'ଫଳିରେ ବିନ୍ଧା କଣା ଓ କଳା ମଳ ଜମା ହୁଏ।'
+    ],
+    potentialDamagePercent: '30% - 60% (Severely curtails pulse harvest across river basins)',
+    conditionsFavoringEn: ['Cloudy weather with high humidity during pulse flowering stage.'],
+    conditionsFavoringOr: ['ଫୁଲ ଆସିବା ବେଳେ ମେଘୁଆ ପାଗ ଓ ଅତ୍ୟଧିକ ଆର୍ଦ୍ରତା।'],
+    economicThresholdLevelEn: '3 webbed masses per meter row or 5% flower infestation.',
+    economicThresholdLevelOr: 'ମିଟର ପିଛା ୩ଟି ଜାଲ ବନ୍ଧା ଅଂଶ ବା ୫% ଆକ୍ରାନ୍ତ ଫୁଲ।',
+    immediateNextStepsEn: [
+      'Shake plants gently over plastic sheets in early morning to dislodge larvae.',
+      'Spray before extensive webbing occurs.'
+    ],
+    immediateNextStepsOr: [
+      'ସକାଳୁ ଗଛକୁ ହାଲୁକା ଭାବେ ହଲାଇ ପୋକ ଝଡ଼ାଇ ନଷ୍ଟ କରନ୍ତୁ।',
+      'ଜାଲ ଅଧିକ ବାନ୍ଧିବା ପୂର୍ବରୁ ସିଞ୍ଚନ କରନ୍ତୁ।'
+    ],
+    preventiveMeasuresEn: ['Synchronized early sowing across the village cluster.'],
+    preventiveMeasuresOr: ['ଗାଁର ସମସ୍ତ ଚାଷୀ ଏକା ସମୟରେ ଡାଲି ବୁଣନ୍ତୁ।'],
+    biologicalControl: [
+      {
+        titleEn: 'Bacillus thuringiensis Spray',
+        titleOr: 'Bt ଜୈବିକ ସିଞ୍ଚନ',
+        descriptionEn: 'Spray Bt formulation @ 2 g/L at initiation of flower bud formation.',
+        descriptionOr: 'କଢ଼ି ଆସିବା ବେଳେ Bt ୨ ଗ୍ରାମ୍ ପ୍ରତି ଲିଟର ପାଣିରେ ମିଶାଇ ସିଞ୍ଚନ କରନ୍ତୁ।',
+        category: 'biopesticide',
+        safetyRating: 'Eco-Friendly',
+        targetStage: 'Early instars'
+      }
+    ],
+    culturalControl: [
+      {
+        titleEn: 'Synchronized Planting',
+        titleOr: 'ସମନ୍ୱିତ ବୁଣା କାର୍ଯ୍ୟ',
+        descriptionEn: 'Plant pulses simultaneously in the block to avoid staggered pest breeding.',
+        descriptionOr: 'ଗୋଟିଏ ଅଞ୍ଚଳରେ ଏକା ସାଙ୍ଗରେ ବୁଣିବା ଦ୍ୱାରା ପୋକ ବଂଶବୃଦ୍ଧି କମିଥାଏ।',
+        actionTiming: 'Sowing season'
+      }
+    ],
+    chemicalControl: [
+      {
+        activeIngredient: 'Chlorantraniliprole 18.5% SC',
+        tradeNames: ['Coragen'],
+        dosagePerAcre: '60 ml',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 15,
+        cibrcRegistered: true,
+        toxicityClass: 'Green (Slightly Toxic)',
+        safetyPrecautionsEn: 'Ensure spray reaches inside the canopy with high water volume.',
+        safetyPrecautionsOr: 'ଗଛ ଭିତର ପର୍ଯ୍ୟନ୍ତ ଔଷଧ ପହଞ୍ଚିବା ପାଇଁ ପର୍ଯ୍ୟାପ୍ତ ପାଣି ବ୍ୟବହାର କରନ୍ତୁ।',
+        waterSprayInstructions: '0.3 ml per liter of water.'
+      }
+    ],
+    expertConsultationCriteriaEn: ['Webbing exceeds 15% of flower clusters.'],
+    expertConsultationCriteriaOr: ['୧୫% ରୁ ଅଧିକ ଫୁଲ ଜାଲରେ ଗୁଡ଼େଇ ହୋଇ ନଷ୍ଟ ହେଲେ ବିଶେଷଜ୍ଞ ପରାମର୍ଶ ନିଅନ୍ତୁ।'],
+    scientificReferences: ['ICAR-IIPR Pulses IPM', 'OUAT Pulse Research Station']
+  },
+
+  diamondback_moth: {
+    id: 'diamondback_moth',
+    commonNameEn: 'Diamondback Moth (DBM)',
+    commonNameOr: 'କୋବି କରତ ପିଠିଆ ପୋକ',
+    scientificName: 'Plutella xylostella (L.)',
+    localOdishaName: 'ବନ୍ଧାକୋବି ଶୂଳିଆ ପୋକ',
+    hostCrops: ['Cabbage', 'Cauliflower', 'Mustard', 'Radish'],
+    affectedPlantParts: ['Leaf blades', 'Inner curd/head folds'],
+    keySymptomsEn: [
+      'Small caterpillars feed on underleaf surface leaving upper translucent epidermis intact ("windowing").',
+      'Severe feeding turns leaves into lace-like skeletons.',
+      'Caterpillars wriggle backward rapidly and drop on a silken thread when disturbed.'
+    ],
+    keySymptomsOr: [
+      'ପତ୍ର ତଳ ପାଖରୁ ସବୁଜ ଅଂଶ ଖାଇ ପତ୍ରରେ ପତଳା କାଚ ଭଳି ଧଳା ଝିଲ୍ଲି (ଝରକା) ସୃଷ୍ଟି କରେ।',
+      'ଅତ୍ୟଧିକ ଆକ୍ରମଣରେ ପତ୍ର ଚାରିଆଡ଼େ ଛଣା ଜାଲି ଭଳି ହୋଇଯାଏ।',
+      'ପୋକକୁ ଛୁଇଁଲେ ପଛୁଆ ଡେଇଁ ରେଶମ ସୂତାରେ ତଳକୁ ଝୁଲିପଡ଼େ।'
+    ],
+    potentialDamagePercent: '30% - 90% (World notorious pest resistant to multiple insecticide classes)',
+    conditionsFavoringEn: ['Cool to moderate temperatures (18°C - 28°C) with dry winter weather.', 'Frequent application of synthetic pyrethroids causing pest resurgence.'],
+    conditionsFavoringOr: ['ଶୀତଦିନିଆ ଶୁଖିଲା ପାଗ ଓ ଅତ୍ୟଧିକ କୀଟନାଶକର ଅବିଚାରିତ ବ୍ୟବହାର।'],
+    economicThresholdLevelEn: '2 larvae per plant at head/curd formation stage.',
+    economicThresholdLevelOr: 'କୋବି ବାନ୍ଧିବା ବେଳେ ଗଛ ପିଛା ୨ଟି ଶୁକ।',
+    immediateNextStepsEn: [
+      'Plant paired rows of mustard every 25 rows of cabbage as a trap crop.',
+      'Install DBM pheromone traps @ 10 traps/acre.'
+    ],
+    immediateNextStepsOr: [
+      'ପ୍ରତି ୨୫ ଧାଡ଼ି କୋବି ମଝିରେ ୨ ଧାଡ଼ି ସୋରିଷ ଲଗାନ୍ତୁ।',
+      'ଏକର ପିଛା ୧୦ଟି DBM ଫେରୋମୋନ୍ ଫାନ୍ଦ ଲଗାନ୍ତୁ।'
+    ],
+    preventiveMeasuresEn: ['Conserve natural larval parasitoids Diadegma semiclausum and Cotesia plutellae.'],
+    preventiveMeasuresOr: ['ପ୍ରାକୃତିକ ପରଜୀବୀ କୀଟ ଡାୟାଡେଗମାକୁ ସଂରକ୍ଷଣ କରନ୍ତୁ।'],
+    biologicalControl: [
+      {
+        titleEn: 'Bacillus thuringiensis var. kurstaki (Btk)',
+        titleOr: 'Btk ଜୈବିକ ସିଞ୍ଚନ',
+        descriptionEn: 'Spray Bt var. kurstaki @ 1.5 g/L late in the evening.',
+        descriptionOr: 'Btk ୧.୫ ଗ୍ରାମ୍ ପ୍ରତି ଲିଟର ପାଣିରେ ମିଶାଇ ସନ୍ଧ୍ୟା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ।',
+        category: 'biopesticide',
+        safetyRating: 'Eco-Friendly',
+        targetStage: 'Early instar larvae'
+      }
+    ],
+    culturalControl: [
+      {
+        titleEn: 'Mustard Trap Cropping',
+        titleOr: 'ସୋରିଷ ଟ୍ରାପ୍ ଚାଷ',
+        descriptionEn: 'Sow 1 row of mustard 15 days before cabbage transplanting and 1 row 25 days later.',
+        descriptionOr: 'କୋବି ରୋଇବାର ୧୫ ଦିନ ପୂର୍ବରୁ ପ୍ରଥମ ଧାଡ଼ି ସୋରିଷ ଓ ୨୫ ଦିନ ପରେ ଦ୍ୱିତୀୟ ଧାଡ଼ି ସୋରିଷ ବୁଣନ୍ତୁ।',
+        actionTiming: 'Pre-transplanting'
+      }
+    ],
+    chemicalControl: [
+      {
+        activeIngredient: 'Spinosad 45% SC',
+        tradeNames: ['Tracer', 'Conserve'],
+        dosagePerAcre: '60 ml',
+        waterVolumePerAcre: '200 Liters',
+        phiDays: 3,
+        cibrcRegistered: true,
+        toxicityClass: 'Green (Slightly Toxic)',
+        safetyPrecautionsEn: 'Do not spray when bees are actively foraging.',
+        safetyPrecautionsOr: 'ମହୁମାଛି ବସୁଥିବା ସମୟରେ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ।',
+        waterSprayInstructions: '0.3 ml per liter of water.'
+      }
+    ],
+    expertConsultationCriteriaEn: ['DBM larvae survive standard insecticide sprays due to suspected resistance.'],
+    expertConsultationCriteriaOr: ['କୀଟନାଶକ ପ୍ରୟୋଗ ସତ୍ତ୍ୱେ ପୋକ ନ ମରିଲେ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।'],
+    scientificReferences: ['ICAR-IIVR Cabbage Package', 'OUAT Vegetable Entomology']
   }
+
 };

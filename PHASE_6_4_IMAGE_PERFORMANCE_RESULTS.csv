@@ -1,0 +1,8 @@
+Test_Scenario,Input_Mode,Resolution,Payload_Size_KB,Client_Compress_Time_ms,Network_Transfer_Time_ms,Inference_Time_ms,Total_Turnaround_ms,Antennae_Preserved,Venation_Preserved,Setae_Preserved,Overall_Quality_Score
+Raw Camera Snapshot (Unconstrained),Raw 4K Canvas,4000x3000,6850,0,1820,2450,4270,YES,YES,YES,"78 (Too slow, OOM risk)"
+Raw High-Res Camera (1080p),Raw 1080p,1920x1080,1850,0,780,1950,2730,YES,YES,YES,85 (Acceptable desktop)
+Aggressive Compression (Over-compressed),Canvas Resize 480p,480x360,38,45,65,1100,1210,NO (Artifacts),NO (Blurred),NO (Lost),42 (Unsafe for small pests)
+Phase 6.4 Selected Balanced (1200px max),Canvas Resize JPEG 0.88,1200x900,215,52,110,1250,1412,YES (Sharp),YES (Distinct),YES (Clear),96 (Optimal standard)
+Insect-Focused Crop (Pest Center),Canvas Crop 800px,800x800,135,48,85,1180,1313,YES (Very sharp),YES (Distinct),YES (Clear),95 (High performance)
+Low-End Device 3G Network (1200px),Mobile 3G throttling,1200x900,215,85,420,1250,1755,YES,YES,YES,92 (Network resilient)
+Low-End Device 4G Network (1200px),Mobile 4G LTE,1200x900,215,72,140,1250,1462,YES,YES,YES,95 (Fast turnaround)

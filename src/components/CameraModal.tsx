@@ -1,20 +1,31 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Camera, 
-  CameraOff, 
-  SwitchCamera, 
-  RefreshCw, 
   X, 
+  RefreshCw, 
   AlertCircle, 
-  Upload, 
-  ShieldAlert,
-  CheckCircle2
+  CheckCircle2, 
+  Sparkles, 
+  Zap, 
+  ZapOff,
+  Maximize2,
+  Minimize2,
+  HelpCircle,
+  ShieldCheck,
+  Upload
 } from 'lucide-react';
+import { ODIA_TRANSLATIONS } from '../data/odiaTranslations';
+
+export type CameraLifecycleState = 
+  | 'INITIALIZING' 
+  | 'READY' 
+  | 'CAPTURING' 
+  | 'ERROR';
 
 interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCapture: (imageUri: string) => void;
+  onCapture: (imageDataUrl: string) => void;
   lang: 'or' | 'en';
 }
 
@@ -24,193 +35,259 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   onCapture,
   lang
 }) => {
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [lifecycleState, setLifecycleState] = useState<CameraLifecycleState>('INITIALIZING');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-  const [errorType, setErrorType] = useState<'denied' | 'not_found' | 'busy' | 'insecure' | 'unsupported' | 'general' | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [hasMultipleCameras, setHasMultipleCameras] = useState<boolean>(false);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
-  const [isInitializing, setIsInitializing] = useState<boolean>(false);
+  const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
+  const [hasTorch, setHasTorch] = useState<boolean>(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
+  const isCapturingRef = useRef<boolean>(false);
 
-  // Stop camera tracks cleanly
-  const stopCameraStream = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => {
-        track.stop();
+  const t = ODIA_TRANSLATIONS[lang];
+
+  // Completely stop all active stream tracks and release hardware
+  const stopCameraTracks = useCallback(() => {
+    if (activeStreamRef.current) {
+      activeStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // ignore
+        }
       });
-      setStream(null);
+      activeStreamRef.current = null;
     }
-  }, [stream]);
-
-  // Query video devices for camera switching
-  const refreshDevices = useCallback(async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter(d => d.kind === 'videoinput');
-      setVideoDevices(videoInputs);
-    } catch {
-      // Ignore device enumeration failure
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
+    setIsTorchOn(false);
   }, []);
 
-  // Initialize camera stream
-  const startCamera = useCallback(async () => {
-    setIsInitializing(true);
-    setErrorType(null);
-    setErrorMessage('');
+  // Initialize WebRTC stream with mobile-friendly constraints
+  const startCamera = useCallback(async (mode: 'environment' | 'user') => {
+    setLifecycleState('INITIALIZING');
+    setErrorMessage(null);
 
-    // Check secure context
-    if (typeof window !== 'undefined' && !window.isSecureContext) {
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      if (!isLocalhost) {
-        setIsInitializing(false);
-        setErrorType('insecure');
-        setErrorMessage(lang === 'or' 
-          ? 'ଲାଇଭ୍ କ୍ୟାମେରା ବ୍ୟବହାର ପାଇଁ ଏକ ସୁରକ୍ଷିତ ସଂଯୋଗ (HTTPS) ଆବଶ୍ୟକ। ଦୟାକରି ତଳେ ଥିବା ଫାଇଲ୍ ଅପଲୋଡ୍ ବଟନ୍ ବ୍ୟବହାର କରନ୍ତୁ।' 
-          : 'Live camera streaming requires a secure HTTPS context or localhost. Please use the file upload option below or access via HTTPS.');
-        return;
-      }
-    }
+    stopCameraTracks();
 
-    // Check API support
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setIsInitializing(false);
-      setErrorType('unsupported');
-      setErrorMessage(lang === 'or'
-        ? 'ଆପଣଙ୍କର ବ୍ରାଉଜର୍ ଲାଇଭ୍ କ୍ୟାମେରା API କୁ ସମର୍ଥନ କରୁନାହିଁ। ଦୟାକରି ଫାଇଲ୍ ଅପଲୋଡ୍ ବଟନ୍ ବ୍ୟବହାର କରନ୍ତୁ।'
-        : 'Your browser does not support the WebRTC MediaDevices API. Please use the native file upload option.');
-      return;
-    }
-
-    // Stop existing stream first to avoid dual-lock
-    stopCameraStream();
+    // Mobile-optimized constraints: 720p ideal, 24-30fps capped to eliminate lag & memory bloat
+    const constraints: MediaStreamConstraints = {
+      video: {
+        facingMode: { ideal: mode },
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        frameRate: { ideal: 24, max: 30 }
+      },
+      audio: false
+    };
 
     try {
-      const constraints: MediaStreamConstraints = {
-        audio: false,
-        video: selectedDeviceId 
-          ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-          : {
-              facingMode: { ideal: facingMode },
-              width: { ideal: 1920, min: 640 },
-              height: { ideal: 1080, min: 480 }
-            }
-      };
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play().catch(() => {});
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch {
+        // Fallback constraint if strict resolution rejected by hardware
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: mode },
+          audio: false
+        });
       }
-      setIsInitializing(false);
-      await refreshDevices();
-    } catch (err: any) {
-      setIsInitializing(false);
-      const name = err.name || '';
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        setErrorType('denied');
-        setErrorMessage(lang === 'or'
-          ? 'କ୍ୟାମେରା ଅନୁମତି ଅସ୍ୱୀକାର କରାଯାଇଛି। ଦୟାକରି ଆପଣଙ୍କର ବ୍ରାଉଜର୍ ସାଇଟ୍ ସେଟିଙ୍ଗ୍‌ରେ କ୍ୟାମେରା ଅନୁମତି (Allow) ଦିଅନ୍ତୁ ଏବଂ "ପୁନଃ ଚେଷ୍ଟା କରନ୍ତୁ" ରେ କ୍ଲିକ୍ କରନ୍ତୁ।'
-          : 'Camera permission denied. Please allow camera access in your browser site permissions and click "Try Again", or use the native file picker.');
-      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-        setErrorType('not_found');
-        setErrorMessage(lang === 'or'
-          ? 'ଏହି ଡିଭାଇସ୍‌ରେ କୌଣସି କ୍ୟାମେରା ମିଳିଲା ନାହିଁ। ଦୟାକରି ଗ୍ୟାଲେରୀରୁ ଫଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ।'
-          : 'No camera hardware found on this device. Please upload an image from your gallery.');
-      } else if (name === 'NotReadableError' || name === 'TrackStartError') {
-        setErrorType('busy');
-        setErrorMessage(lang === 'or'
-          ? 'କ୍ୟାମେରା ବର୍ତ୍ତମାନ ଅନ୍ୟ ଏକ ଆପ୍ ବା ବ୍ରାଉଜର୍ ଟ୍ୟାବ୍ ଦ୍ୱାରା ବ୍ୟବହୃତ ହେଉଛି। ଦୟାକରି ଅନ୍ୟ ଆପ୍ ବନ୍ଦ କରି ପୁନଃ ଚେଷ୍ଟା କରନ୍ତୁ।'
-          : 'The camera is currently in use by another application or tab. Please close other camera apps and retry.');
+
+      activeStreamRef.current = stream;
+
+      // Inspect track capabilities (Torch / Flash support)
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        try {
+          const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : {};
+          setHasTorch(Boolean(capabilities.torch));
+        } catch {
+          setHasTorch(false);
+        }
+      }
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              setLifecycleState('READY');
+            }).catch((err) => {
+              console.warn('Auto-play blocked, retrying:', err);
+              setLifecycleState('READY');
+            });
+          }
+        };
       } else {
-        setErrorType('general');
-        setErrorMessage(lang === 'or'
-          ? `କ୍ୟାମେରା ଖୋଲିବାରେ ତ୍ରୁଟି: ${err.message || 'ଅଜ୍ଞାତ ତ୍ରୁଟି'}`
-          : `Failed to access camera: ${err.message || 'Unknown device error'}`);
+        setLifecycleState('READY');
+      }
+
+      // Check if device has multiple cameras (front + rear)
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+        setHasMultipleCameras(videoInputs.length > 1);
+      } catch {
+        setHasMultipleCameras(true);
+      }
+
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      setLifecycleState('ERROR');
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setErrorMessage(
+          lang === 'or'
+            ? 'କ୍ୟାମେରା ଅନୁମତି ମିଳିଲା ନାହିଁ। ଦୟାକରି ବ୍ରାଉଜର୍ ସେଟିଂସରୁ କ୍ୟାମେରା ଅନୁମତି ଦିଅନ୍ତୁ।'
+            : 'Camera permission denied. Please allow camera access in your browser site permissions.'
+        );
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setErrorMessage(
+          lang === 'or'
+            ? 'ଡିଭାଇସ୍‌ରେ କୌଣସି କ୍ୟାମେରା ମିଳିଲା ନାହିଁ।'
+            : 'No camera hardware found on this device.'
+        );
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        setErrorMessage(
+          lang === 'or'
+            ? 'କ୍ୟାମେରା ବର୍ତ୍ତମାନ ଅନ୍ୟ ଏକ ଆପ୍ ଦ୍ୱାରା ବ୍ୟବହୃତ ହେଉଛି। ଦୟାକରି ଅନ୍ୟ ଆପ୍ ବନ୍ଦ କରନ୍ତୁ।'
+            : 'Camera is currently locked or in use by another application. Please close other camera apps.'
+        );
+      } else {
+        setErrorMessage(
+          err.message || (lang === 'or' ? 'କ୍ୟାମେରା ଖୋଲିବାରେ ତ୍ରୁଟି।' : 'Failed to initialize camera viewfinder.')
+        );
       }
     }
-  }, [facingMode, selectedDeviceId, lang, refreshDevices, stopCameraStream]);
+  }, [lang, stopCameraTracks]);
 
-  // Start camera on modal open
+  // Launch camera when modal opens
   useEffect(() => {
     if (isOpen) {
-      startCamera();
+      startCamera(facingMode);
     } else {
-      stopCameraStream();
+      stopCameraTracks();
+      setLifecycleState('INITIALIZING');
+      setErrorMessage(null);
     }
-    return () => {
-      stopCameraStream();
-    };
-  }, [isOpen, startCamera, stopCameraStream]);
 
-  // Toggle between front and rear cameras
-  const toggleFacingMode = () => {
-    setSelectedDeviceId('');
-    setFacingMode(prev => (prev === 'environment' ? 'user' : 'environment'));
+    return () => {
+      stopCameraTracks();
+    };
+  }, [isOpen, facingMode, startCamera, stopCameraTracks]);
+
+  // Flip camera (Rear <-> Front)
+  const handleToggleLens = () => {
+    if (lifecycleState === 'CAPTURING') return;
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
   };
 
-  // Capture frame from active video stream
-  const handleCaptureFrame = () => {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight || video.paused) {
+  // Toggle Torch/Flash
+  const handleToggleTorch = async () => {
+    if (!activeStreamRef.current || !hasTorch) return;
+    const track = activeStreamRef.current.getVideoTracks()[0];
+    if (!track) return;
+
+    try {
+      const nextTorch = !isTorchOn;
+      await (track as any).applyConstraints({
+        advanced: [{ torch: nextTorch }]
+      });
+      setIsTorchOn(nextTorch);
+    } catch (err) {
+      console.warn('Torch control failed:', err);
+    }
+  };
+
+  // High-performance single-shot capture
+  const handleCaptureSnapshot = () => {
+    if (isCapturingRef.current || !videoRef.current || lifecycleState !== 'READY') {
       return;
     }
 
+    isCapturingRef.current = true;
     setIsCapturing(true);
+    setLifecycleState('CAPTURING');
 
-    try {
-      const canvas = canvasRef.current || document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        setIsCapturing(false);
-        return;
+    // Haptic feedback for tactile shutter sensation
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(40);
+      } catch {
+        // ignore
       }
-
-      // If user camera, mirror it horizontally so capture matches preview
-      if (facingMode === 'user') {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const capturedDataUrl = canvas.toDataURL('image/jpeg', 0.90);
-
-      // Clean up stream immediately
-      stopCameraStream();
-      setIsCapturing(false);
-
-      // Deliver to parent
-      onCapture(capturedDataUrl);
-      onClose();
-    } catch {
-      setIsCapturing(false);
     }
+
+    const video = videoRef.current;
+    const videoWidth = video.videoWidth || 1280;
+    const videoHeight = video.videoHeight || 720;
+
+    // Dimension capping (max 1280px) to prevent memory spikes
+    const maxDim = 1280;
+    let targetWidth = videoWidth;
+    let targetHeight = videoHeight;
+
+    if (targetWidth > maxDim || targetHeight > maxDim) {
+      if (targetWidth > targetHeight) {
+        targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+        targetWidth = maxDim;
+      } else {
+        targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+        targetHeight = maxDim;
+      }
+    }
+
+    const canvas = canvasRef.current || document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    if (!ctx) {
+      isCapturingRef.current = false;
+      setIsCapturing(false);
+      setLifecycleState('READY');
+      return;
+    }
+
+    // Unmirrored natural capture for rear camera; mirror only front selfie lens
+    if (facingMode === 'user') {
+      ctx.translate(targetWidth, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+
+    // High quality JPEG (0.88) preserving microscopic insect hairs and venation
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+    // Stop tracks immediately to free hardware
+    stopCameraTracks();
+
+    // Deliver image
+    onCapture(dataUrl);
+    isCapturingRef.current = false;
+    setIsCapturing(false);
+    onClose();
   };
 
-  // Fallback handler for native file input capture
-  const handleNativeFileFallback = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Fallback native mobile file capture (environment lens)
+  const handleFallbackFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
-      stopCameraStream();
-      onCapture(dataUrl);
-      onClose();
+      if (dataUrl) {
+        stopCameraTracks();
+        onCapture(dataUrl);
+        onClose();
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -218,194 +295,185 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col max-h-[92vh]">
-        
-        {/* Header Bar */}
-        <div className="flex items-center justify-between px-5 py-4 bg-slate-800/80 border-b border-slate-700 text-white">
-          <div className="flex items-center space-x-2">
-            <Camera className="w-5 h-5 text-lime-400" />
-            <h3 className="font-extrabold text-sm sm:text-base">
-              {lang === 'or' ? 'ଲାଇଭ୍ କ୍ୟାମେରା ସ୍କାନର' : 'Live Camera Viewfinder'}
-            </h3>
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium hidden sm:inline-block">
-              {facingMode === 'environment' 
-                ? (lang === 'or' ? 'ପଛ କ୍ୟାମେରା (Rear)' : 'Rear Lens') 
-                : (lang === 'or' ? 'ଆଗ କ୍ୟାମେରା (Front)' : 'Front Lens')}
-            </span>
-          </div>
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-3 sm:p-6 animate-fadeIn select-none">
+      {/* Top App Bar */}
+      <div className="flex items-center justify-between text-white z-20">
+        <div className="flex items-center space-x-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-lime-400 animate-pulse" />
+          <span className="text-xs font-bold uppercase tracking-wider text-lime-300">
+            {lang === 'or' ? 'ଲାଇଭ୍ କୀଟ ସ୍କାନର' : 'Live Camera Viewfinder'}
+          </span>
+          <span className="text-[10px] text-slate-400 px-2 py-0.5 rounded-full bg-white/10 font-mono">
+            {facingMode === 'environment' ? 'Rear Lens (1x)' : 'Front Lens'}
+          </span>
+        </div>
 
-          <div className="flex items-center space-x-2">
-            {videoDevices.length > 1 && !errorType && (
-              <button
-                type="button"
-                onClick={toggleFacingMode}
-                className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold flex items-center space-x-1.5 transition-colors focus:ring-2 focus:ring-lime-400"
-                title={lang === 'or' ? 'କ୍ୟାମେରା ବଦଳାନ୍ତୁ' : 'Flip Camera'}
-                aria-label="Flip Camera"
-              >
-                <SwitchCamera className="w-4 h-4 text-lime-400" />
-                <span className="hidden sm:inline">{lang === 'or' ? 'ବଦଳାନ୍ତୁ' : 'Flip'}</span>
-              </button>
-            )}
-
+        <div className="flex items-center space-x-2">
+          {hasTorch && (
             <button
               type="button"
-              onClick={onClose}
-              className="min-h-[44px] min-w-[44px] p-2 rounded-xl bg-slate-700/80 hover:bg-slate-600 text-slate-300 hover:text-white transition-colors flex items-center justify-center focus:ring-2 focus:ring-lime-400"
-              aria-label="Close Camera"
+              onClick={handleToggleTorch}
+              className={`min-h-[44px] min-w-[44px] p-2.5 rounded-full transition-colors flex items-center justify-center ${
+                isTorchOn ? 'bg-amber-400 text-black' : 'bg-white/15 text-white hover:bg-white/25'
+              }`}
+              title={lang === 'or' ? 'ଫ୍ଲାସ୍‌ଲାଇଟ୍' : 'Toggle Torch'}
             >
-              <X className="w-5 h-5" />
+              {isTorchOn ? <Zap className="w-5 h-5 fill-current" /> : <ZapOff className="w-5 h-5" />}
             </button>
+          )}
+
+          {hasMultipleCameras && (
+            <button
+              type="button"
+              onClick={handleToggleLens}
+              disabled={lifecycleState === 'CAPTURING'}
+              className="min-h-[44px] min-w-[44px] p-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition-colors flex items-center justify-center"
+              title={lang === 'or' ? 'କ୍ୟାମେରା ବଦଳାନ୍ତୁ' : 'Switch Camera'}
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              stopCameraTracks();
+              onClose();
+            }}
+            className="min-h-[44px] min-w-[44px] p-2.5 rounded-full bg-white/15 hover:bg-rose-600 text-white transition-colors flex items-center justify-center"
+            title={lang === 'or' ? 'ବନ୍ଦ କରନ୍ତୁ' : 'Close Camera'}
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Viewfinder Frame */}
+      <div className="relative flex-1 my-3 rounded-3xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-2xl">
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          autoPlay
+          className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+          style={{
+            transform: facingMode === 'user' ? 'scaleX(-1)' : 'none'
+          }}
+        />
+
+        {/* Framing Guide Reticle */}
+        {lifecycleState === 'READY' && (
+          <div className="absolute inset-8 sm:inset-16 pointer-events-none border-2 border-dashed border-lime-400/60 rounded-3xl flex flex-col justify-between p-4">
+            <div className="flex justify-between items-start">
+              <span className="w-4 h-4 border-t-2 border-l-2 border-lime-400" />
+              <span className="w-4 h-4 border-t-2 border-r-2 border-lime-400" />
+            </div>
+            <div className="text-center">
+              <span className="bg-black/60 text-lime-300 text-[11px] font-bold px-3 py-1 rounded-full backdrop-blur-md">
+                {lang === 'or' ? 'ପୋକ ବା ଆକ୍ରାନ୍ତ ପତ୍ରକୁ ମଝିରେ ରଖନ୍ତୁ' : 'Center insect or damaged leaf inside box'}
+              </span>
+            </div>
+            <div className="flex justify-between items-end">
+              <span className="w-4 h-4 border-b-2 border-l-2 border-lime-400" />
+              <span className="w-4 h-4 border-b-2 border-r-2 border-lime-400" />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Viewfinder Video Area */}
-        <div className="relative flex-1 bg-black flex items-center justify-center min-h-[320px] sm:min-h-[420px] overflow-hidden">
-          
-          {/* Live Video Element */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className={`w-full h-full max-h-[60vh] object-contain transition-transform duration-200 ${
-              facingMode === 'user' ? 'scale-x-[-1]' : ''
-            }`}
-          />
-
-          {/* Offscreen Canvas for Frame Extraction */}
-          <canvas ref={canvasRef} className="hidden" />
-
-          {/* Framing Target Overlay (Aids farmer centering the insect) */}
-          {!errorType && !isInitializing && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-              <div className="w-56 h-56 sm:w-72 sm:h-72 border-2 border-dashed border-lime-400/70 rounded-3xl flex flex-col justify-between p-3 animate-pulse">
-                <div className="flex justify-between">
-                  <span className="w-4 h-4 border-t-2 border-l-2 border-lime-400"></span>
-                  <span className="w-4 h-4 border-t-2 border-r-2 border-lime-400"></span>
-                </div>
-                <div className="text-center">
-                  <span className="text-[11px] font-bold text-lime-300 bg-black/60 px-2.5 py-1 rounded-full backdrop-blur-sm">
-                    {lang === 'or' ? 'ପୋକକୁ ଏଠାରେ କେନ୍ଦ୍ରୀଭୂତ କରନ୍ତୁ' : 'Center insect inside frame'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="w-4 h-4 border-b-2 border-l-2 border-lime-400"></span>
-                  <span className="w-4 h-4 border-b-2 border-r-2 border-lime-400"></span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Initializing Spinner */}
-          {isInitializing && (
-            <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center space-y-3 text-white p-6 text-center">
-              <RefreshCw className="w-8 h-8 text-lime-400 animate-spin" />
-              <p className="text-sm font-bold">
-                {lang === 'or' ? 'କ୍ୟାମେରା ସଂଯୋଗ ହେଉଛି...' : 'Connecting to camera hardware...'}
-              </p>
-            </div>
-          )}
-
-          {/* Flash Effect on Snapshot */}
-          {isCapturing && (
-            <div className="absolute inset-0 bg-white animate-fadeOut z-20 pointer-events-none" />
-          )}
-
-          {/* Error & Recovery Screen */}
-          {errorType && (
-            <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-6 text-center space-y-4 text-white z-10">
-              <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
-                {errorType === 'denied' ? (
-                  <ShieldAlert className="w-8 h-8" />
-                ) : (
-                  <CameraOff className="w-8 h-8" />
-                )}
-              </div>
-
-              <div className="max-w-md space-y-1.5">
-                <h4 className="text-base font-extrabold text-rose-300">
-                  {errorType === 'denied' && (lang === 'or' ? 'କ୍ୟାମେରା ଅନୁମତି ଆବଶ୍ୟକ' : 'Camera Permission Required')}
-                  {errorType === 'not_found' && (lang === 'or' ? 'କୌଣସି କ୍ୟାମେରା ମିଳିଲା ନାହିଁ' : 'Camera Not Detected')}
-                  {errorType === 'busy' && (lang === 'or' ? 'କ୍ୟାମେରା ବ୍ୟସ୍ତ ଅଛି' : 'Camera Device Busy')}
-                  {errorType === 'insecure' && (lang === 'or' ? 'ସୁରକ୍ଷିତ ସଂଯୋଗ ଆବଶ୍ୟକ' : 'HTTPS Required')}
-                  {(errorType === 'unsupported' || errorType === 'general') && (lang === 'or' ? 'କ୍ୟାମେରା ତ୍ରୁଟି' : 'Camera Access Error')}
-                </h4>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {errorMessage}
-                </p>
-              </div>
-
-              {/* Action Buttons in Error State */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full max-w-sm justify-center">
-                <button
-                  type="button"
-                  onClick={startCamera}
-                  className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-lg transition-transform active:scale-95"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>{lang === 'or' ? 'ପୁନଃ ଚେଷ୍ଟା କରନ୍ତୁ' : 'Try Again'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => nativeCameraInputRef.current?.click()}
-                  className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border border-slate-600 transition-colors"
-                >
-                  <Upload className="w-4 h-4 text-lime-400" />
-                  <span>{lang === 'or' ? 'ଫାଇଲ୍ / ଗ୍ୟାଲେରୀରୁ ନିଅନ୍ତୁ' : 'Use Native File Picker'}</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer Capture Controls */}
-        <div className="px-6 py-4 bg-slate-800/90 border-t border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-slate-400 text-center sm:text-left">
-            <p className="font-medium">
-              {lang === 'or' ? 'ହାତ ସ୍ଥିର ରଖନ୍ତୁ ଓ ସ୍ପଷ୍ଟ ଆଲୋକରେ ଫଟୋ ନିଅନ୍ତୁ' : 'Hold device steady with good natural illumination.'}
+        {/* Loading Spinner */}
+        {lifecycleState === 'INITIALIZING' && (
+          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center space-y-3 text-white">
+            <div className="w-12 h-12 rounded-full border-4 border-lime-400 border-t-transparent animate-spin" />
+            <p className="text-xs font-bold text-lime-300">
+              {lang === 'or' ? 'କ୍ୟାମେରା ଆରମ୍ଭ ହେଉଛି...' : 'Initializing camera stream...'}
             </p>
           </div>
+        )}
 
-          <div className="flex items-center space-x-3 w-full sm:w-auto justify-center">
-            {/* Native OS camera fallback trigger */}
-            <input 
-              ref={nativeCameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleNativeFileFallback}
-              className="hidden"
-            />
+        {/* Error State with Native Fallback */}
+        {lifecycleState === 'ERROR' && (
+          <div className="absolute inset-4 sm:inset-12 bg-slate-900/95 rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-4 text-white border border-rose-500/30">
+            <AlertCircle className="w-12 h-12 text-rose-500" />
+            <div className="max-w-md space-y-1">
+              <h4 className="font-extrabold text-base text-rose-300">
+                {lang === 'or' ? 'କ୍ୟାମେରା ତ୍ରୁଟି' : 'Camera Access Alert'}
+              </h4>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {errorMessage}
+              </p>
+            </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs transition-colors"
-            >
-              {lang === 'or' ? 'ବାତିଲ କରନ୍ତୁ' : 'Cancel'}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => startCamera(facingMode)}
+                className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-lime-500 hover:bg-lime-400 text-black font-extrabold text-xs flex items-center justify-center space-x-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>{lang === 'or' ? 'ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ' : 'Retry Camera'}</span>
+              </button>
 
-            {/* Shutter Button */}
-            <button
-              type="button"
-              disabled={Boolean(errorType) || isInitializing}
-              onClick={handleCaptureFrame}
-              className={`min-h-[44px] min-w-[140px] px-6 py-3 rounded-2xl font-extrabold text-sm flex items-center justify-center space-x-2 shadow-lg transition-all ${
-                errorType || isInitializing
-                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed opacity-50'
-                  : 'bg-lime-500 hover:bg-lime-400 text-slate-950 active:scale-95 shadow-lime-500/30'
-              }`}
-            >
-              <Camera className="w-4 h-4" />
-              <span>{lang === 'or' ? 'ଫଟୋ ଉଠାନ୍ତୁ' : 'Take Photo'}</span>
-            </button>
+              <label className="min-h-[44px] px-5 py-2.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center justify-center space-x-2 cursor-pointer">
+                <Camera className="w-4 h-4" />
+                <span>{lang === 'or' ? 'ମୋବାଇଲ୍ ସିଷ୍ଟମ୍ କ୍ୟାମେରା' : 'Use System Camera'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFallbackFileSelect}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
-        </div>
-
+        )}
       </div>
+
+      {/* Bottom Shutter Action Bar */}
+      <div className="flex items-center justify-around py-3 px-4 z-20">
+        {/* Native gallery button fallback */}
+        <label className="min-h-[44px] min-w-[44px] p-3 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-colors" title={lang === 'or' ? 'ଗ୍ୟାଲେରୀ' : 'Gallery'}>
+          <Upload className="w-5 h-5" />
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFallbackFileSelect}
+            className="hidden"
+          />
+        </label>
+
+        {/* Primary Shutter Trigger */}
+        <button
+          type="button"
+          onClick={handleCaptureSnapshot}
+          disabled={lifecycleState !== 'READY' || isCapturing}
+          className={`min-h-[72px] min-w-[72px] rounded-full p-1.5 border-4 transition-all flex items-center justify-center shadow-xl ${
+            lifecycleState === 'READY'
+              ? 'border-lime-400 bg-white/20 hover:scale-105 active:scale-95 cursor-pointer'
+              : 'border-slate-600 bg-transparent opacity-50 cursor-not-allowed'
+          }`}
+          title={lang === 'or' ? 'ଫଟୋ ଉଠାନ୍ତୁ' : 'Capture Photograph'}
+        >
+          <div className="w-full h-full rounded-full bg-lime-400 flex items-center justify-center shadow-inner">
+            <Camera className="w-7 h-7 text-agri-950" />
+          </div>
+        </button>
+
+        {/* Lens switch shortcut */}
+        <button
+          type="button"
+          onClick={handleToggleLens}
+          disabled={lifecycleState === 'CAPTURING'}
+          className="min-h-[44px] min-w-[44px] p-3 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
+          title={lang === 'or' ? 'କ୍ୟାମେରା ବଦଳାନ୍ତୁ' : 'Switch Camera'}
+        >
+          <RefreshCw className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Hidden off-screen canvas */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };

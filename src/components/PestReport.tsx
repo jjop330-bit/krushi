@@ -21,12 +21,15 @@ import {
   UserCheck,
   AlertCircle,
   Eye,
-  Check
+  Check,
+  Flag,
+  MessageSquare
 } from 'lucide-react';
 import { ScanReport } from '../types/pest';
 import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
 import { ODIA_TRANSLATIONS } from '../data/odiaTranslations';
 import { SAMPLE_PEST_IMAGES } from '../data/sampleImages';
+import { getCropById } from '../data/cropKnowledge';
 import { StorageService } from '../services/storageService';
 import { voiceService, AudioPlaybackState } from '../services/voiceService';
 import confetti from 'canvas-confetti';
@@ -53,6 +56,9 @@ export const PestReport: React.FC<PestReportProps> = ({
   const [audioError, setAudioError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [escalated, setEscalated] = useState(false);
+  const [reportFlagged, setReportFlagged] = useState(false);
+  const [flagFeedback, setFlagFeedback] = useState<string>('');
+  const [showFlagModal, setShowFlagModal] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -65,16 +71,17 @@ export const PestReport: React.FC<PestReportProps> = ({
   const knowledge = PEST_KNOWLEDGE_BASE[pestId] || PEST_KNOWLEDGE_BASE.uncertain;
   const status = report.status || (pestId !== 'uncertain' ? 'IDENTIFIED' : 'UNKNOWN');
   const isTreatmentAllowed = Boolean(report.treatmentAllowed);
+  const cropInfo = getCropById(report.cropId);
 
-  // Authoritative reference image for side-by-side comparison
   const referenceImage = SAMPLE_PEST_IMAGES.find(s => s.pestId === pestId);
 
-  // Confidence display helper
   const confidence = report.identification.confidence;
   const confidenceColor = 
     confidence && confidence >= 85 ? 'text-emerald-700 bg-emerald-50 border-emerald-300' :
     confidence && confidence >= 70 ? 'text-amber-700 bg-amber-50 border-amber-300' :
     'text-slate-600 bg-slate-100 border-slate-300';
+
+  const cropName = lang === 'or' ? (cropInfo?.commonNameOr || 'ଫସଲ') : (cropInfo?.commonNameEn || 'Crop');
 
   const handleAudioNarration = () => {
     if (audioState === 'playing') {
@@ -101,26 +108,30 @@ export const PestReport: React.FC<PestReportProps> = ({
 
     if (status === 'IDENTIFIED') {
       if (lang === 'or') {
-        speechText = `କୃଷି ମିତ୍ର AI ନିରୀକ୍ଷଣ: ଆପଣଙ୍କ ଧାନ ଫସଲରେ ${knowledge.commonNameOr} (${knowledge.scientificName}) ର ଲକ୍ଷଣ ଚିହ୍ନଟ ହୋଇଛି। ପ୍ରାଥମିକ ଲକ୍ଷଣ: ${knowledge.keySymptomsOr[0]}। ନିରାପଦ ଜୈବିକ ପଦକ୍ଷେପ: ${knowledge.immediateNextStepsOr[0]}`;
+        speechText = `କୃଷି ମିତ୍ର AI ନିରୀକ୍ଷଣ: ଆପଣଙ୍କ ${cropName} ଫସଲରେ ${knowledge.commonNameOr} (${knowledge.scientificName}) ର ଲକ୍ଷଣ ଚିହ୍ନଟ ହୋଇଛି। ପ୍ରାଥମିକ ଲକ୍ଷଣ: ${knowledge.keySymptomsOr[0] || 'ପତ୍ର କ୍ଷତି'}। ନିରାପଦ ଜୈବିକ ପଦକ୍ଷେପ: ${knowledge.immediateNextStepsOr[0] || 'କୀଟ ନିରୀକ୍ଷଣ କରନ୍ତୁ'}`;
       } else {
-        speechText = `Krushi Mitra AI diagnostic summary: Visual features indicate ${knowledge.commonNameEn} (${knowledge.scientificName}). Primary symptom: ${knowledge.keySymptomsEn[0]}. Immediate recommendation: ${knowledge.immediateNextStepsEn[0]}`;
+        speechText = `Krushi Mitra AI diagnostic summary: Visual features on ${cropName} indicate ${knowledge.commonNameEn} (${knowledge.scientificName}). Primary symptom: ${knowledge.keySymptomsEn[0] || 'foliar damage'}. Immediate recommendation: ${knowledge.immediateNextStepsEn[0] || 'Scout field regularly'}`;
       }
-    } else if (status === 'OTHER_INSECT') {
+    } else if (status === 'OTHER_INSECT' || status === 'NON_TARGET_INSECT') {
       speechText = lang === 'or' 
-        ? 'ଏହି କୀଟଟି ୫ଟି ପ୍ରମୁଖ ଧାନ କ୍ଷତିକାରକ ପୋକ ମଧ୍ୟରେ ଅନ୍ତର୍ଭୁକ୍ତ ନୁହେଁ। ଏହା ବନ୍ଧୁ କୀଟ ହୋଇପାରେ। କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ।' 
-        : 'The insect detected is not one of the five major rice pests supported. It may be a beneficial predator. Do not spray chemical pesticides.';
+        ? `ଏହି କୀଟଟି ${cropName} ପାଇଁ କ୍ଷତିକାରକ ପୋକ ନୁହେଁ। ଏହା ଏକ ବନ୍ଧୁ କୀଟ କିମ୍ବା ନିରପେକ୍ଷ କୀଟ ହୋଇପାରେ। କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ।` 
+        : `The insect detected is not a destructive pest for ${cropName}. It may be a beneficial predator. Do not spray chemical pesticides.`;
+    } else if (status === 'UNSUPPORTED_SPECIES') {
+      speechText = lang === 'or'
+        ? `ଏହି କୀଟ ବା ଜୀବଟି ବର୍ତ୍ତମାନର ସମର୍ଥିତ ଡାଟାବେସରେ ଅନ୍ତର୍ଭୁକ୍ତ ନୁହେଁ। କୌଣସି ରାସାୟନିକ କୀଟନାଶକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।`
+        : `This organism is not currently in our validated database. Chemical sprays are strictly withheld.`;
     } else if (status === 'HEALTHY_CROP') {
       speechText = lang === 'or'
-        ? 'ଫସଲ ସମ୍ପୂର୍ଣ୍ଣ ସୁସ୍ଥ ଅଛି। କୌଣସି ପୋକ ବା ରୋଗର ଲକ୍ଷଣ ନାହିଁ। କୌଣସି କୀଟନାଶକ ଆବଶ୍ୟକ ନାହିଁ।'
-        : 'The crop is healthy with zero harmful pests detected. No pesticide application required.';
+        ? `${cropName} ଫସଲ ସମ୍ପୂର୍ଣ୍ଣ ସୁସ୍ଥ ଅଛି। କୌଣସି ପୋକ ବା ରୋଗର ଲକ୍ଷଣ ନାହିଁ। କୌଣସି କୀଟନାଶକ ଆବଶ୍ୟକ ନାହିଁ।`
+        : `The ${cropName} crop is healthy with zero harmful pests detected. No pesticide application required.`;
     } else if (status === 'CROP_DAMAGE_NO_VISIBLE_INSECT') {
       speechText = lang === 'or'
-        ? 'ପତ୍ରରେ କ୍ଷତିର ଚିହ୍ନ ଅଛି, କିନ୍ତୁ କୌଣସି ପୋକ ଦୃଶ୍ୟମାନ ନାହିଁ। ଜୀବନ୍ତ ପୋକର ଫଟୋ ନ ଉଠାଇ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ।'
-        : 'Leaf damage visible, but insect not present. Do not spray pesticides without confirming the insect species.';
+        ? `ପତ୍ରରେ କ୍ଷତିର ଚିହ୍ନ ଅଛି, କିନ୍ତୁ କୌଣସି ପୋକ ଦୃଶ୍ୟମାନ ନାହିଁ। ଜୀବନ୍ତ ପୋକର ଫଟୋ ନ ଉଠାଇ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ।`
+        : `Leaf damage visible, but insect not present. Do not spray pesticides without confirming the insect species.`;
     } else {
       speechText = lang === 'or'
-        ? 'ଫଟୋଟି ଅସ୍ପଷ୍ଟ ଅଟେ। ଦୟାକରି ଭଲ ଆଲୋକରେ ସ୍ଥିର ଭାବେ ପୁଣି ଫଟୋ ଉଠାନ୍ତୁ।'
-        : 'The image is unclear. Please retake a steady close-up photograph in natural light.';
+        ? `ଫଟୋଟି ଅସ୍ପଷ୍ଟ ଅଟେ। ଦୟାକରି ଭଲ ଆଲୋକରେ ସ୍ଥିର ଭାବେ ପୁଣି ଫଟୋ ଉଠାନ୍ତୁ।`
+        : `The image is unclear. Please retake a steady close-up photograph in natural light.`;
     }
 
     voiceService.speak(speechText, lang, {
@@ -167,53 +178,71 @@ export const PestReport: React.FC<PestReportProps> = ({
     onEscalate();
   };
 
+  const handleFlagReport = () => {
+    setReportFlagged(true);
+    setShowFlagModal(false);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-fadeIn">
-      {/* STATUS-DRIVEN BANNER NOTIFICATIONS */}
-      {status === 'OTHER_INSECT' && (
-        <div className="bg-amber-50 rounded-3xl p-6 border-2 border-amber-300 text-amber-950 space-y-2">
+      {status === 'UNSUPPORTED_SPECIES' && (
+        <div className="bg-amber-50 rounded-3xl p-5 sm:p-6 border-2 border-amber-300 text-amber-950 space-y-2">
           <div className="flex items-center space-x-2.5 font-extrabold text-base sm:text-lg text-amber-900">
             <AlertCircle className="w-6 h-6 text-amber-700 flex-shrink-0" />
-            <span>{lang === 'or' ? 'ଅଣ-ସମର୍ଥିତ କୀଟ ଚିହ୍ନଟ (ଚାଷୀର ବନ୍ଧୁ କୀଟ ହୋଇପାରେ)' : 'Non-Target Insect Detected (Not One of 5 Supported Rice Pests)'}</span>
+            <span>{lang === 'or' ? 'ଅସମର୍ଥିତ ପ୍ରଜାତି (ମଡେଲ୍ ଅନୁମାନ କରିବାକୁ ମନା କରିଛି)' : 'Unsupported Species (Refusal to Guess)'}</span>
           </div>
           <p className="text-sm text-amber-900/90 leading-relaxed">
             {lang === 'or'
-              ? 'AI ଏହି ଫଟୋରେ ଏକ କୀଟ ଚିହ୍ନଟ କରିଛି, କିନ୍ତୁ ଏହା କୃଷି ମିତ୍ର AI ର ୫ଟି ଧାନ କ୍ଷତିକାରକ ପୋକ ନୁହେଁ। ଏହା ଏକ ବନ୍ଧୁ କୀଟ (ଯେପରିକି ବୁଢ଼ିଆଣୀ କିମ୍ବା ଲେଡିବାର୍ଡ୍ ବିଟଲ୍) ହୋଇପାରେ। କଦାପି ରାସାୟନିକ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ।'
-              : 'An insect is visible in the photograph, but it is NOT one of the five specific rice pests currently supported by Krushi Mitra AI. It may be a beneficial predator or neutral arthropod. Chemical insecticide recommendations are strictly withheld.'}
+              ? 'ଫଟୋରେ ଥିବା କୀଟ ବା ଜୀବଟି କୃଷି ମିତ୍ର AI ର ବୈଜ୍ଞାନିକ ଭାବେ ପ୍ରମାଣିତ କୀଟ ଡାଟାବେସ୍ ବାହାରେ ଅଟେ। ଭୁଲ କୀଟନାଶକ ପ୍ରୟୋଗ ରୋକିବା ପାଇଁ ସିଷ୍ଟମ୍ କୌଣସି ଅନୁମାନ କରୁନାହିଁ। ସ୍ଥାନୀୟ KVK ବିଶେଷଜ୍ଞଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।'
+              : 'The photographed organism is outside our validated Odisha crop pest knowledge registry. To prevent dangerous chemical misapplications, Krushi Mitra AI refuses to force an unverified diagnosis.'}
+          </p>
+        </div>
+      )}
+
+      {(status === 'OTHER_INSECT' || status === 'NON_TARGET_INSECT') && (
+        <div className="bg-amber-50 rounded-3xl p-5 sm:p-6 border-2 border-amber-300 text-amber-950 space-y-2">
+          <div className="flex items-center space-x-2.5 font-extrabold text-base sm:text-lg text-amber-900">
+            <AlertCircle className="w-6 h-6 text-amber-700 flex-shrink-0" />
+            <span>{lang === 'or' ? 'ଅଣ-ଲକ୍ଷ୍ୟ / ବନ୍ଧୁ କୀଟ ଚିହ୍ନଟ (କ୍ଷତିକାରକ ନୁହେଁ)' : 'Non-Target / Beneficial Arthropod Detected'}</span>
+          </div>
+          <p className="text-sm text-amber-900/90 leading-relaxed">
+            {lang === 'or'
+              ? `ଫଟୋରେ ଥିବା କୀଟଟି ${cropName} ଫସଲ ପାଇଁ କ୍ଷତିକାରକ ନୁହେଁ। ଏହା ଏକ ବନ୍ଧୁ କୀଟ (ଯଥା: ବୁଢ଼ିଆଣୀ, ଲେଡିବାର୍ଡ୍ ବିଟଲ୍) କିମ୍ବା ନିରପେକ୍ଷ ଜୀବ ହୋଇପାରେ। କୀଟନାଶକ ସିଞ୍ଚନ ସମ୍ପୂର୍ଣ୍ଣ ନିଷେଧ।`
+              : `The insect detected does not damage ${cropName}. It represents natural biodiversity or a predatory beneficial insect. Chemical pesticide recommendations are strictly withheld.`}
           </p>
         </div>
       )}
 
       {status === 'HEALTHY_CROP' && (
-        <div className="bg-emerald-50 rounded-3xl p-6 border-2 border-emerald-300 text-emerald-950 space-y-2">
+        <div className="bg-emerald-50 rounded-3xl p-5 sm:p-6 border-2 border-emerald-300 text-emerald-950 space-y-2">
           <div className="flex items-center space-x-2.5 font-extrabold text-base sm:text-lg text-emerald-900">
             <CheckCircle2 className="w-6 h-6 text-emerald-700 flex-shrink-0" />
-            <span>{lang === 'or' ? 'ସୁସ୍ଥ ଧାନ ଫସଲ (ଶୂନ୍ୟ କୀଟନାଶକ ଆବଶ୍ୟକ)' : 'Healthy Rice Crop (Zero Pesticide Intervention Required)'}</span>
+            <span>{lang === 'or' ? `ସୁସ୍ଥ ${cropName} ଫସଲ (ଶୂନ୍ୟ କୀଟନାଶକ ଆବଶ୍ୟକ)` : `Healthy ${cropName} Crop (Zero Intervention Needed)`}</span>
           </div>
           <p className="text-sm text-emerald-900/90 leading-relaxed">
             {lang === 'or'
-              ? 'ଧାନ ଗଛ ସମ୍ପୂର୍ଣ୍ଣ ସୁସ୍ଥ ଓ ସତେଜ ଅଛି। କୌଣସି ପୋକ ବା କ୍ଷତିକାରକ ରୋଗର ଲକ୍ଷଣ ନାହିଁ। କୌଣସି ରାସାୟନିକ ପ୍ରୟୋଗର ଆବଶ୍ୟକତା ନାହିଁ। କେବଳ ନିୟମିତ କ୍ଷେତ ନିରୀକ୍ଷଣ ଜାରି ରଖନ୍ତୁ।'
-              : 'Your rice foliage displays intact vegetative tillers with zero economic insect damage. Applying synthetic chemicals will destroy natural biological control and waste financial capital.'}
+              ? 'ଫସଲ ସମ୍ପୂର୍ଣ୍ଣ ସୁସ୍ଥ ଓ ସତେଜ ଅଛି। କୌଣସି ପୋକ ବା ରୋଗର ଲକ୍ଷଣ ନାହିଁ। କୌଣସି ରାସାୟନିକ ପ୍ରୟୋଗ କରନ୍ତୁ ନାହିଁ।'
+              : 'Foliage displays intact tissues with zero economic pest injury. Applying synthetic chemicals will destroy natural biological control and waste money.'}
           </p>
         </div>
       )}
 
       {status === 'CROP_DAMAGE_NO_VISIBLE_INSECT' && (
-        <div className="bg-orange-50 rounded-3xl p-6 border-2 border-orange-300 text-orange-950 space-y-2">
+        <div className="bg-orange-50 rounded-3xl p-5 sm:p-6 border-2 border-orange-300 text-orange-950 space-y-2">
           <div className="flex items-center space-x-2.5 font-extrabold text-base sm:text-lg text-orange-900">
             <AlertTriangle className="w-6 h-6 text-orange-700 flex-shrink-0" />
-            <span>{lang === 'or' ? 'ପତ୍ରରେ କ୍ଷତି ଅଛି (କିନ୍ତୁ ପୋକ ଦୃଶ୍ୟମାନ ନୁହେଁ)' : 'Crop Damage Visible (Insect Not Confirmed)'}</span>
+            <span>{lang === 'or' ? 'ପତ୍ରରେ କ୍ଷତି ଅଛି (କିନ୍ତୁ ପୋକ ଦୃଶ୍ୟମାନ ନୁହେଁ)' : 'Crop Damage Visible (Insect Absent)'}</span>
           </div>
           <p className="text-sm text-orange-900/90 leading-relaxed">
             {lang === 'or'
-              ? 'ପତ୍ରରେ କ୍ଷତି କିମ୍ବା ରଙ୍ଗ ପରିବର୍ତ୍ତନର ଚିହ୍ନ ଅଛି, କିନ୍ତୁ ଫଟୋରେ କୌଣସି ପୋକର ଶରୀର ଦେଖାଯାଉନାହିଁ। ପତ୍ର କ୍ଷତିରୁ କେଉଁ ପୋକ କ୍ଷତି କରିଛି ତାହା ପ୍ରମାଣିତ ହୋଇପାରିବ ନାହିଁ। ଦୟାକରି ଗଛ ମୂଳ ଓ ପତ୍ର ସନ୍ଧିରୁ ଜୀବନ୍ତ ପୋକ ଖୋଜି ତାର ଫଟୋ ଉଠାନ୍ତୁ।'
-              : 'Foliage damage or discoloration is visible, but the insect responsible cannot be confirmed without a clear photograph of the actual insect. Fungal diseases or past feeding look identical. Inspect stem bases or leaf folds and photograph the live pest.'}
+              ? 'ପତ୍ରରେ କ୍ଷତି ବା ରଙ୍ଗ ପରିବର୍ତ୍ତନ ଅଛି, କିନ୍ତୁ କୌଣସି ପୋକର ଶରୀର ଦେଖାଯାଉନାହିଁ। କେବଳ ପତ୍ର କ୍ଷତିରୁ ପୋକ ଚିହ୍ନଟ ସମ୍ଭବ ନୁହେଁ। ଗଛ ମୂଳ ଓ ପତ୍ର ସନ୍ଧିରୁ ଜୀବନ୍ତ ପୋକ ଖୋଜି ତାର ଫଟୋ ଉଠାନ୍ତୁ।'
+              : 'Plant tissue damage is visible, but the causal insect is absent in the photograph. Fungal diseases or past feeding look identical. Inspect stem bases or leaf sheaths and photograph the live pest.'}
           </p>
         </div>
       )}
 
       {status === 'UNCLEAR_IMAGE' && (
-        <div className="bg-slate-100 rounded-3xl p-6 border-2 border-slate-300 text-slate-900 space-y-2">
+        <div className="bg-slate-100 rounded-3xl p-5 sm:p-6 border-2 border-slate-300 text-slate-900 space-y-2">
           <div className="flex items-center space-x-2.5 font-extrabold text-base sm:text-lg text-slate-800">
             <Camera className="w-6 h-6 text-slate-700 flex-shrink-0" />
             <span>{lang === 'or' ? 'ଅସ୍ପଷ୍ଟ ଫଟୋ (ପୁନର୍ବାର ଫଟୋ ଉଠାନ୍ତୁ)' : 'Unclear Photograph (Re-Take Required)'}</span>
@@ -227,21 +256,21 @@ export const PestReport: React.FC<PestReportProps> = ({
       )}
 
       {status === 'NON_AGRICULTURAL_IMAGE' && (
-        <div className="bg-rose-50 rounded-3xl p-6 border-2 border-rose-300 text-rose-950 space-y-2">
+        <div className="bg-rose-50 rounded-3xl p-5 sm:p-6 border-2 border-rose-300 text-rose-950 space-y-2">
           <div className="flex items-center space-x-2.5 font-extrabold text-base sm:text-lg text-rose-900">
             <AlertCircle className="w-6 h-6 text-rose-700 flex-shrink-0" />
             <span>{lang === 'or' ? 'ଅଣ-କୃଷି ଫଟୋ ପ୍ରତ୍ୟାଖ୍ୟାତ' : 'Non-Agricultural Image Rejected'}</span>
           </div>
           <p className="text-sm text-rose-900/90 leading-relaxed">
             {lang === 'or'
-              ? 'ଏହି ଫଟୋରେ କୌଣସି ଧାନ ଫସଲ କିମ୍ବା କୃଷି କୀଟ ନାହିଁ (ମୋଟର ଗାଡ଼ି, ବସ୍ତୁ କିମ୍ବା ଅନ୍ୟାନ୍ୟ ଦୃଶ୍ୟ)। କୃଷି ମିତ୍ର AI କେବଳ ଧାନ କ୍ଷେତ୍ରର କୀଟ ପରିଚାଳନା ପାଇଁ ପ୍ରସ୍ତୁତ।'
-              : 'The uploaded image contains an automobile, household object, or non-agricultural subject. The system rejects this scan and refuses to manufacture an insect classification.'}
+              ? 'ଏହି ଫଟୋରେ କୌଣସି ଫସଲ କିମ୍ବା କୃଷି କୀଟ ନାହିଁ। କୃଷି ମିତ୍ର AI ଅଣ-କୃଷି ବସ୍ତୁ ପାଇଁ ମନଗଢ଼ା କୀଟ ନାମ ସୃଷ୍ଟି କରେ ନାହିଁ।'
+              : 'The uploaded image contains an automobile, human subject, or non-agricultural item. The system rejects this scan and refuses to manufacture an insect classification.'}
           </p>
         </div>
       )}
 
       {/* CORE SPECIMEN DOSSIER CARD */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+      <div className="bg-white rounded-3xl p-5 sm:p-8 shadow-sm border border-slate-200 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-0.5 rounded-full bg-agri-100 text-agri-800 text-xs font-bold uppercase tracking-wider">
@@ -256,9 +285,8 @@ export const PestReport: React.FC<PestReportProps> = ({
           </span>
         </div>
 
-        {/* PHOTOGRAPH COMPARISON (USER vs SCIENTIFIC REFERENCE) */}
+        {/* PHOTOGRAPH COMPARISON */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 1. User Uploaded Photo */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-slate-500 font-bold px-1">
               <span>{lang === 'or' ? '୧. ଆପଣଙ୍କ ଅପଲୋଡ୍ ଫଟୋ' : '1. Your Uploaded Photograph'}</span>
@@ -278,12 +306,11 @@ export const PestReport: React.FC<PestReportProps> = ({
             </div>
           </div>
 
-          {/* 2. Authoritative Reference Specimen */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-slate-500 font-bold px-1">
               <span>{lang === 'or' ? '୨. ବୈଜ୍ଞାନିକ ପ୍ରମାଣିକ ନମୁନା' : '2. Verified Reference Specimen'}</span>
               <span className="text-[10px] text-emerald-700 font-semibold">
-                {referenceImage ? referenceImage.sourceName.split('/')[0] : 'ICAR-NRRI Benchmark'}
+                {referenceImage ? referenceImage.sourceName.split('/')[0] : 'Reference Benchmark'}
               </span>
             </div>
             <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 relative group">
@@ -302,7 +329,7 @@ export const PestReport: React.FC<PestReportProps> = ({
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center text-slate-400 text-xs">
                   <Eye className="w-8 h-8 text-slate-300 mb-2" />
-                  <span>{lang === 'or' ? 'ଅଣ-ସମର୍ଥିତ ବା ଅନିଶ୍ଚିତ ନମୁନା ପାଇଁ ପ୍ରମାଣିକ ଫଟୋ ଉପଲବ୍ଧ ନାହିଁ' : 'Reference photograph available for 5 confirmed rice pests only'}</span>
+                  <span>{lang === 'or' ? 'ଅସମର୍ଥିତ ବା ଅନିଶ୍ଚିତ ନମୁନା ପାଇଁ ପ୍ରମାଣିକ ଫଟୋ ଉପଲବ୍ଧ ନାହିଁ' : 'Reference photograph available for verified pests only'}</span>
                 </div>
               )}
             </div>
@@ -329,9 +356,14 @@ export const PestReport: React.FC<PestReportProps> = ({
                 </span>
               </>
             )}
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
-              Crop: Paddy (Rice)
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-agri-100 text-agri-800">
+              {lang === 'or' ? `ଫସଲ: ${cropInfo?.commonNameOr || 'ଧାନ'}` : `Crop: ${cropInfo?.commonNameEn || 'Paddy'}`}
             </span>
+            {report.plantPart && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                {lang === 'or' ? `ଅଂଶ: ${report.plantPart}` : `Part: ${report.plantPart}`}
+              </span>
+            )}
           </div>
 
           {/* TELEMETRY & CONFIDENCE PILLS */}
@@ -341,7 +373,7 @@ export const PestReport: React.FC<PestReportProps> = ({
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{t.confidenceLabel}: {confidence}%</span>
                 <span className="text-[10px] font-normal text-slate-500">
-                  ({report.confidenceType === 'benchmark_reference' ? 'Curated Reference Value' : 'LLM Self-Estimate (Uncalibrated)'})
+                  ({report.confidenceType === 'benchmark_reference' ? 'Curated Reference Value' : 'Model Raw Score'})
                 </span>
               </div>
             ) : (
@@ -365,7 +397,7 @@ export const PestReport: React.FC<PestReportProps> = ({
               {audioState === 'loading' ? (
                 <button
                   disabled
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 bg-amber-100 text-amber-900 border border-amber-300 shadow-sm"
+                  className="min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 bg-amber-100 text-amber-900 border border-amber-300 shadow-sm"
                 >
                   <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
                   <span>{lang === 'or' ? 'ଅଡିଓ ପ୍ରସ୍ତୁତ ହେଉଛି...' : 'Generating Audio...'}</span>
@@ -373,7 +405,7 @@ export const PestReport: React.FC<PestReportProps> = ({
               ) : audioState === 'error' ? (
                 <button
                   onClick={handleAudioNarration}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 shadow-sm transition-colors"
+                  className="min-h-[44px] px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 shadow-sm transition-colors"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>{lang === 'or' ? 'ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ' : 'Retry Audio'}</span>
@@ -382,7 +414,7 @@ export const PestReport: React.FC<PestReportProps> = ({
                 <div className="flex items-center space-x-1 bg-white/90 p-1 rounded-xl border border-slate-200 shadow-sm">
                   <button
                     onClick={handleAudioNarration}
-                    className="px-3 py-1 rounded-lg text-xs font-bold flex items-center space-x-1.5 bg-agri-700 hover:bg-agri-800 text-white transition-colors"
+                    className="min-h-[44px] px-3 py-1 rounded-lg text-xs font-bold flex items-center space-x-1.5 bg-agri-700 hover:bg-agri-800 text-white transition-colors"
                   >
                     {audioState === 'playing' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                     <span>{audioState === 'playing' ? (lang === 'or' ? 'ରଖନ୍ତୁ' : 'Pause') : (lang === 'or' ? 'ଚଲାନ୍ତୁ' : 'Resume')}</span>
@@ -390,7 +422,7 @@ export const PestReport: React.FC<PestReportProps> = ({
 
                   <button
                     onClick={handleReplayAudio}
-                    className="p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center"
                     title={lang === 'or' ? 'ପୁନର୍ବାର ଶୁଣନ୍ତୁ' : 'Replay'}
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -398,7 +430,7 @@ export const PestReport: React.FC<PestReportProps> = ({
 
                   <button
                     onClick={handleStopAudio}
-                    className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                    className="min-h-[44px] min-w-[44px] p-2 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center"
                     title={lang === 'or' ? 'ଅଡିଓ ବନ୍ଦ କରନ୍ତୁ' : 'Stop'}
                   >
                     <VolumeX className="w-3.5 h-3.5" />
@@ -407,7 +439,7 @@ export const PestReport: React.FC<PestReportProps> = ({
               ) : (
                 <button
                   onClick={handleAudioNarration}
-                  className="px-4 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-2 bg-lime-500 hover:bg-lime-400 text-agri-950 shadow-sm transition-all"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 bg-lime-500 hover:bg-lime-400 text-agri-950 shadow-sm transition-all"
                 >
                   <Volume2 className="w-4 h-4" />
                   <span>{lang === 'or' ? 'ଓଡ଼ିଆରେ ଶୁଣନ୍ତୁ' : 'Listen in Odia'}</span>
@@ -423,7 +455,7 @@ export const PestReport: React.FC<PestReportProps> = ({
           )}
         </div>
 
-        {/* DETAILED CROP DAMAGE & HARVEST IMPACT ANALYSIS */}
+        {/* DETAILED CROP DAMAGE ANALYSIS */}
         {isTreatmentAllowed && (report.aiInferredDamage || report.potentialYieldLossRange) && (
           <div className="p-5 rounded-2xl bg-gradient-to-r from-red-50/80 via-amber-50/70 to-orange-50/80 border border-amber-300/80 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -503,8 +535,8 @@ export const PestReport: React.FC<PestReportProps> = ({
             </div>
             <p className="text-[11px] text-emerald-900/90 leading-relaxed">
               {lang === 'or'
-                ? 'ଏହି ଚିହ୍ନଟ AI ମଡେଲ ଆଧାରିତ ଏକ ସମ୍ଭାବ୍ୟ ନିରୀକ୍ଷଣ। କେବଳ ଏକ ଫଟୋ ଆଧାରରେ ରାସାୟନିକ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ। କ୍ଷେତରେ ୨୦ଟି ଧାନ ଗୁଚ୍ଛ (hills) ପରୀକ୍ଷା କରି କ୍ଷତିର ମାତ୍ରା (ETL) ନିର୍ଦ୍ଧାରଣ କରନ୍ତୁ ଏବଂ ନିକଟସ୍ଥ KVK ବିଶେଷଜ୍ଞ କିମ୍ବା କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।'
-                : 'This identification is an automated, suspected field diagnosis. Do not spray synthetic chemical pesticides solely based on photograph detection. Scout 20 random hills to confirm that insect density exceeds the Economic Threshold Level (ETL), and prioritize cultural/biological methods before chemical intervention.'}
+                ? `ଏହି ଚିହ୍ନଟ AI ମଡେଲ ଆଧାରିତ ଏକ ସମ୍ଭାବ୍ୟ ନିରୀକ୍ଷଣ। କେବଳ ଏକ ଫଟୋ ଆଧାରରେ ରାସାୟନିକ କୀଟନାଶକ ସିଞ୍ଚନ କରନ୍ତୁ ନାହିଁ। କ୍ଷେତରେ ଯାଞ୍ଚ କରି କ୍ଷତିର ମାତ୍ରା (ETL) ନିର୍ଦ୍ଧାରଣ କରନ୍ତୁ ଏବଂ ନିକଟସ୍ଥ KVK ବିଶେଷଜ୍ଞ କିମ୍ବା କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।`
+                : 'This identification is an automated, suspected field diagnosis. Do not spray synthetic chemical pesticides solely based on photograph detection. Scout plants to confirm that insect density exceeds the Economic Threshold Level (ETL), and prioritize cultural/biological methods before chemical intervention.'}
             </p>
           </div>
         )}
@@ -514,14 +546,14 @@ export const PestReport: React.FC<PestReportProps> = ({
           {isTreatmentAllowed ? (
             <button
               onClick={onNavigateTreatments}
-              className="flex-1 py-3.5 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all"
+              className="min-h-[44px] flex-1 py-3.5 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all"
             >
               <Sprout className="w-5 h-5 text-lime-300" />
               <span>{lang === 'or' ? '୩-ସ୍ତରୀୟ ସମନ୍ୱିତ ଉପଚାର ପରାମର୍ଶ ଦେଖନ୍ତୁ' : 'View 3-Tier Treatment & IPM Protocols'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <div className="flex-1 py-3 px-4 rounded-2xl bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold flex items-center space-x-2">
+            <div className="min-h-[44px] flex-1 py-3 px-4 rounded-2xl bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold flex items-center space-x-2">
               <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
               <span>
                 {lang === 'or' 
@@ -534,7 +566,7 @@ export const PestReport: React.FC<PestReportProps> = ({
           <button
             onClick={handleSaveReport}
             disabled={isSaved}
-            className={`py-3.5 px-5 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border transition-all ${
+            className={`min-h-[44px] py-3.5 px-5 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border transition-all ${
               isSaved 
                 ? 'bg-slate-100 text-slate-500 border-slate-200' 
                 : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-sm'
@@ -547,7 +579,7 @@ export const PestReport: React.FC<PestReportProps> = ({
           <button
             onClick={handleEscalateToKvk}
             disabled={escalated}
-            className={`py-3.5 px-5 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border transition-all ${
+            className={`min-h-[44px] py-3.5 px-5 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border transition-all ${
               escalated
                 ? 'bg-lime-50 text-agri-900 border-lime-300'
                 : 'bg-white hover:bg-slate-50 text-agri-900 border-slate-300 shadow-sm'
@@ -556,8 +588,60 @@ export const PestReport: React.FC<PestReportProps> = ({
             <UserCheck className="w-4 h-4 text-agri-700" />
             <span>{escalated ? (lang === 'or' ? 'KVK କୁ ପଠାଗଲା' : 'Escalated to KVK') : t.ctaEscalateExpert}</span>
           </button>
+
+          <button
+            onClick={() => setShowFlagModal(true)}
+            disabled={reportFlagged}
+            className={`min-h-[44px] py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center space-x-1.5 border transition-all ${
+              reportFlagged
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-200 shadow-sm'
+            }`}
+          >
+            <Flag className="w-4 h-4 text-rose-600" />
+            <span>{reportFlagged ? (lang === 'or' ? 'ଅଭିଯୋଗ ଦାଖଲ ହେଲା' : 'Flagged') : (lang === 'or' ? 'ଭୁଲ ଚିହ୍ନଟ ଜଣାନ୍ତୁ' : 'Report Wrong Pest')}</span>
+          </button>
         </div>
       </div>
+
+      {showFlagModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center space-x-2.5 text-rose-800 font-bold text-base">
+              <Flag className="w-5 h-5 text-rose-600" />
+              <span>{lang === 'or' ? 'ଭୁଲ ଚିହ୍ନଟ ଅଭିଯୋଗ (Farmer Feedback)' : 'Report Incorrect Identification'}</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {lang === 'or'
+                ? 'ଯଦି ଆପଣ ଭାବୁଛନ୍ତି AI ଦ୍ୱାରା ଦିଆଯାଇଥିବା କୀଟ ଚିହ୍ନଟ ଭୁଲ ଅଟେ, ତେବେ ଦୟାକରି ଆପଣଙ୍କ ମତାମତ ଲେଖନ୍ତୁ। ଏହା ମଡେଲକୁ ଉନ୍ନତ କରିବାରେ ସାହାଯ୍ୟ କରିବ।'
+                : 'If you believe this diagnosis is inaccurate, please describe your observation. This is flagged for entomological retraining.'}
+            </p>
+            <textarea
+              value={flagFeedback}
+              onChange={(e) => setFlagFeedback(e.target.value)}
+              placeholder={lang === 'or' ? 'ଉଦାହରଣ: ଏହା ମକା ଫସଲରେ ଫଲ୍ ଆର୍ମିୱାର୍ମ ପରି ଦେଖାଯାଉଛି...' : 'e.g. This looks like fall armyworm on maize leaves...'}
+              rows={3}
+              className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+            />
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowFlagModal(false)}
+                className="min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                {lang === 'or' ? 'ବାତିଲ' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleFlagReport}
+                className="min-h-[44px] px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
+              >
+                {lang === 'or' ? 'ଦାଖଲ କରନ୍ତୁ' : 'Submit Feedback'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -4,21 +4,51 @@ export type PestId =
   | 'leaf_folder' 
   | 'rice_hispa' 
   | 'armyworm' 
+  | 'fall_armyworm'
+  | 'fruit_borer'
+  | 'shoot_and_fruit_borer'
+  | 'black_thrips'
+  | 'groundnut_leaf_miner'
+  | 'pulse_pod_borer'
+  | 'diamondback_moth'
   | 'healthy_paddy' 
   | 'beneficial_spider' 
   | 'uncertain';
 
-export type CropId = 'paddy' | 'maize' | 'tomato' | 'brinjal' | 'chilli' | 'groundnut' | 'pulses';
+export type CropId =
+  // Cereals & Millets
+  | 'paddy' | 'maize' | 'ragi' | 'sorghum' | 'pearl_millet' | 'foxtail_millet'
+  // Pulses
+  | 'green_gram' | 'black_gram' | 'pigeon_pea' | 'chickpea' | 'lentil' | 'cowpea' | 'pulses'
+  // Oilseeds
+  | 'groundnut' | 'mustard' | 'sesame' | 'sunflower' | 'niger'
+  // Vegetables
+  | 'tomato' | 'brinjal' | 'chilli' | 'okra' | 'cabbage' | 'cauliflower' | 'bitter_gourd' | 'bottle_gourd' | 'pointed_gourd' | 'onion' | 'potato'
+  // Fruits & Horticulture
+  | 'mango' | 'banana' | 'papaya' | 'guava' | 'citrus' | 'coconut' | 'cashew';
+
+export type PlantPart = 
+  | 'leaf' 
+  | 'stem' 
+  | 'root' 
+  | 'flower' 
+  | 'fruit' 
+  | 'grain' 
+  | 'whole_plant';
 
 export type SeverityLevel = 'Low' | 'Moderate' | 'Severe' | 'Critical';
 
 export type ScanStatus = 
   | 'IDENTIFIED'
+  | 'PROBABLE_IDENTIFICATION'
   | 'OTHER_INSECT'
+  | 'NON_TARGET_INSECT'
+  | 'UNSUPPORTED_SPECIES'
   | 'NO_INSECT'
   | 'HEALTHY_CROP'
   | 'CROP_DAMAGE_NO_VISIBLE_INSECT'
   | 'UNCLEAR_IMAGE'
+  | 'IMAGE_QUALITY_INSUFFICIENT'
   | 'NON_AGRICULTURAL_IMAGE'
   | 'UNKNOWN'
   | 'ERROR';
@@ -46,7 +76,7 @@ export interface ChemicalControlMethod {
   tradeNames: string[];
   dosagePerAcre: string;
   waterVolumePerAcre: string;
-  phiDays: number; // Pre-Harvest Interval in days
+  phiDays: number;
   cibrcRegistered: boolean;
   toxicityClass: 'Green (Slightly Toxic)' | 'Blue (Moderately Toxic)' | 'Yellow (Highly Toxic)';
   safetyPrecautionsEn: string;
@@ -97,9 +127,9 @@ export interface ScanReport {
   id: string;
   createdAt: number;
   cropId: CropId;
+  plantPart?: PlantPart;
   imageUri: string;
   
-  // Strict Scientific Status & Gating
   status?: ScanStatus;
   treatmentAllowed?: boolean;
   confidenceType?: string | null;
@@ -112,8 +142,8 @@ export interface ScanReport {
   
   imageQualityAssessment: {
     isClear: boolean;
-    lightingScore: number; // 0-100
-    sharpnessScore: number; // 0-100
+    lightingScore: number;
+    sharpnessScore: number;
     warningMessage?: string;
   };
   identification: {
@@ -121,7 +151,7 @@ export interface ScanReport {
     commonNameEn: string;
     commonNameOr: string;
     scientificName: string;
-    confidence: number | null; // null if uncalibrated/uncertain
+    confidence: number | null;
     certaintyTier: 'high' | 'moderate' | 'uncertain';
   };
   alternativePossibilities: Array<{
@@ -138,7 +168,7 @@ export interface ScanReport {
   immediateActionsEn: string[];
   immediateActionsOr: string[];
   expertReviewRequired: boolean;
-  sourceModel: 'gemini-3.5-flash-lite' | 'gemini-3.5-flash' | 'gemini-1.5-flash' | 'gemini-2.0-flash' | 'gemini-1.5-pro' | 'gemini-2.5-flash' | 'expert-verified-baseline' | 'deterministic-reference-kb' | string;
+  sourceModel: string;
   modelVersion?: string;
   requestId?: string;
   imageHash?: string;

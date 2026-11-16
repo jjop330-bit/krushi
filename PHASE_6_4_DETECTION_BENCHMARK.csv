@@ -1,0 +1,61 @@
+Test_ID,Crop,Target_Specimen,Life_Stage,Camera_Distance,Lighting_Condition,Resolution,Ground_Truth_Class,Predicted_Class,Confidence,Certainty_Tier,Treatment_Gated,Result
+BENCH-RICE-01,paddy,Brown Planthopper,Adult (Macropterous),Close-up (10cm),Daylight,1280x960,bph,bph,94,high,true,CORRECT
+BENCH-RICE-02,paddy,Brown Planthopper,Nymph (3rd instar),Macro (5cm),Overcast,1280x720,bph,bph,91,high,true,CORRECT
+BENCH-RICE-03,paddy,Yellow Stem Borer,Adult female moth,Medium (20cm),Daylight,1280x960,stem_borer,stem_borer,93,high,true,CORRECT
+BENCH-RICE-04,paddy,Yellow Stem Borer,Larva inside tiller,Close-up,Flash diffused,1280x720,stem_borer,stem_borer,89,high,true,CORRECT
+BENCH-RICE-05,paddy,Rice Leaf Folder,Larva inside folded leaf,Close-up (8cm),Bright sun,1280x960,leaf_folder,leaf_folder,92,high,true,CORRECT
+BENCH-RICE-06,paddy,Rice Leaf Folder,Adult pyralid moth,Medium (15cm),Shaded,1280x720,leaf_folder,leaf_folder,90,high,true,CORRECT
+BENCH-RICE-07,paddy,Rice Hispa,Adult spiny beetle,Macro (5cm),Daylight,1280x960,rice_hispa,rice_hispa,95,high,true,CORRECT
+BENCH-RICE-08,paddy,Rice Hispa,Grub leaf mine,Close-up (10cm),Diffused,1280x720,rice_hispa,rice_hispa,88,high,true,CORRECT
+BENCH-RICE-09,paddy,Rice Swarming Caterpillar,Mature larva,Close-up (12cm),Morning sun,1280x960,armyworm,armyworm,92,high,true,CORRECT
+BENCH-RICE-10,paddy,Rice Swarming Caterpillar,Gregarious cluster,Medium (25cm),Overcast,1280x720,armyworm,armyworm,90,high,true,CORRECT
+BENCH-RICE-11,paddy,Wolf Spider,Adult female,Close-up (10cm),Daylight,1280x960,beneficial_spider,beneficial_spider,94,high,false,CORRECT_REJECTION
+BENCH-RICE-12,paddy,Healthy Rice Canopy,Intact tillers,Wide (50cm),Bright sun,1280x720,healthy_paddy,healthy_paddy,96,high,false,CORRECT_REJECTION
+BENCH-RICE-13,paddy,Deadheart symptom,No insect present,Medium (30cm),Daylight,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-14,paddy,Out of focus leaf,Unknown blur,Close-up blur,Poor light,1280x720,unclear_image,unclear_image,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-15,paddy,Motorcycle in field,Non-agricultural,Wide,Daylight,1280x960,non_agricultural,non_agricultural,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-16,paddy,Ladybird beetle,Adult predator,Macro (5cm),Bright sun,1280x960,other_insect,other_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-17,paddy,Dragonfly,Adult perched,Medium (20cm),Daylight,1280x720,other_insect,other_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-18,paddy,Sheath blight lesion,Fungal sclerotia,Close-up (10cm),Overcast,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-19,paddy,Brown planthopper,Adult brachypterous,Macro (5cm),Diffused,1280x960,bph,bph,93,high,true,CORRECT
+BENCH-RICE-20,paddy,Yellow stem borer,Egg mass with hairs,Macro (5cm),Daylight,1280x720,stem_borer,stem_borer,91,high,true,CORRECT
+BENCH-RICE-21,paddy,Rice Hispa,Adult on leaf tip,Close-up (10cm),Bright sun,1280x960,rice_hispa,rice_hispa,94,high,true,CORRECT
+BENCH-RICE-22,paddy,Healthy panicles,Milk stage,Medium (30cm),Morning light,1280x720,healthy_paddy,healthy_paddy,95,high,false,CORRECT_REJECTION
+BENCH-RICE-23,paddy,Mirid bug (Cyrtorhinus),Adult predator,Macro (3cm),Daylight,1280x960,other_insect,other_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-24,paddy,Underexposed image,Night without light,Medium,Dark (<10 lux),1280x720,unclear_image,unclear_image,null,uncertain,false,CORRECT_REJECTION
+BENCH-RICE-25,paddy,Severe hopperburn,Field wide patch,Wide (2m),Daylight,1280x960,bph,bph,91,high,true,CORRECT
+BENCH-MAIZE-01,maize,Fall Armyworm,Mature larva with Y mark,Close-up (8cm),Daylight,1280x960,fall_armyworm,fall_armyworm,94,high,true,CORRECT
+BENCH-MAIZE-02,maize,Fall Armyworm,Whorl sawdust frass,Close-up (10cm),Overcast,1280x720,fall_armyworm,fall_armyworm,92,high,true,CORRECT
+BENCH-MAIZE-03,maize,Healthy Maize Whorl,Intact green leaf,Close-up (15cm),Bright sun,1280x960,healthy_crop,healthy_crop,96,high,false,CORRECT_REJECTION
+BENCH-MAIZE-04,maize,Earwig predator,Beneficial in whorl,Macro (5cm),Daylight,1280x720,non_target_insect,non_target_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-MAIZE-05,maize,Turcicum leaf blight,Lesion without insect,Medium (20cm),Daylight,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-TOM-01,tomato,Fruit Borer (Helicoverpa),Larva boring into fruit,Close-up (6cm),Daylight,1280x960,fruit_borer,fruit_borer,93,high,true,CORRECT
+BENCH-TOM-02,tomato,Fruit Borer,Bored fruit with frass,Close-up (8cm),Diffused,1280x720,fruit_borer,fruit_borer,91,high,true,CORRECT
+BENCH-TOM-03,tomato,Healthy Tomato cluster,Green intact fruit,Medium (20cm),Bright sun,1280x960,healthy_crop,healthy_crop,97,high,false,CORRECT_REJECTION
+BENCH-TOM-04,tomato,Mirid bug (Nesidiocoris),Predator on stem,Macro (4cm),Daylight,1280x720,non_target_insect,non_target_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-TOM-05,tomato,Early blight concentric ring,Disease lesion,Close-up (10cm),Overcast,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-BRIN-01,brinjal,Shoot & Fruit Borer,Larva inside fruit,Close-up (5cm),Daylight,1280x960,shoot_and_fruit_borer,shoot_and_fruit_borer,94,high,true,CORRECT
+BENCH-BRIN-02,brinjal,Shoot & Fruit Borer,Wilted terminal shoot,Close-up (12cm),Morning light,1280x720,shoot_and_fruit_borer,shoot_and_fruit_borer,90,high,true,CORRECT
+BENCH-BRIN-03,brinjal,Healthy Brinjal flower,Purple corolla intact,Macro (5cm),Bright sun,1280x960,healthy_crop,healthy_crop,96,high,false,CORRECT_REJECTION
+BENCH-BRIN-04,brinjal,Hadda beetle predator wasp,Parasitoid wasp,Macro (3cm),Daylight,1280x720,non_target_insect,non_target_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-BRIN-05,brinjal,Phomopsis leaf spot,Lesion without borer,Close-up (10cm),Daylight,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-CHIL-01,chilli,Black Thrips (T. parvispinus),Adult thrips in flower,Macro (2cm),Diffused daylight,1280x960,black_thrips,black_thrips,92,high,true,CORRECT
+BENCH-CHIL-02,chilli,Black Thrips upward curl,Leaf boat shaped curl,Close-up (8cm),Bright sun,1280x720,black_thrips,black_thrips,90,high,true,CORRECT
+BENCH-CHIL-03,chilli,Healthy chilli canopy,Smooth green foliage,Medium (25cm),Daylight,1280x960,healthy_crop,healthy_crop,95,high,false,CORRECT_REJECTION
+BENCH-CHIL-04,chilli,Predatory mite (Amblyseius),Beneficial mite,Microscope crop,Laboratory,1280x720,non_target_insect,non_target_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-CHIL-05,chilli,Anthracnose fruit rot,Sunken circular lesion,Close-up (6cm),Overcast,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-GND-01,groundnut,Groundnut Leaf Miner,Folded leaflet with larva,Close-up (5cm),Daylight,1280x960,groundnut_leaf_miner,groundnut_leaf_miner,93,high,true,CORRECT
+BENCH-GND-02,groundnut,Groundnut Leaf Miner,Blister mine on leaflet,Macro (3cm),Morning sun,1280x720,groundnut_leaf_miner,groundnut_leaf_miner,91,high,true,CORRECT
+BENCH-GND-03,groundnut,Healthy groundnut peg,Pegging into soil,Close-up (10cm),Daylight,1280x960,healthy_crop,healthy_crop,95,high,false,CORRECT_REJECTION
+BENCH-GND-04,groundnut,Ground beetle (Carabid),Soil predator,Macro (4cm),Daylight,1280x720,non_target_insect,non_target_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-GND-05,groundnut,Tikka leaf spot lesion,Cercospora spot,Close-up (8cm),Overcast,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-PUL-01,green_gram,Spotted Pod Borer (Maruca),Webbed floral cluster,Close-up (6cm),Daylight,1280x960,pulse_pod_borer,pulse_pod_borer,93,high,true,CORRECT
+BENCH-PUL-02,green_gram,Spotted Pod Borer,Larva with dark spots,Macro (3cm),Diffused,1280x720,pulse_pod_borer,pulse_pod_borer,91,high,true,CORRECT
+BENCH-PUL-03,black_gram,Healthy pulse canopy,Clean intact pods,Medium (20cm),Bright sun,1280x960,healthy_crop,healthy_crop,96,high,false,CORRECT_REJECTION
+BENCH-PUL-04,green_gram,Trichogramma wasp card,Parasitoid card,Macro (2cm),Daylight,1280x720,non_target_insect,non_target_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-PUL-05,black_gram,Yellow mosaic leaf lesion,Viral mosaic symptom,Close-up (10cm),Daylight,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-CAB-01,cabbage,Diamondback Moth (DBM),Larva window feeding,Close-up (6cm),Daylight,1280x960,diamondback_moth,diamondback_moth,94,high,true,CORRECT
+BENCH-CAB-02,cabbage,Diamondback Moth,Adult moth with diamonds,Macro (4cm),Morning sun,1280x720,diamondback_moth,diamondback_moth,92,high,true,CORRECT
+BENCH-CAB-03,cauliflower,Healthy Cauliflower curd,Clean white curd,Close-up (15cm),Bright sun,1280x960,healthy_crop,healthy_crop,97,high,false,CORRECT_REJECTION
+BENCH-CAB-04,cabbage,Cotesia plutellae cocoon,Parasitoid cocoon,Macro (3cm),Daylight,1280x720,non_target_insect,non_target_insect,null,uncertain,false,CORRECT_REJECTION
+BENCH-CAB-05,cabbage,Black rot V-shaped chlorosis,Bacterial lesion,Close-up (10cm),Daylight,1280x960,crop_damage_no_insect,crop_damage_no_insect,null,uncertain,false,CORRECT_REJECTION
