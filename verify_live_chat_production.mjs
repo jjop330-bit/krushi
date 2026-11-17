@@ -1,6 +1,8 @@
 import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
+import http from 'node:http';
+import { spawn } from 'node:child_process';
 
 const SCREENSHOT_DIR = './CHAT_FIX_VERIFICATION_SCREENSHOTS';
 if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -19,18 +21,72 @@ const TEST_MESSAGES = [
   'Explain the pest life cycle.'
 ];
 
+function startCurlBridge(port = 3015) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      const targetUrl = 'https://krushi-psi.vercel.app' + req.url;
+      const curl = spawn('curl.exe', ['-s', '-k', '-i', '--resolve', 'krushi-psi.vercel.app:443:64.29.17.131', targetUrl]);
+
+      let headerEnded = false;
+      let headerBuf = '';
+
+      curl.stdout.on('data', (chunk) => {
+        if (!headerEnded) {
+          headerBuf += chunk.toString('binary');
+          const idx = headerBuf.indexOf('\r\n\r\n');
+          if (idx !== -1) {
+            headerEnded = true;
+            const rawHeaders = headerBuf.slice(0, idx).split('\r\n');
+            const bodyPart = Buffer.from(headerBuf.slice(idx + 4), 'binary');
+
+            const statusLine = rawHeaders[0] || 'HTTP/1.1 200 OK';
+            const parts = statusLine.split(' ');
+            const statusCode = parseInt(parts[1], 10) || 200;
+            res.statusCode = statusCode;
+
+            for (let i = 1; i < rawHeaders.length; i++) {
+              const colon = rawHeaders[i].indexOf(':');
+              if (colon !== -1) {
+                const k = rawHeaders[i].slice(0, colon).trim();
+                const v = rawHeaders[i].slice(colon + 1).trim();
+                if (k.toLowerCase() !== 'transfer-encoding') {
+                  try { res.setHeader(k, v); } catch(e) {}
+                }
+              }
+            }
+            res.write(bodyPart);
+          }
+        } else {
+          res.write(chunk);
+        }
+      });
+
+      curl.stdout.on('end', () => res.end());
+      curl.on('error', (err) => {
+        res.statusCode = 502;
+        res.end(err.message);
+      });
+    });
+
+    server.listen(port, '127.0.0.1', () => {
+      console.log(`🌐 Live Vercel Curl Bridge active on http://127.0.0.1:${port}`);
+      resolve(server);
+    });
+  });
+}
+
 async function runVerification() {
   console.log('🚀 Starting Krushi Mitra AI Production Chat & Voice Verification...');
-  console.log('Live Target: https://krushi-psi.vercel.app/');
+  console.log('Live Target: https://krushi-psi.vercel.app/ (via Vercel Bridge)');
+
+  const bridgeServer = await startCurlBridge(3015);
 
   const browser = await puppeteer.launch({
     executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     headless: true,
     args: [
       '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--ignore-certificate-errors',
-      '--disable-web-security'
+      '--disable-setuid-sandbox'
     ]
   });
 
@@ -71,18 +127,8 @@ async function runVerification() {
   });
 
   console.log('Navigating to live production site...');
-  let navSuccess = false;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await page.goto('https://krushi-psi.vercel.app/', { waitUntil: 'networkidle2', timeout: 35000 });
-      navSuccess = true;
-      break;
-    } catch (err) {
-      console.warn(`Nav attempt ${attempt} failed: ${err.message}. Retrying in 2s...`);
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
-  if (!navSuccess) throw new Error('Failed to load production site');
+  await page.goto('http://127.0.0.1:3015/', { waitUntil: 'networkidle2', timeout: 35000 });
+  await page.waitForSelector('button');
 
   // Switch to English language
   await page.evaluate(() => {
@@ -94,14 +140,17 @@ async function runVerification() {
 
   // Find and click Rice Armyworm sample card on Dashboard
   console.log('Locating Rice Armyworm sample card on Dashboard...');
+  await page.evaluate(() => {
+    window.scrollTo(0, 1000);
+  });
+  await new Promise(r => setTimeout(r, 600));
+
   const foundArmyworm = await page.evaluate(() => {
-    // Scroll down to specimen grid
-    window.scrollTo(0, 500);
-    const cards = Array.from(document.querySelectorAll('.cursor-pointer, .group'));
+    const cards = Array.from(document.querySelectorAll('.group.cursor-pointer, .cursor-pointer, .group'));
     const armywormCard = cards.find(c => 
       (c.textContent || '').includes('Armyworm') || 
-      (c.textContent || '').includes('ଲେଡ଼ା ପୋକ') || 
-      (c.textContent || '').includes('ଧାନ ଲେଡ଼ା')
+      (c.textContent || '').includes('Mythimna') || 
+      (c.textContent || '').includes('ଲେଡ଼ା')
     );
     if (armywormCard) {
       armywormCard.scrollIntoView();
@@ -119,8 +168,8 @@ async function runVerification() {
     const buttons = Array.from(document.querySelectorAll('button'));
     const analyzeBtn = buttons.find(b => 
       (b.textContent || '').includes('Run AI Pest Diagnosis') ||
+      (b.textContent || '').includes('Diagnosis') || 
       (b.textContent || '').includes('Analyze') || 
-      (b.textContent || '').includes('Scan') || 
       (b.textContent || '').includes('ବିଶ୍ଳେଷଣ')
     );
     if (analyzeBtn) {
@@ -133,7 +182,7 @@ async function runVerification() {
   // Navigate to Voice Assistant tab
   console.log('Navigating to Assistant tab...');
   await page.evaluate(() => {
-    const navButtons = Array.from(document.querySelectorAll('nav button, header button'));
+    const navButtons = Array.from(document.querySelectorAll('nav button, header button, button'));
     const assistantBtn = navButtons.find(b => 
       (b.textContent || '').includes('Voice') ||
       (b.textContent || '').includes('Assistant') || 
@@ -142,7 +191,7 @@ async function runVerification() {
     );
     if (assistantBtn) assistantBtn.click();
   });
-  await new Promise(r => setTimeout(r, 1200));
+  await new Promise(r => setTimeout(r, 1500));
 
   // Verify chat banner context
   const activePestBanner = await page.evaluate(() => {
@@ -236,36 +285,47 @@ async function runVerification() {
   const mobilePage = await browser.newPage();
   await mobilePage.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await mobilePage.goto('https://krushi-psi.vercel.app/', { waitUntil: 'networkidle2', timeout: 35000 });
-      break;
-    } catch (err) {
-      console.warn(`Mobile attempt ${attempt} failed. Retrying...`);
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
+  await mobilePage.goto('http://127.0.0.1:3015/', { waitUntil: 'networkidle2', timeout: 35000 });
 
-  // Navigate to Voice Assistant tab on mobile
+  await mobilePage.waitForSelector('button');
+
+  // Switch to English language on mobile
   await mobilePage.evaluate(() => {
-    // Check if there is an assistant button on dashboard or open hamburger menu
-    const menuBtn = document.querySelector('button[aria-label="Navigation Menu"]');
-    if (menuBtn) menuBtn.click();
+    const btns = Array.from(document.querySelectorAll('button'));
+    const enBtn = btns.find(b => b.textContent.includes('English') || b.textContent.trim() === 'EN');
+    if (enBtn) enBtn.click();
   });
   await new Promise(r => setTimeout(r, 600));
 
+  // Navigate to Voice Assistant tab on mobile via Hero CTA or Drawer
+  console.log('Navigating to Assistant tab on mobile...');
   await mobilePage.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll('button'));
-    const aiBtn = buttons.find(b => 
-      (b.textContent || '').includes('Voice') || 
-      (b.textContent || '').includes('Assistant') || 
-      (b.textContent || '').includes('Odia AI') || 
-      (b.textContent || '').includes('ଭଏସ୍') || 
-      (b.textContent || '').includes('ସହାୟକ')
+    const btns = Array.from(document.querySelectorAll('button'));
+    const heroBtn = btns.find(b => 
+      (b.textContent || '').includes('Ask Voice Assistant') || 
+      (b.textContent || '').includes('ଓଡ଼ିଆରେ କଥା')
     );
-    if (aiBtn) aiBtn.click();
+    if (heroBtn) {
+      heroBtn.scrollIntoView();
+      heroBtn.click();
+      return;
+    }
+    const menuBtn = document.querySelector('button[aria-label="Navigation Menu"]');
+    if (menuBtn) menuBtn.click();
   });
   await new Promise(r => setTimeout(r, 1200));
+
+  await mobilePage.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button'));
+    const drawerBtn = btns.find(b => 
+      (b.textContent || '').includes('Voice') || 
+      (b.textContent || '').includes('Assistant') || 
+      (b.textContent || '').includes('ଭଏସ୍') ||
+      (b.textContent || '').includes('ସାଥୀ')
+    );
+    if (drawerBtn) drawerBtn.click();
+  });
+  await new Promise(r => setTimeout(r, 1500));
 
   // Type HII on mobile
   await mobilePage.waitForSelector('input[type="text"]');
@@ -279,6 +339,7 @@ async function runVerification() {
   console.log(`📸 Saved Mobile Screenshot: ${mobileScreenshot}`);
 
   await browser.close();
+  bridgeServer.close();
 
   // Save evidence report
   const evidence = {
