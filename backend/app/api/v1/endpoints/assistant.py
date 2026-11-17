@@ -187,7 +187,10 @@ async def generate_gemini_chat_response(query: str, pest_info: dict | None, dist
         "}"
     )
 
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent?key={settings.GEMINI_API_KEY}"
+    models_to_try = [settings.GEMINI_MODEL]
+    if "gemini-3.1-flash-lite" not in models_to_try:
+        models_to_try.append("gemini-3.1-flash-lite")
+
     payload = {
         "contents": [
             {
@@ -202,25 +205,31 @@ async def generate_gemini_chat_response(query: str, pest_info: dict | None, dist
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            for attempt in range(3):
-                resp = await client.post(endpoint, json=payload)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    candidates = data.get("candidates", [])
-                    if candidates and len(candidates) > 0:
-                        parts = candidates[0].get("content", {}).get("parts", [])
-                        if parts and len(parts) > 0 and "text" in parts[0]:
-                            raw_text = parts[0]["text"]
-                            parsed = json.loads(raw_text)
-                            if parsed.get("reply_or") and parsed.get("reply_en"):
-                                return parsed
-                elif resp.status_code in (429, 503) and attempt < 2:
-                    logger.warning("Gemini Assistant call returned HTTP %s on attempt %d, retrying with backoff...", resp.status_code, attempt + 1)
-                    await asyncio.sleep(1.2 * (attempt + 1))
-                    continue
-                else:
-                    logger.warning("Gemini Assistant call returned HTTP %s: %s", resp.status_code, resp.text[:120])
-                    break
+            for model_name in models_to_try:
+                endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+                for attempt in range(2):
+                    try:
+                        resp = await client.post(endpoint, json=payload)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            candidates = data.get("candidates", [])
+                            if candidates and len(candidates) > 0:
+                                parts = candidates[0].get("content", {}).get("parts", [])
+                                if parts and len(parts) > 0 and "text" in parts[0]:
+                                    raw_text = parts[0]["text"]
+                                    parsed = json.loads(raw_text)
+                                    if parsed.get("reply_or") and parsed.get("reply_en"):
+                                        return parsed
+                        elif resp.status_code in (429, 503) and attempt == 0:
+                            logger.warning("Gemini Assistant (%s) returned HTTP %s on attempt 1, retrying...", model_name, resp.status_code)
+                            await asyncio.sleep(1.0)
+                            continue
+                        else:
+                            logger.warning("Gemini Assistant (%s) call returned HTTP %s: %s", model_name, resp.status_code, resp.text[:120])
+                            break
+                    except Exception as post_exc:
+                        logger.warning("Gemini Assistant (%s) request exception: %s", model_name, post_exc)
+                        break
     except Exception as exc:
         logger.warning("Gemini Assistant generation failed or timed out: %s.", exc)
 
