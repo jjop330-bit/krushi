@@ -54,6 +54,7 @@ async def list_speakers() -> SupportedSpeakersResponse:
     description="Returns operational status of the voice engine and provider key availability."
 )
 async def voice_health():
+    settings.resolve_api_keys()
     is_configured = bool(settings.SARVAM_API_KEY and settings.SARVAM_API_KEY.strip())
     return {
         "service": "krushi-mitra-voice-engine",

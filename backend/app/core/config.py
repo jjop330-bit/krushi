@@ -1,6 +1,17 @@
 import os
+import logging
 from typing import List, Optional
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+def _clean_key(val: Optional[str]) -> Optional[str]:
+    """Strips outer whitespace and quotes from environment variable values."""
+    if not val:
+        return None
+    s = val.strip().strip("'\"").strip()
+    return s if s else None
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Krushi Mitra AI Backend"
@@ -60,5 +71,54 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
+    def resolve_api_keys(self) -> "Settings":
+        """
+        Dynamically resolves and sanitizes Gemini and Sarvam API keys.
+        Supports standard Railway and Google Cloud environment variable aliases,
+        strips any wrapping quotes/whitespace, and synchronizes values to os.environ.
+        """
+        # Resolve Gemini API Key
+        self.GEMINI_API_KEY = _clean_key(self.GEMINI_API_KEY)
+        if not self.GEMINI_API_KEY:
+            for alias in [
+                "GEMINI_API_KEY",
+                "GOOGLE_API_KEY",
+                "GOOGLE_GEMINI_API_KEY",
+                "GEMINI_KEY",
+                "VITE_GEMINI_API_KEY"
+            ]:
+                candidate = _clean_key(os.getenv(alias))
+                if candidate:
+                    self.GEMINI_API_KEY = candidate
+                    break
+
+        # Resolve Sarvam API Key
+        self.SARVAM_API_KEY = _clean_key(self.SARVAM_API_KEY)
+        if not self.SARVAM_API_KEY:
+            for alias in [
+                "SARVAM_API_KEY",
+                "SARVAMAI_API_KEY",
+                "SARVAM_AI_API_KEY",
+                "SARVAM_KEY",
+                "SARVAM_SUBSCRIPTION_KEY",
+                "VITE_SARVAM_API_KEY"
+            ]:
+                candidate = _clean_key(os.getenv(alias))
+                if candidate:
+                    self.SARVAM_API_KEY = candidate
+                    break
+
+        # Sync back to os.environ so third-party SDKs (such as sarvamai) access the key
+        if self.GEMINI_API_KEY:
+            os.environ["GEMINI_API_KEY"] = self.GEMINI_API_KEY
+        if self.SARVAM_API_KEY:
+            os.environ["SARVAM_API_KEY"] = self.SARVAM_API_KEY
+
+        return self
+
+    @model_validator(mode="after")
+    def post_init_resolve(self) -> "Settings":
+        return self.resolve_api_keys()
 
 settings = Settings()
