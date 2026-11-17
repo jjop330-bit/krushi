@@ -1,4 +1,4 @@
-import { StorageService } from './storageService';
+import { StorageService, normalizeBackendUrl } from './storageService';
 
 // Audio playback state machine
 export type AudioPlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
@@ -133,10 +133,13 @@ export class VoiceService {
     }
 
     const settings = StorageService.getSettings();
-    const backendUrl = settings.backendUrl || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
-      ? import.meta.env.VITE_API_URL 
-      : 'http://localhost:8000/api/v1');
+    const backendUrl = normalizeBackendUrl(settings.backendUrl);
 
+    // Cancel any prior in-flight request and ensure previous audio is stopped
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+    }
+    this.cleanupAudio();
     this.currentAbortController = new AbortController();
 
     try {
@@ -166,6 +169,9 @@ export class VoiceService {
       // Store in memory cache
       const mimeType = data.mime_type || 'audio/wav';
       this.audioMemoryCache.set(cacheKey, { audioBase64: data.audio_base64, mimeType });
+
+      // Stop and clean up any audio before playing new payload to prevent duplicate playback
+      this.cleanupAudio();
 
       // Construct playable audio element from base64 WAV payload
       const audioUrl = `data:${mimeType};base64,${data.audio_base64}`;
@@ -216,15 +222,12 @@ export class VoiceService {
       if (nativeOdiaVoice && this.synth) {
         this.speakNative(text, nativeOdiaVoice, options);
       } else {
-        // Fail gracefully without speaking incorrect language
+        // Fail gracefully with an honest error state — NEVER report success or call onEnd() after failure
         this.setState('error');
         this.cleanupAudio();
         const fallbackNotice = 'ଓଡ଼ିଆ ଅଡିଓ ସାମୟିକ ଭାବେ ଅନୁପଲବ୍ଧ ଅଛି। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।';
         if (options.onError) {
           options.onError(fallbackNotice);
-        }
-        if (options.onEnd) {
-          options.onEnd();
         }
       }
     }

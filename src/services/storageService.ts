@@ -16,12 +16,37 @@ export interface AppSettings {
   backendUrl: string;
 }
 
-const getInitialBackendUrl = (): string => {
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
-    const envUrl = String(import.meta.env.VITE_API_URL).trim();
-    if (envUrl.length > 0) return envUrl;
+export const PRODUCTION_BACKEND_URL = 'https://krushi-mitra-ai-production.up.railway.app/api/v1';
+
+export const normalizeBackendUrl = (url?: string): string => {
+  if (!url || typeof url !== 'string') return PRODUCTION_BACKEND_URL;
+  let cleaned = url.trim().replace(/\/+$/, '');
+  if (!cleaned) return PRODUCTION_BACKEND_URL;
+
+  // In production deployments (e.g. Vercel), override any localhost, 127.0.0.1, or stale/dead prototype URLs
+  if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (cleaned.includes('localhost') || cleaned.includes('127.0.0.1') || cleaned.includes('onrender.com') || cleaned.includes('your-krushi-mitra')) {
+      return PRODUCTION_BACKEND_URL;
+    }
   }
-  return 'http://localhost:8000/api/v1';
+
+  // Ensure clean /api/v1 pathing
+  if (!cleaned.endsWith('/api/v1')) {
+    if (cleaned.endsWith('/api')) {
+      cleaned = `${cleaned}/v1`;
+    } else {
+      cleaned = `${cleaned}/api/v1`;
+    }
+  }
+  return cleaned;
+};
+
+const getInitialBackendUrl = (): string => {
+  if (typeof import.meta !== 'undefined' && import.meta && import.meta.env && import.meta.env.VITE_API_URL) {
+    const envUrl = String(import.meta.env.VITE_API_URL).trim();
+    if (envUrl.length > 0) return normalizeBackendUrl(envUrl);
+  }
+  return PRODUCTION_BACKEND_URL;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -44,11 +69,7 @@ export class StorageService {
       const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // If an explicit production VITE_API_URL is configured, override stale localhost in saved preferences
-        const envUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : undefined;
-        if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0 && parsed.backendUrl === 'http://localhost:8000/api/v1') {
-          parsed.backendUrl = envUrl.trim();
-        }
+        parsed.backendUrl = normalizeBackendUrl(parsed.backendUrl || defaultBackendUrl);
         return { ...effectiveDefaults, ...parsed };
       }
       return effectiveDefaults;

@@ -1,6 +1,6 @@
 import { ScanReport, PestId, CropId, SeverityLevel, ScanStatus, PlantPart } from '../types/pest';
 import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
-import { StorageService } from './storageService';
+import { StorageService, normalizeBackendUrl } from './storageService';
 import { SAMPLE_PEST_IMAGES } from '../data/sampleImages';
 
 export interface ImageQualityCheck {
@@ -409,8 +409,7 @@ export class PestVisionService {
     abortSignal?: AbortSignal
   ): Promise<ScanReport | null> {
     const settings = StorageService.getSettings();
-    const envApiUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : undefined;
-    const backendUrl = settings.backendUrl || (envApiUrl ? String(envApiUrl).trim() : 'http://localhost:8000/api/v1');
+    const backendUrl = normalizeBackendUrl(settings.backendUrl);
 
     if (typeof fetch === 'undefined') return null;
 

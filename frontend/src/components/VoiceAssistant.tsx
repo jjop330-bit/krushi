@@ -21,7 +21,7 @@ import {
 import { ChatMessage } from '../types/chat';
 import { ScanReport } from '../types/pest';
 import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
-import { StorageService } from '../services/storageService';
+import { StorageService, normalizeBackendUrl } from '../services/storageService';
 import { voiceService, AudioPlaybackState } from '../services/voiceService';
 
 interface VoiceAssistantProps {
@@ -488,9 +488,7 @@ Respond ONLY in valid JSON matching:
 
     // 3. Free-Form Questions: Send to Gemini model with active pest context
     const settings = StorageService.getSettings();
-    const backendUrl = settings.backendUrl || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
-      ? import.meta.env.VITE_API_URL 
-      : 'http://localhost:8000/api/v1');
+    const backendUrl = normalizeBackendUrl(settings.backendUrl);
 
     try {
       const controller = new AbortController();
