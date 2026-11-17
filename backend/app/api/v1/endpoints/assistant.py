@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+import asyncio
 import uuid
 import json
 import logging
@@ -200,16 +201,26 @@ async def generate_gemini_chat_response(query: str, pest_info: dict | None, dist
     }
 
     try:
-        async with httpx.AsyncClient(timeout=14.0) as client:
-            resp = await client.post(endpoint, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
-                parsed = json.loads(raw_text)
-                if parsed.get("reply_or") and parsed.get("reply_en"):
-                    return parsed
-            else:
-                logger.warning("Gemini Assistant call returned HTTP %s: %s", resp.status_code, resp.text[:120])
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            for attempt in range(3):
+                resp = await client.post(endpoint, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    candidates = data.get("candidates", [])
+                    if candidates and len(candidates) > 0:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts and len(parts) > 0 and "text" in parts[0]:
+                            raw_text = parts[0]["text"]
+                            parsed = json.loads(raw_text)
+                            if parsed.get("reply_or") and parsed.get("reply_en"):
+                                return parsed
+                elif resp.status_code in (429, 503) and attempt < 2:
+                    logger.warning("Gemini Assistant call returned HTTP %s on attempt %d, retrying with backoff...", resp.status_code, attempt + 1)
+                    await asyncio.sleep(1.2 * (attempt + 1))
+                    continue
+                else:
+                    logger.warning("Gemini Assistant call returned HTTP %s: %s", resp.status_code, resp.text[:120])
+                    break
     except Exception as exc:
         logger.warning("Gemini Assistant generation failed or timed out: %s.", exc)
 
