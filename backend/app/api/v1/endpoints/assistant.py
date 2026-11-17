@@ -150,8 +150,16 @@ async def generate_gemini_chat_response(query: str, pest_info: dict | None, dist
             f"- Biological Control: {', '.join(pest_info.get('immediate_next_steps_en', []))}\n"
         )
         if pest_info.get("chemical_control"):
-            chem = pest_info["chemical_control"]
-            pest_desc += f"- CIBRC Chemical: {chem.get('molecule_en', '')} ({chem.get('popular_brand', '')}) @ {chem.get('dosage_per_acre_en', '')}\n"
+            chems = pest_info["chemical_control"]
+            chem = chems[0] if isinstance(chems, list) and len(chems) > 0 else (chems if isinstance(chems, dict) else {})
+            if isinstance(chem, dict):
+                mol = chem.get("active_ingredient") or chem.get("molecule_en", "")
+                trade = chem.get("trade_names")
+                brand = ", ".join(trade) if isinstance(trade, list) else (chem.get("popular_brand") or "")
+                dose = chem.get("dosage_per_acre") or chem.get("dosage_per_acre_en", "")
+                brand_str = f" ({brand})" if brand else ""
+                dose_str = f" @ {dose}" if dose else ""
+                pest_desc += f"- CIBRC Chemical: {mol}{brand_str}{dose_str}\n"
 
     system_prompt = (
         "You are Krushi Mitra AI (କୃଷି ମିତ୍ର AI), an expert agricultural scientist and field advisor for farmers in Odisha, India.\n"
@@ -293,10 +301,19 @@ async def chat_with_assistant(request: ChatRequest):
         )
 
     elif chip_type == "chip_dosage":
-        if pest and pest.get("chemical_control"):
-            chem = pest["chemical_control"]
-            reply_or = f"କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ଼ (CIBRC) ଅନୁମୋଦିତ ସୁପାରିଶ: {chem.get('molecule_or', '')} (ବ୍ୟାପାରିକ ନାମ: {chem.get('popular_brand', '')})। ଏହାର ନିର୍ଦ୍ଦିଷ୍ଟ ମାତ୍ରା ଏକର ପ୍ରତି {chem.get('dosage_per_acre_or', '')}। ସିଞ୍ଚନ ବେଳେ ମାସ୍କ ଓ ହାତମୋଜା ନିଶ୍ଚୟ ପିନ୍ଧନ୍ତୁ।"
-            reply_en = f"CIBRC approved prescription for {pest['common_name_en']}: {chem.get('molecule_en', '')} ({chem.get('popular_brand', '')}). Apply exactly {chem.get('dosage_per_acre_en', '')} with proper PPE mask and gloves."
+        chems = pest.get("chemical_control") if pest else None
+        chem = chems[0] if isinstance(chems, list) and len(chems) > 0 else (chems if isinstance(chems, dict) else None)
+        if pest and chem:
+            mol_en = chem.get("active_ingredient") or chem.get("molecule_en", "")
+            mol_or = chem.get("molecule_or") or mol_en
+            trade = chem.get("trade_names")
+            brand = ", ".join(trade) if isinstance(trade, list) else (chem.get("popular_brand") or "")
+            brand_str_en = f" ({brand})" if brand else ""
+            brand_str_or = f" (ବ୍ୟାପାରିକ ନାମ: {brand})" if brand else ""
+            dose_en = chem.get("dosage_per_acre") or chem.get("dosage_per_acre_en", "as recommended on product label")
+            dose_or = chem.get("dosage_per_acre_or") or dose_en
+            reply_or = f"କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ଼ (CIBRC) ଅନୁମୋଦିତ ସୁପାରିଶ: {mol_or}{brand_str_or}। ଏହାର ନିର୍ଦ୍ଦିଷ୍ଟ ମାତ୍ରା ଏକର ପ୍ରତି {dose_or}। ସିଞ୍ଚନ ବେଳେ ମାସ୍କ ଓ ହାତମୋଜା ନିଶ୍ଚୟ ପିନ୍ଧନ୍ତୁ।"
+            reply_en = f"CIBRC approved prescription for {pest.get('common_name_en', 'pest')}: {mol_en}{brand_str_en}. Apply exactly {dose_en} with proper PPE mask and gloves."
         else:
             reply_or = "କୌଣସି ବି କୀଟନାଶକ ପ୍ରୟୋଗ କରିବା ପୂର୍ବରୁ ଆର୍ଥିକ କ୍ଷତି ସୀମା (ETL) ଯାଞ୍ଚ କରନ୍ତୁ ଏବଂ କୃଷି ବିଶେଷଜ୍ଞ କିମ୍ବା ବ୍ଲକ୍ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।"
             reply_en = "Before applying any chemical pesticide, always verify Economic Threshold Levels (ETL) and consult your local Assistant Agriculture Officer (AAO)."

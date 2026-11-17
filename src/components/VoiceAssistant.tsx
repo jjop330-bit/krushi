@@ -331,12 +331,24 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     if (isChipDosage) {
       if (pest && pest.chemicalControl) {
-        return {
-          replyOr: `କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ଼ (CIBRC) ଅନୁମୋଦିତ ସୁପାରିଶ: ${pest.chemicalControl.moleculeOr} (ବ୍ୟାପାରିକ ନାମ: ${pest.chemicalControl.popularBrand})। ଏହାର ନିର୍ଦ୍ଦିଷ୍ଟ ମାତ୍ରା ଏକର ପ୍ରତି ${pest.chemicalControl.dosagePerAcreOr}। ସିଞ୍ଚନ ବେଳେ ମାସ୍କ ଓ ହାତମୋଜା ନିଶ୍ଚୟ ପିନ୍ଧନ୍ତୁ।`,
-          replyEn: `CIBRC approved prescription for ${pest.commonNameEn}: ${pest.chemicalControl.moleculeEn} (${pest.chemicalControl.popularBrand}). Apply exactly ${pest.chemicalControl.dosagePerAcreEn} with proper PPE mask and gloves.`,
-          pillsEn: defaultPillsEn,
-          pillsOr: defaultPillsOr
-        };
+        const chems = pest.chemicalControl as any;
+        const chem = Array.isArray(chems) ? chems[0] : chems;
+        if (chem) {
+          const moleculeEn = chem.activeIngredient || chem.moleculeEn || 'Recommended chemical control';
+          const moleculeOr = chem.moleculeOr || moleculeEn;
+          const brandNames = Array.isArray(chem.tradeNames) ? chem.tradeNames.join(', ') : (chem.popularBrand || '');
+          const brandEn = brandNames ? ` (${brandNames})` : '';
+          const brandOr = brandNames ? ` (ବ୍ୟାପାରିକ ନାମ: ${brandNames})` : '';
+          const doseEn = chem.dosagePerAcre || chem.dosagePerAcreEn || 'as per label instructions';
+          const doseOr = chem.dosagePerAcreOr || doseEn;
+
+          return {
+            replyOr: `କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ଼ (CIBRC) ଅନୁମୋଦିତ ସୁପାରିଶ: ${moleculeOr}${brandOr}। ଏହାର ନିର୍ଦ୍ଦିଷ୍ଟ ମାତ୍ରା ଏକର ପ୍ରତି ${doseOr}। ସିଞ୍ଚନ ବେଳେ ମାସ୍କ ଓ ହାତମୋଜା ନିଶ୍ଚୟ ପିନ୍ଧନ୍ତୁ।`,
+            replyEn: `CIBRC approved prescription for ${pest.commonNameEn}: ${moleculeEn}${brandEn}. Apply exactly ${doseEn} with proper PPE mask and gloves.`,
+            pillsEn: defaultPillsEn,
+            pillsOr: defaultPillsOr
+          };
+        }
       }
       return {
         replyOr: 'କୌଣସି ବି କୀଟନାଶକ ପ୍ରୟୋଗ କରିବା ପୂର୍ବରୁ ଆର୍ଥିକ କ୍ଷତି ସୀମା (ETL) ଯାଞ୍ଚ କରନ୍ତୁ ଏବଂ କୃଷି ବିଶେଷଜ୍ଞ କିମ୍ବା ବ୍ଲକ୍ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।',
