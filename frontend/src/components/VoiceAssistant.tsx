@@ -265,6 +265,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     // Chip 1: Why did pest attack?
     const isChipWhy = 
+      qLower.includes('why is this pest attacking') ||
+      qLower.includes('why is pest attacking') ||
       qLower.includes('why did this pest attack') ||
       qLower.includes('why did pest attack') ||
       qLower.includes('ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି') ||

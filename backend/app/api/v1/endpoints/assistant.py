@@ -91,11 +91,13 @@ def is_suggestion_chip_query(query: str) -> str | None:
     
     # Chip 1: Why did pest attack
     if (
+        "why is this pest attacking" in q_lower or
         "why did this pest attack" in q_lower or
+        "why is pest attacking" in q_lower or
         "why did pest attack" in q_lower or
         "ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି" in q_lower or
         "ପୋକ କାହିଁକି ଲାଗିଛି" in q_lower or
-        (any(k in q_lower for k in ["why", "cause", "reason", "କାହିଁକି"]) and any(p in q_lower for k in ["pest", "attack", "outbreak", "ଧାନ", "ପୋକ"]))
+        (any(k in q_lower for k in ["why", "cause", "reason", "କାହିଁକି"]) and any(p in q_lower for p in ["pest", "attack", "attacking", "outbreak", "ଧାନ", "ପୋକ"]))
     ):
         return "chip_why"
 

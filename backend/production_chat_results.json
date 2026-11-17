@@ -1,0 +1,106 @@
+[
+  {
+    "query": "HII",
+    "lang": "en",
+    "status": 200,
+    "reply_en": "Namaste! How can I help you with your Rice Armyworm / Swarming Caterpillar problem?",
+    "reply_or": "ନମସ୍କାର! ଆପଣଙ୍କ ଲେଡା ପୋକ / ସୈନ୍ୟ କୀଟ (ଧାନ କାଟୁଆ ପୋକ) ସମସ୍ୟାରେ ମୁଁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  },
+  {
+    "query": "Hello",
+    "lang": "en",
+    "status": 200,
+    "reply_en": "Namaste! How can I help you with your Rice Armyworm / Swarming Caterpillar problem?",
+    "reply_or": "ନମସ୍କାର! ଆପଣଙ୍କ ଲେଡା ପୋକ / ସୈନ୍ୟ କୀଟ (ଧାନ କାଟୁଆ ପୋକ) ସମସ୍ୟାରେ ମୁଁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  },
+  {
+    "query": "ନମସ୍କାର",
+    "lang": "or",
+    "status": 200,
+    "reply_en": "Namaste! How can I help you with your Rice Armyworm / Swarming Caterpillar problem?",
+    "reply_or": "ନମସ୍କାର! ଆପଣଙ୍କ ଲେଡା ପୋକ / ସୈନ୍ୟ କୀଟ (ଧାନ କାଟୁଆ ପୋକ) ସମସ୍ୟାରେ ମୁଁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  },
+  {
+    "query": "Thanks",
+    "lang": "en",
+    "status": 200,
+    "reply_en": "You're welcome! Let me know if you need more help with Rice Armyworm / Swarming Caterpillar.",
+    "reply_or": "ସ୍ୱାଗତମ୍! ଲେଡା ପୋକ / ସୈନ୍ୟ କୀଟ (ଧାନ କାଟୁଆ ପୋକ) ସମ୍ପର୍କରେ ଆଉ କିଛି ସହାୟତା ଆବଶ୍ୟକ ହେଲେ ପଚାରନ୍ତୁ।",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  },
+  {
+    "query": "Why is this pest attacking my paddy?",
+    "lang": "en",
+    "status": 500,
+    "reply_en": "",
+    "reply_or": "",
+    "pills_en": []
+  },
+  {
+    "query": "How can I control it without chemicals?",
+    "lang": "en",
+    "status": 200,
+    "reply_en": "Without synthetic chemicals: 1) Dig 30 cm deep trenches around the field perimeter and dust with lime/ash. 2) Conduct pesticide spraying strictly in late afternoon or dusk (after 4:30 PM). 3) Spray botanical Neem oil (1500 ppm) @ 3-5 ml/L.",
+    "reply_or": "ବିନା ରାସାୟନିକ ଔଷଧରେ: ୧) କ୍ଷେତ ଚାରିପାଖେ ୩୦ ସେମି ଗଭୀର ନାଳ ଖୋଳି ଚୂନ ବା ନିମ୍ବ ପିଡ଼ିଆ ପକାନ୍ତୁ। ୨) କୀଟନାଶକ କେବଳ ଅପରାହ୍ନ ୪:୩୦ ପରେ କିମ୍ବା ସନ୍ଧ୍ୟା ବେଳେ ସିଞ୍ଚନ କରନ୍ତୁ। ୩) ନିମ୍ବ ତେଲ (୧୫୦୦ ପିପିଏମ୍) ଲିଟର ପ୍ରତି ୪ ମିଲି ସିଞ୍ଚନ କରନ୍ତୁ।",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  },
+  {
+    "query": "What is the correct chemical dosage?",
+    "lang": "en",
+    "status": 200,
+    "reply_en": "Before applying any chemical pesticide, always verify Economic Threshold Levels (ETL) and consult your local Assistant Agriculture Officer (AAO).",
+    "reply_or": "କୌଣସି ବି କୀଟନାଶକ ପ୍ରୟୋଗ କରିବା ପୂର୍ବରୁ ଆର୍ଥିକ କ୍ଷତି ସୀମା (ETL) ଯାଞ୍ଚ କରନ୍ତୁ ଏବଂ କୃଷି ବିଶେଷଜ୍ଞ କିମ୍ବା ବ୍ଲକ୍ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  },
+  {
+    "query": "What is the weather today?",
+    "lang": "en",
+    "status": 200,
+    "reply_en": "Regarding your query about 'What is the weather today?' in the context of Rice Armyworm / Swarming Caterpillar: Live AI response is temporarily unavailable. Please verify your connection or try again shortly.",
+    "reply_or": "ଆପଣଙ୍କ ଲେଡା ପୋକ / ସୈନ୍ୟ କୀଟ (ଧାନ କାଟୁଆ ପୋକ) ସମ୍ପର୍କିତ ପ୍ରଶ୍ନ 'What is the weather today?' ପାଇଁ ଲାଇଭ୍ AI ସଂଯୋଗ ହୋଇପାରିଲା ନାହିଁ। ଦୟାକରି କିଛି ସମୟ ପରେ ପୁଣି ପଚାରନ୍ତୁ।",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  },
+  {
+    "query": "Explain the pest life cycle.",
+    "lang": "en",
+    "status": 200,
+    "reply_en": "Regarding your query about 'Explain the pest life cycle.' in the context of Rice Armyworm / Swarming Caterpillar: Live AI response is temporarily unavailable. Please verify your connection or try again shortly.",
+    "reply_or": "ଆପଣଙ୍କ ଲେଡା ପୋକ / ସୈନ୍ୟ କୀଟ (ଧାନ କାଟୁଆ ପୋକ) ସମ୍ପର୍କିତ ପ୍ରଶ୍ନ 'Explain the pest life cycle.' ପାଇଁ ଲାଇଭ୍ AI ସଂଯୋଗ ହୋଇପାରିଲା ନାହିଁ। ଦୟାକରି କିଛି ସମୟ ପରେ ପୁଣି ପଚାରନ୍ତୁ।",
+    "pills_en": [
+      "Why did this pest attack my paddy?",
+      "How can I control it without chemicals?",
+      "What is the correct chemical dosage?"
+    ]
+  }
+]
