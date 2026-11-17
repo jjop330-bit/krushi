@@ -109,7 +109,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     );
   };
 
-  const handleSpeechOutput = (msgId: string, text: string) => {
+  const handleSpeechOutput = (msgId: string, text: string, speechLang: 'or' | 'en' = 'or') => {
     if (speakingMsgId === msgId) {
       if (playbackState === 'playing') {
         voiceService.pause();
@@ -132,7 +132,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     setPlaybackState('loading');
     setPlaybackError(null);
 
-    voiceService.speak(text, lang, {
+    voiceService.speak(text, speechLang, {
       speaker: 'shubh',
       onStateChange: (state) => {
         setPlaybackState(state);
@@ -157,37 +157,328 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     setPlaybackError(null);
   };
 
-  const handleReplay = (msgId: string, text: string) => {
+  const handleReplay = (msgId: string, text: string, speechLang: 'or' | 'en' = 'or') => {
     if (speakingMsgId === msgId && (playbackState === 'playing' || playbackState === 'paused')) {
       voiceService.replay();
     } else {
-      handleSpeechOutput(msgId, text);
+      handleSpeechOutput(msgId, text, speechLang);
     }
+  };
+
+  // Format treatment steps cleanly without double periods or malformed mid-sentence casing
+  const formatTreatmentStepsEn = (steps: string[]): string => {
+    if (!steps || steps.length === 0) return '';
+    const cleanStep0 = steps[0].trim().replace(/\.+$/, '');
+    if (steps.length === 1) return `${cleanStep0}.`;
+    let cleanStep1 = steps[1].trim().replace(/\.+$/, '');
+    if (cleanStep1) {
+      cleanStep1 = cleanStep1.charAt(0).toLowerCase() + cleanStep1.slice(1);
+    }
+    return `${cleanStep0}, followed by ${cleanStep1}.`;
+  };
+
+  const formatTreatmentStepsOr = (steps: string[]): string => {
+    if (!steps || steps.length === 0) return '';
+    const cleanStep0 = steps[0].trim().replace(/[।\.]*$/, '');
+    if (steps.length === 1) return `${cleanStep0}।`;
+    const cleanStep1 = steps[1].trim().replace(/[।\.]*$/, '');
+    return `${cleanStep0} ଏବଂ ${cleanStep1}।`;
+  };
+
+  // Intent handling for greetings and small talk
+  const checkGreetingOrSmallTalk = (q: string, pest: any) => {
+    const qClean = q.trim().toLowerCase();
+    const qNormalized = qClean.replace(/[!?.,;:।]+$/, '').trim();
+
+    const greetings = [
+      'hi', 'hii', 'hiii', 'hello', 'hey', 'namaste', 'namaskar', 'namaskara',
+      'good morning', 'good afternoon', 'good evening', 'greetings',
+      'how are you', 'who are you', 'how r u', 'kemiti achhanti', 'kemiti achha',
+      'ନମସ୍କାର', 'ନମସ୍କାର୍', 'ଜୁହାର', 'ନମସ୍ତେ', 'ହେଲୋ', 'ହାଏ', 'କେମିତି ଅଛନ୍ତି', 'କେମିତି ଅଛ', 'ଆପଣ କିଏ'
+    ];
+
+    const thanks = [
+      'thanks', 'thank you', 'thank u', 'thx', 'dhanyabad', 'dhanyavad', 'dhanyawad',
+      'ଧନ୍ୟବାଦ', 'ଧନ୍ୟବାଦ୍'
+    ];
+
+    const isGreeting = greetings.includes(qNormalized) || 
+      greetings.some(g => qNormalized.startsWith(g + ' ')) || 
+      /^(h+i+|h+e+y+|h+e+l+o+|namaste|namaskar|ନମସ୍କାର|ଜୁହାର)\b/i.test(qNormalized);
+
+    const isThanks = thanks.includes(qNormalized) || 
+      thanks.some(t => qNormalized.startsWith(t + ' '));
+
+    const defaultPillsEn = [
+      'Why did this pest attack my paddy?',
+      'How can I control it without chemicals?',
+      'What is the correct chemical dosage?'
+    ];
+    const defaultPillsOr = [
+      'ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି?',
+      'ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି?',
+      'ଏହି ପୋକ କିପରି ଦୂର କରିବି?'
+    ];
+
+    if (isGreeting) {
+      return {
+        replyEn: pest 
+          ? `Namaste! How can I help you with your ${pest.commonNameEn} problem?`
+          : 'Namaste! How can I help you with your crop today?',
+        replyOr: pest 
+          ? `ନମସ୍କାର! ଆପଣଙ୍କ ${pest.commonNameOr} ସମସ୍ୟାରେ ମୁଁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?`
+          : 'ନମସ୍କାର! ଆଜି ଆପଣଙ୍କ ଫସଲ ସମ୍ପର୍କରେ ମୁଁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?',
+        pillsEn: defaultPillsEn,
+        pillsOr: defaultPillsOr
+      };
+    }
+
+    if (isThanks) {
+      return {
+        replyEn: pest 
+          ? `You're welcome! Let me know if you need more help with ${pest.commonNameEn}.`
+          : "You're welcome! Feel free to ask if you have more questions about your crops.",
+        replyOr: pest 
+          ? `ସ୍ୱାଗତମ୍! ${pest.commonNameOr} ସମ୍ପର୍କରେ ଆଉ କିଛି ସହାୟତା ଆବଶ୍ୟକ ହେଲେ ପଚାରନ୍ତୁ।`
+          : 'ସ୍ୱାଗତମ୍! ଆପଣଙ୍କ ଫସଲ ସମ୍ପର୍କରେ ଆଉ କିଛି ପ୍ରଶ୍ନ ଥିଲେ ପଚାରନ୍ତୁ।',
+        pillsEn: defaultPillsEn,
+        pillsOr: defaultPillsOr
+      };
+    }
+
+    return null;
+  };
+
+  // Suggestion chips canned answers matching
+  const checkSuggestionChips = (q: string, pest: any) => {
+    const qLower = q.trim().toLowerCase();
+    const defaultPillsEn = [
+      'Why did this pest attack my paddy?',
+      'How can I control it without chemicals?',
+      'What is the correct chemical dosage?'
+    ];
+    const defaultPillsOr = [
+      'ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି?',
+      'ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି?',
+      'ଏହି ପୋକ କିପରି ଦୂର କରିବି?'
+    ];
+
+    // Chip 1: Why did pest attack?
+    const isChipWhy = 
+      qLower.includes('why did this pest attack') ||
+      qLower.includes('why did pest attack') ||
+      qLower.includes('ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି') ||
+      qLower.includes('ପୋକ କାହିଁକି ଲାଗିଛି') ||
+      (qLower.includes('why') && (qLower.includes('attack') || qLower.includes('pest'))) ||
+      (qLower.includes('କାହିଁକି') && (qLower.includes('ପୋକ') || qLower.includes('ଧାନ')));
+
+    if (isChipWhy) {
+      if (pest) {
+        return {
+          replyOr: `${pest.commonNameOr} କ୍ଷେତରେ ଲାଗିବାର ମୁଖ୍ୟ କାରଣ ହେଉଛି: ${pest.conditionsFavoringOr[0]} ଏବଂ ${pest.conditionsFavoringOr[1] || 'କ୍ଷେତରେ ଲଗାତାର ପାଣି ବାନ୍ଧି ରଖିବା ଓ ଅଧିକ ୟୁରିଆ ସାର ପକାଇବା'}।`,
+          replyEn: `The primary factors behind the outbreak of ${pest.commonNameEn} are: ${pest.conditionsFavoringEn[0]} along with dense spacing and unbalanced nitrogen fertilizer application.`,
+          pillsEn: defaultPillsEn,
+          pillsOr: defaultPillsOr
+        };
+      }
+      return {
+        replyOr: 'ଧାନ ଫସଲରେ ପୋକ ଲାଗିବାର ପ୍ରଧାନ କାରଣ ହେଉଛି ଅତ୍ୟଧିକ ଆର୍ଦ୍ରତା, ମେଘୁଆ ପାଗ, ଘଞ୍ଚ ରୋପଣ ଏବଂ ମାତ୍ରାଧିକ ୟୁରିଆ (ଯବକ୍ଷାରଜାନ) ସାରର ଅଣ-ନିୟନ୍ତ୍ରିତ ବ୍ୟବହାର।',
+        replyEn: 'Pest infestations in rice are primarily driven by sustained humidity above 80%, cloudy skies, narrow planting spacing, and excessive application of chemical urea.',
+        pillsEn: defaultPillsEn,
+        pillsOr: defaultPillsOr
+      };
+    }
+
+    // Chip 2: Control without chemicals
+    const isChipNonChemical = 
+      qLower.includes('control without chemicals') ||
+      qLower.includes('without chemicals') ||
+      qLower.includes('without chemical') ||
+      qLower.includes('ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି') ||
+      qLower.includes('ଔଷଧ ନ ପକାଇ') ||
+      qLower.includes('ବିନା ଔଷଧ') ||
+      qLower.includes('organic control') ||
+      qLower.includes('biological control') ||
+      qLower.includes('ଜୈବିକ');
+
+    if (isChipNonChemical) {
+      if (pest && pest.immediateNextStepsOr) {
+        return {
+          replyOr: `ଔଷଧ ନ ପକାଇ ଆପଣ ଏହି ୩ଟି ପଦ୍ଧତି ଆପଣାଇପାରିବେ: ୧) ${pest.immediateNextStepsOr[0]} ୨) ${pest.immediateNextStepsOr[1]} ୩) ନିମ୍ବ ତେଲ (୧୫୦୦ ପିପିଏମ୍) ଲିଟର ପ୍ରତି ୪ ମିଲି ହିସାବରେ ସିଞ୍ଚନ କରନ୍ତୁ।`,
+          replyEn: `To manage ${pest.commonNameEn} without synthetic chemicals: 1) ${pest.immediateNextStepsEn[0]} 2) ${pest.immediateNextStepsEn[1]} 3) Spray botanical Neem oil (Azadirachtin 1500 ppm) @ 3-5 ml/Litre.`,
+          pillsEn: defaultPillsEn,
+          pillsOr: defaultPillsOr
+        };
+      }
+      return {
+        replyOr: 'ବିନା ଔଷଧରେ କୀଟ ନିୟନ୍ତ୍ରଣ ପାଇଁ: ୧) କ୍ଷେତରୁ ପାଣି ନିଷ୍କାସନ କରନ୍ତୁ ୨) ପ୍ରତି ୨ ମିଟରରେ ୩୦ ସେମି ବାଟ ଛାଡ଼ନ୍ତୁ ୩) ଲିଙ୍ଗାକର୍ଷୀ ଫାନ୍ଦ (ଫେରୋମୋନ୍ ଟ୍ରାପ୍) ଲଗାନ୍ତୁ ୪) ବନ୍ଧୁ ବୁଢ଼ିଆଣୀଙ୍କୁ ସୁରକ୍ଷା ଦିଅନ୍ତୁ।',
+        replyEn: 'Non-chemical IPM methods include: Alternate Wetting and Drying (AWD), creating 30cm alleyways every 2m, installing pheromone traps, and conserving predatory spiders.',
+        pillsEn: defaultPillsEn,
+        pillsOr: defaultPillsOr
+      };
+    }
+
+    // Chip 3: Correct chemical dosage
+    const isChipDosage = 
+      qLower.includes('correct chemical dosage') ||
+      qLower.includes('chemical dosage') ||
+      qLower.includes('what is the correct chemical dosage') ||
+      qLower.includes('ଏହି ପୋକ କିପରି ଦୂର କରିବି') ||
+      qLower.includes('କେତେ ମାତ୍ରା') ||
+      ((qLower.includes('dosage') || qLower.includes('dose')) && (qLower.includes('chemical') || qLower.includes('pesticide')));
+
+    if (isChipDosage) {
+      if (pest && pest.chemicalControl) {
+        return {
+          replyOr: `କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ଼ (CIBRC) ଅନୁମୋଦିତ ସୁପାରିଶ: ${pest.chemicalControl.moleculeOr} (ବ୍ୟାପାରିକ ନାମ: ${pest.chemicalControl.popularBrand})। ଏହାର ନିର୍ଦ୍ଦିଷ୍ଟ ମାତ୍ରା ଏକର ପ୍ରତି ${pest.chemicalControl.dosagePerAcreOr}। ସିଞ୍ଚନ ବେଳେ ମାସ୍କ ଓ ହାତମୋଜା ନିଶ୍ଚୟ ପିନ୍ଧନ୍ତୁ।`,
+          replyEn: `CIBRC approved prescription for ${pest.commonNameEn}: ${pest.chemicalControl.moleculeEn} (${pest.chemicalControl.popularBrand}). Apply exactly ${pest.chemicalControl.dosagePerAcreEn} with proper PPE mask and gloves.`,
+          pillsEn: defaultPillsEn,
+          pillsOr: defaultPillsOr
+        };
+      }
+      return {
+        replyOr: 'କୌଣସି ବି କୀଟନାଶକ ପ୍ରୟୋଗ କରିବା ପୂର୍ବରୁ ଆର୍ଥିକ କ୍ଷତି ସୀମା (ETL) ଯାଞ୍ଚ କରନ୍ତୁ ଏବଂ କୃଷି ବିଶେଷଜ୍ଞ କିମ୍ବା ବ୍ଲକ୍ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।',
+        replyEn: 'Before applying any chemical pesticide, always verify Economic Threshold Levels (ETL) and consult your local Assistant Agriculture Officer (AAO).',
+        pillsEn: defaultPillsEn,
+        pillsOr: defaultPillsOr
+      };
+    }
+
+    // Beneficial Spiders
+    if (qLower.includes('ବୁଢ଼ିଆଣୀ') || qLower.includes('spider') || qLower.includes('predator') || qLower.includes('ବନ୍ଧୁ ପୋକ')) {
+      return {
+        replyOr: 'ବୁଢ଼ିଆଣୀ (Wolf Spider) ହେଉଛି ଚାଷୀ ଭାଇଙ୍କ ପରମ ବନ୍ଧୁ। ଗୋଟିଏ ବୁଢ଼ିଆଣୀ ଦିନକୁ ୫ରୁ ୧୫ଟି ମାଟିଆ ଗୁଣ୍ଡି ପୋକ ଖାଇ ନଷ୍ଟ କରିଥାଏ। ଯଦି ଗଛ ପ୍ରତି ୨-୩ଟି ବୁଢ଼ିଆଣୀ ଦେଖାଯାଉଛନ୍ତି, ତେବେ କୌଣସି କୀଟନାଶକ ପକାନ୍ତୁ ନାହିଁ।',
+        replyEn: 'Wolf spiders (Lycosa pseudoannulata) are vital beneficial natural predators. A single spider preys on 5 to 15 brown plant hoppers per day. Conserve them by strictly avoiding prophylactic broad-spectrum insecticide sprays.',
+        pillsEn: defaultPillsEn,
+        pillsOr: defaultPillsOr
+      };
+    }
+
+    return null;
+  };
+
+  // Direct client Gemini call if backend is offline
+  const callDirectGeminiChat = async (query: string, pest: any, apiKey: string): Promise<{ replyEn: string; replyOr: string } | null> => {
+    try {
+      const pestDesc = pest 
+        ? `Active Pest: ${pest.commonNameEn} (${pest.commonNameOr}), Symptoms: ${pest.keySymptomsEn?.join(', ')}, Non-chemical: ${pest.immediateNextStepsEn?.join(', ')}`
+        : '';
+      const prompt = `You are Krushi Mitra AI, an agricultural expert for farmers in Odisha, India.
+District: Bargarh
+${pestDesc}
+Farmer Query: ${query}
+
+Respond ONLY in valid JSON matching:
+{
+  "reply_or": "Natural Odia advice in Odia script",
+  "reply_en": "Clear English summary of advice"
+}`;
+
+      const activeModel = StorageService.getSettings().selectedModel || 'gemini-3.5-flash-lite';
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.15, response_mime_type: 'application/json' }
+        })
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const parsed = JSON.parse(rawText);
+          if (parsed.reply_or && parsed.reply_en) {
+            return { replyEn: parsed.reply_en, replyOr: parsed.reply_or };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Direct client Gemini assistant call failed:', err);
+    }
+    return null;
   };
 
   const handleSendQuery = async (textToSend?: string, wasSpoken: boolean = false) => {
     const query = (textToSend || inputText).trim();
     if (!query || isGeneratingAnswer) return;
 
+    // Detect input language: Odia script -> 'or', Latin letters -> 'en'
+    const isOdiaInput = /[\u0B00-\u0B7F]/.test(query);
+    const inputLang: 'or' | 'en' = isOdiaInput ? 'or' : (/[a-zA-Z]/.test(query) ? 'en' : lang);
+
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
       textEn: query,
       textOr: query,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      detectedLanguage: inputLang
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
     setIsGeneratingAnswer(true);
 
+    // 1. Intent Handling for Greetings and Small Talk
+    const greetingMatch = checkGreetingOrSmallTalk(query, activePest);
+    if (greetingMatch) {
+      setTimeout(() => {
+        const assistantMsg: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          sender: 'assistant',
+          textEn: greetingMatch.replyEn,
+          textOr: greetingMatch.replyOr,
+          timestamp: Date.now(),
+          detectedLanguage: inputLang,
+          suggestedActionPills: greetingMatch.pillsEn,
+          suggestedActionPillsOr: greetingMatch.pillsOr
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+        setIsGeneratingAnswer(false);
+
+        if (wasSpoken) {
+          handleSpeechOutput(assistantMsg.id, assistantMsg.textOr, 'or');
+        }
+      }, 250);
+      return;
+    }
+
+    // 2. Canned answers ONLY for the three suggestion chips
+    const chipMatch = checkSuggestionChips(query, activePest);
+    if (chipMatch) {
+      setTimeout(() => {
+        const assistantMsg: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          sender: 'assistant',
+          textEn: chipMatch.replyEn,
+          textOr: chipMatch.replyOr,
+          timestamp: Date.now(),
+          detectedLanguage: inputLang,
+          suggestedActionPills: chipMatch.pillsEn,
+          suggestedActionPillsOr: chipMatch.pillsOr
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+        setIsGeneratingAnswer(false);
+
+        if (wasSpoken) {
+          handleSpeechOutput(assistantMsg.id, assistantMsg.textOr, 'or');
+        }
+      }, 300);
+      return;
+    }
+
+    // 3. Free-Form Questions: Send to Gemini model with active pest context
     const settings = StorageService.getSettings();
     const backendUrl = settings.backendUrl || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
       ? import.meta.env.VITE_API_URL 
       : 'http://localhost:8000/api/v1');
 
     try {
-      // 1. Call Backend Gemini Agricultural Assistant
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -198,7 +489,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           query,
           pest_context: activeReport?.identification?.pestId || undefined,
           farmer_district: 'bargarh',
-          language: lang
+          language: inputLang
         }),
         signal: controller.signal
       });
@@ -213,83 +504,144 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           textEn: data.reply_en || query,
           textOr: data.reply_or || query,
           timestamp: Date.now(),
-          suggestedActionPills: data.suggested_action_pills_en || [],
-          suggestedActionPillsOr: data.suggested_action_pills_or || []
+          detectedLanguage: inputLang,
+          suggestedActionPills: data.suggested_action_pills_en || [
+            'Why did this pest attack my paddy?',
+            'How can I control it without chemicals?',
+            'What is the correct chemical dosage?'
+          ],
+          suggestedActionPillsOr: data.suggested_action_pills_or || [
+            'ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି?',
+            'ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି?',
+            'ଏହି ପୋକ କିପରି ଦୂର କରିବି?'
+          ]
         };
 
         setMessages(prev => [...prev, assistantMsg]);
         setIsGeneratingAnswer(false);
 
-        // If user used voice to ask, speak answer automatically
         if (wasSpoken) {
-          handleSpeechOutput(assistantMsg.id, lang === 'or' ? assistantMsg.textOr : assistantMsg.textEn);
+          handleSpeechOutput(assistantMsg.id, assistantMsg.textOr, 'or');
         }
         return;
       }
     } catch (apiErr) {
-      console.warn('Backend Assistant unavailable, using local baseline knowledge engine:', apiErr);
+      console.warn('Backend Assistant unavailable, checking direct Gemini client:', apiErr);
     }
 
-    // 2. Local Fallback Knowledge Engine (if backend offline)
+    // Try Direct Client-side Gemini if backend is unavailable and user has configured API key
+    const directApiKey = StorageService.getApiKey();
+    if (directApiKey) {
+      const directResult = await callDirectGeminiChat(query, activePest, directApiKey);
+      if (directResult) {
+        const assistantMsg: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          sender: 'assistant',
+          textEn: directResult.replyEn,
+          textOr: directResult.replyOr,
+          timestamp: Date.now(),
+          detectedLanguage: inputLang,
+          suggestedActionPills: [
+            'Why did this pest attack my paddy?',
+            'How can I control it without chemicals?',
+            'What is the correct chemical dosage?'
+          ],
+          suggestedActionPillsOr: [
+            'ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି?',
+            'ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି?',
+            'ଏହି ପୋକ କିପରି ଦୂର କରିବି?'
+          ]
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+        setIsGeneratingAnswer(false);
+
+        if (wasSpoken) {
+          handleSpeechOutput(assistantMsg.id, assistantMsg.textOr, 'or');
+        }
+        return;
+      }
+    }
+
+    // Graceful notification when AI model is temporarily unreachable - do NOT dump static pest treatment steps!
     setTimeout(() => {
-      const response = generateLocalAssistantResponse(query, activePest, lang);
+      let replyEn = `I received your question "${query}", but the AI model is temporarily unreachable. Please ensure the backend server is running or configure a Gemini API key in settings.`;
+      let replyOr = `ଆପଣଙ୍କ ପ୍ରଶ୍ନ "${query}" ର ଉତ୍ତର ପାଇଁ AI ସହିତ ସଂଯୋଗ ହୋଇପାରିଲା ନାହିଁ। ଦୟାକରି ସର୍ଭର ଚାଲୁ ଥିବା ନିଶ୍ଚିତ କରନ୍ତୁ କିମ୍ବା Gemini API Key ସେଟିଙ୍ଗରେ ଦିଅନ୍ତୁ।`;
+
+      if (activePest) {
+        replyEn = `Regarding your question "${query}" on ${activePest.commonNameEn}: The AI model is temporarily unreachable. Please ensure the backend server is running or check your network connection.`;
+        replyOr = `ଆପଣଙ୍କ ${activePest.commonNameOr} ସମ୍ପର୍କିତ ପ୍ରଶ୍ନ "${query}" ପାଇଁ AI ସହିତ ସଂଯୋଗ ହୋଇପାରିଲା ନାହିଁ। ଦୟାକରି ସର୍ଭର ଚାଲୁ କରନ୍ତୁ କିମ୍ବା ଇଣ୍ଟରନେଟ୍ ଯାଞ୍ଚ କରନ୍ତୁ।`;
+      }
+
+      const response: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        textEn: replyEn,
+        textOr: replyOr,
+        timestamp: Date.now(),
+        detectedLanguage: inputLang,
+        suggestedActionPills: [
+          'Why did this pest attack my paddy?',
+          'How can I control it without chemicals?',
+          'What is the correct chemical dosage?'
+        ],
+        suggestedActionPillsOr: [
+          'ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି?',
+          'ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି?',
+          'ଏହି ପୋକ କିପରି ଦୂର କରିବି?'
+        ]
+      };
+
       setMessages(prev => [...prev, response]);
       setIsGeneratingAnswer(false);
 
       if (wasSpoken) {
-        handleSpeechOutput(response.id, lang === 'or' ? response.textOr : response.textEn);
+        handleSpeechOutput(response.id, response.textOr, 'or');
       }
     }, 400);
   };
 
   const generateLocalAssistantResponse = (query: string, pest: any, language: 'or' | 'en'): ChatMessage => {
-    const qLower = query.toLowerCase();
+    // 1. Check greetings
+    const greetingMatch = checkGreetingOrSmallTalk(query, pest);
+    if (greetingMatch) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        textEn: greetingMatch.replyEn,
+        textOr: greetingMatch.replyOr,
+        timestamp: Date.now(),
+        suggestedActionPills: greetingMatch.pillsEn,
+        suggestedActionPillsOr: greetingMatch.pillsOr
+      };
+    }
+
+    // 2. Check suggestion chips
+    const chipMatch = checkSuggestionChips(query, pest);
+    if (chipMatch) {
+      return {
+        id: `msg-${Date.now()}`,
+        sender: 'assistant',
+        textEn: chipMatch.replyEn,
+        textOr: chipMatch.replyOr,
+        timestamp: Date.now(),
+        suggestedActionPills: chipMatch.pillsEn,
+        suggestedActionPillsOr: chipMatch.pillsOr
+      };
+    }
+
+    // 3. Fallback answer formatting with clean join (no double period, lowercase mid-sentence "flood", proper "followed by")
     let replyEn = '';
     let replyOr = '';
 
-    if (qLower.includes('କାହିଁକି') || qLower.includes('why') || qLower.includes('cause') || qLower.includes('reason')) {
-      if (pest) {
-        replyOr = `${pest.commonNameOr} କ୍ଷେତରେ ଲାଗିବାର ମୁଖ୍ୟ କାରଣ ହେଉଛି: ${pest.conditionsFavoringOr[0]} ଏବଂ ${pest.conditionsFavoringOr[1] || 'କ୍ଷେତରେ ଲଗାତାର ପାଣି ବାନ୍ଧି ରଖିବା ଓ ଅଧିକ ୟୁରିଆ ସାର ପକାଇବା'}।`;
-        replyEn = `The primary factors behind the outbreak of ${pest.commonNameEn} are: ${pest.conditionsFavoringEn[0]} along with dense spacing and unbalanced nitrogen fertilizer application.`;
-      } else {
-        replyOr = 'ଧାନ ଫସଲରେ ପୋକ ଲାଗିବାର ପ୍ରଧାନ କାରଣ ହେଉଛି ଅତ୍ୟଧିକ ଆର୍ଦ୍ରତା, ମେଘୁଆ ପାଗ, ଘଞ୍ଚ ରୋପଣ ଏବଂ ମାତ୍ରାଧିକ ୟୁରିଆ (ଯବକ୍ଷାରଜାନ) ସାରର ଅଣ-ନିୟନ୍ତ୍ରିତ ବ୍ୟବହାର।';
-        replyEn = 'Pest infestations in rice are primarily driven by sustained humidity above 80%, cloudy skies, narrow planting spacing, and excessive application of chemical urea.';
-      }
-    } 
-    else if (qLower.includes('ଔଷଧ ନ ପକାଇ') || qLower.includes('without chemical') || qLower.includes('organic') || qLower.includes('ଜୈବିକ')) {
-      if (pest) {
-        replyOr = `ଔଷଧ ନ ପକାଇ ଆପଣ ଏହି ୩ଟି ପଦ୍ଧତି ଆପଣାଇପାରିବେ: ୧) ${pest.immediateNextStepsOr[0]} ୨) ${pest.immediateNextStepsOr[1]} ୩) ନିମ୍ବ ତେଲ (୧୫୦୦ ପିପିଏମ୍) ଲିଟର ପ୍ରତି ୪ ମିଲି ହିସାବରେ ସିଞ୍ଚନ କରନ୍ତୁ।`;
-        replyEn = `To manage ${pest.commonNameEn} without synthetic chemicals: 1) ${pest.immediateNextStepsEn[0]} 2) ${pest.immediateNextStepsEn[1]} 3) Spray botanical Neem oil (Azadirachtin 1500 ppm) @ 3-5 ml/Litre.`;
-      } else {
-        replyOr = 'ବିନା ଔଷଧରେ କୀଟ ନିୟନ୍ତ୍ରଣ ପାଇଁ: ୧) କ୍ଷେତରୁ ପାଣି ନିଷ୍କାସନ କରନ୍ତୁ ୨) ପ୍ରତି ୨ ମିଟରରେ ୩୦ ସେମି ବାଟ ଛାଡ଼ନ୍ତୁ ୩) ଲିଙ୍ଗାକର୍ଷୀ ଫାନ୍ଦ (ଫେରୋମୋନ୍ ଟ୍ରାପ୍) ଲଗାନ୍ତୁ ୪) ବନ୍ଧୁ ବୁଢ଼ିଆଣୀଙ୍କୁ ସୁରକ୍ଷା ଦିଅନ୍ତୁ।';
-        replyEn = 'Non-chemical IPM methods include: Alternate Wetting and Drying (AWD), creating 30cm alleyways every 2m, installing pheromone traps, and conserving predatory spiders.';
-      }
-    }
-    else if (qLower.includes('ବୁଢ଼ିଆଣୀ') || qLower.includes('spider') || qLower.includes('predator') || qLower.includes('ବନ୍ଧୁ ପୋକ')) {
-      replyOr = 'ବୁଢ଼ିଆଣୀ (Wolf Spider) ହେଉଛି ଚାଷୀ ଭାଇଙ୍କ ପରମ ବନ୍ଧୁ। ଗୋଟିଏ ବୁଢ଼ିଆଣୀ ଦିନକୁ ୫ରୁ ୧୫ଟି ମାଟିଆ ଗୁଣ୍ଡି ପୋକ ଖାଇ ନଷ୍ଟ କରିଥାଏ। ଯଦି ଗଛ ପ୍ରତି ୨-୩ଟି ବୁଢ଼ିଆଣୀ ଦେଖାଯାଉଛନ୍ତି, ତେବେ କୌଣସି କୀଟନାଶକ ପକାନ୍ତୁ ନାହିଁ।';
-      replyEn = 'Wolf spiders (Lycosa pseudoannulata) are vital beneficial natural predators. A single spider preys on 5 to 15 brown plant hoppers per day. Conserve them by strictly avoiding prophylactic broad-spectrum insecticide sprays.';
-    }
-    else if (qLower.includes('କେତେ ମାତ୍ରା') || qLower.includes('dose') || qLower.includes('dosage') || qLower.includes('chemical') || qLower.includes('କୀଟନାଶକ')) {
-      if (pest && pest.chemicalControl) {
-        replyOr = `କେନ୍ଦ୍ରୀୟ କୀଟନାଶକ ବୋର୍ଡ଼ (CIBRC) ଅନୁମୋଦିତ ସୁପାରିଶ: ${pest.chemicalControl.moleculeOr} (ବ୍ୟାପାରିକ ନାମ: ${pest.chemicalControl.popularBrand})। ଏହାର ନିର୍ଦ୍ଦିଷ୍ଟ ମାତ୍ରା ଏକର ପ୍ରତି ${pest.chemicalControl.dosagePerAcreOr}। ସିଞ୍ଚନ ବେଳେ ମାସ୍କ ଓ ହାତମୋଜା ନିଶ୍ଚୟ ପିନ୍ଧନ୍ତୁ।`;
-        replyEn = `CIBRC approved prescription for ${pest.commonNameEn}: ${pest.chemicalControl.moleculeEn} (${pest.chemicalControl.popularBrand}). Apply exactly ${pest.chemicalControl.dosagePerAcreEn} with proper PPE mask and gloves.`;
-      } else {
-        replyOr = 'କୌଣସି ବି କୀଟନାଶକ ପ୍ରୟୋଗ କରିବା ପୂର୍ବରୁ ଆର୍ଥିକ କ୍ଷତି ସୀମା (ETL) ଯାଞ୍ଚ କରନ୍ତୁ ଏବଂ କୃଷି ବିଶେଷଜ୍ଞ କିମ୍ବା ବ୍ଲକ୍ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।';
-        replyEn = 'Before applying any chemical pesticide, always verify Economic Threshold Levels (ETL) and consult your local Assistant Agriculture Officer (AAO).';
-      }
-    }
-    else if (qLower.includes('ବରଗଡ଼') || qLower.includes('ସମ୍ବଲପୁର') || qLower.includes('district') || qLower.includes('weather') || qLower.includes('ପାଗ')) {
-      replyOr = 'ବରଗଡ଼ ଏବଂ ସମ୍ବଲପୁର ଜିଲ୍ଲାରେ ହୀରାକୁଦ କେନାଲ ଅଞ୍ଚଳରେ ଅଧିକ ଆର୍ଦ୍ରତା ହେତୁ ମାଟିଆ ଗୁଣ୍ଡି ପୋକ (BPH) ଏବଂ କାଣ୍ଡବିନ୍ଧା ପୋକର ଆଶଙ୍କା ରହିଛି। ନିୟମିତ କ୍ଷେତ ଯାଞ୍ଚ କରନ୍ତୁ।';
-      replyEn = 'Canal irrigated commands in Bargarh and Sambalpur are presently vulnerable to Brown Plant Hopper (BPH) and Yellow Stem Borer due to warm humid microclimates. Scout fields weekly.';
-    }
-    else {
-      if (pest) {
-        replyOr = `ଆପଣ ${pest.commonNameOr} ସମ୍ପର୍କରେ ପଚାରିଛନ୍ତି। ଏହାକୁ ଦମନ କରିବା ପାଇଁ ତୁରନ୍ତ ଏହି ପଦକ୍ଷେପ ନିଅନ୍ତୁ: ${pest.immediateNextStepsOr[0]} ଏବଂ ${pest.immediateNextStepsOr[1]}। ଅଧିକ ଜାଣିବାକୁ ଚାହୁଁଥିଲେ ପ୍ରଶ୍ନ ପଚାରନ୍ତୁ।`;
-        replyEn = `Regarding ${pest.commonNameEn}: The first recommended course of action is: ${pest.immediateNextStepsEn[0]} followed by ${pest.immediateNextStepsEn[1]}. Feel free to ask more specific questions.`;
-      } else {
-        replyOr = 'ନମସ୍କାର! ଧାନ କ୍ଷେତରେ ପୋକ କିମ୍ବା ରୋଗ ଚିହ୍ନଟ ପାଇଁ ଫଟୋ ସ୍କାନ୍ କରନ୍ତୁ କିମ୍ବା ପୋକ ବିଷୟରେ କିଛି ବି ପଚାରନ୍ତୁ। ମୁଁ ଆପଣଙ୍କୁ ଓଡ଼ିଆରେ ସଠିକ ପରାମର୍ଶ ଦେବି।';
-        replyEn = 'Namaste! Scan a crop photograph to identify pests or diseases, or ask any question to receive practical agricultural advice.';
-      }
+    if (pest) {
+      const stepsEnFormatted = formatTreatmentStepsEn(pest.immediateNextStepsEn);
+      const stepsOrFormatted = formatTreatmentStepsOr(pest.immediateNextStepsOr);
+      replyOr = `ଆପଣ ${pest.commonNameOr} ସମ୍ପର୍କରେ ପଚାରିଛନ୍ତି। ଏହାକୁ ଦମନ କରିବା ପାଇଁ ତୁରନ୍ତ ଏହି ପଦକ୍ଷେପ ନିଅନ୍ତୁ: ${stepsOrFormatted}ଅଧିକ ଜାଣିବାକୁ ଚାହୁଁଥିଲେ ପ୍ରଶ୍ନ ପଚାରନ୍ତୁ।`;
+      replyEn = `Regarding ${pest.commonNameEn}: The first recommended course of action is: ${stepsEnFormatted} Feel free to ask more specific questions.`;
+    } else {
+      replyOr = 'ନମସ୍କାର! ଧାନ କ୍ଷେତରେ ପୋକ କିମ୍ବା ରୋଗ ଚିହ୍ନଟ ପାଇଁ ଫଟୋ ସ୍କାନ୍ କରନ୍ତୁ କିମ୍ବା ପୋକ ବିଷୟରେ କିଛି ବି ପଚାରନ୍ତୁ। ମୁଁ ଆପଣଙ୍କୁ ଓଡ଼ିଆରେ ସଠିକ ପରାମର୍ଶ ଦେବି।';
+      replyEn = 'Namaste! Scan a crop photograph to identify pests or diseases, or ask any question to receive practical agricultural advice.';
     }
 
     return {
@@ -298,8 +650,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       textEn: replyEn,
       textOr: replyOr,
       timestamp: Date.now(),
-      suggestedActionPills: ['Biological control methods', 'When to contact KVK?', 'Pesticide safety rules'],
-      suggestedActionPillsOr: ['ଜୈବିକ ନିୟନ୍ତ୍ରଣ ପଦ୍ଧତି', 'KVK କୁ କେବେ ଯୋଗାଯୋଗ କରିବି?', 'କୀଟନାଶକ ସୁରକ୍ଷା ନିୟମ']
+      suggestedActionPills: [
+        'Why did this pest attack my paddy?',
+        'How can I control it without chemicals?',
+        'What is the correct chemical dosage?'
+      ],
+      suggestedActionPillsOr: [
+        'ମୋ ଧାନ ଗଛରେ ଏହି ପୋକ କାହିଁକି ଲାଗିଛି?',
+        'ଔଷଧ ନ ପକାଇ କଣ କରିପାରିବି?',
+        'ଏହି ପୋକ କିପରି ଦୂର କରିବି?'
+      ]
     };
   };
 
@@ -359,9 +719,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                       ? 'bg-agri-800 text-white rounded-tr-none' 
                       : 'bg-slate-50 border border-slate-200 text-slate-900 rounded-tl-none'
                   }`}>
-                    <p className={lang === 'or' ? 'font-odia text-[15px]' : ''}>
-                      {lang === 'or' ? msg.textOr : msg.textEn}
-                    </p>
+                    {(() => {
+                      const displayLang = msg.detectedLanguage || lang;
+                      const isOdiaDisplay = displayLang === 'or';
+                      const textToShow = isOdiaDisplay ? (msg.textOr || msg.textEn) : (msg.textEn || msg.textOr);
+                      return (
+                        <p className={isOdiaDisplay ? 'font-odia text-[15px]' : ''}>
+                          {textToShow}
+                        </p>
+                      );
+                    })()}
 
                     {/* Voice Controls & Feedback */}
                     {!isUser && (
@@ -397,9 +764,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                         {/* Interactive Buttons */}
                         <div className="flex items-center space-x-1">
                           <button
-                            onClick={() => handleSpeechOutput(msg.id, lang === 'or' ? msg.textOr : msg.textEn)}
+                            onClick={() => handleSpeechOutput(msg.id, msg.textOr || msg.textEn, 'or')}
                             className="min-h-[44px] px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-sm"
-                            title={isSpeakingThis && playbackState === 'playing' ? 'Pause' : 'Listen in Odia'}
+                            title={isSpeakingThis && playbackState === 'playing' ? (lang === 'or' ? 'ଅଟକାନ୍ତୁ' : 'Pause') : (lang === 'or' ? 'ଶୁଣନ୍ତୁ' : 'Listen in Odia')}
                           >
                             {isSpeakingThis && playbackState === 'playing' ? (
                               <>
@@ -417,7 +784,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                           {isSpeakingThis && (
                             <>
                               <button
-                                onClick={() => handleReplay(msg.id, lang === 'or' ? msg.textOr : msg.textEn)}
+                                onClick={() => handleReplay(msg.id, msg.textOr || msg.textEn, 'or')}
                                 className="min-h-[44px] min-w-[44px] p-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors shadow-sm"
                                 title="Replay"
                               >

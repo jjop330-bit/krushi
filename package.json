@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "tsx test_frontend.mjs && tsx test_responsive_viewports.mjs && tsx test_voice_tts.mjs"
+    "test": "tsx test_frontend.mjs && tsx test_responsive_viewports.mjs && tsx test_voice_tts.mjs && tsx test_chat_assistant.mjs"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

@@ -8,4 +8,5 @@ export interface ChatMessage {
   audioVoiceKey?: string;
   suggestedActionPills?: string[];
   suggestedActionPillsOr?: string[];
+  detectedLanguage?: 'or' | 'en';
 }
