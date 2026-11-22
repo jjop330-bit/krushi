@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ShoppingBag, Search, Filter, Star, ShieldCheck, CheckCircle2, AlertCircle, 
-  Plus, Minus, Trash2, ArrowRight, Store, Package, Truck, Info, X, Heart
+  ShoppingBag, Search, ShieldCheck, CheckCircle2, 
+  Trash2, ArrowRight, Store, Package, X
 } from 'lucide-react';
-import { Product, ProductCategory, ShoppingCart, Order, ProductReview } from '../types/marketplace';
+import { ProductCategory, ShoppingCart, Order } from '../types/marketplace';
 import { MarketplaceService } from '../services/marketplaceService';
 
 interface KrushiStoreProps {
@@ -22,8 +22,6 @@ export const KrushiStore: React.FC<KrushiStoreProps> = ({
   initialFilterCrop
 }) => {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedPest, setSelectedPest] = useState<string>(initialFilterPest || 'all');
@@ -35,15 +33,8 @@ export const KrushiStore: React.FC<KrushiStoreProps> = ({
   const [cart, setCart] = useState<ShoppingCart | null>(null);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [productReviews, setProductReviews] = useState<ProductReview[]>([]);
   const [isSellerModalOpen, setIsSellerModalOpen] = useState<boolean>(false);
   const [orderConfirmation, setOrderConfirmation] = useState<Order | null>(null);
-
-  // Review form state
-  const [newReviewRating, setNewReviewRating] = useState<number>(5);
-  const [newReviewComment, setNewReviewComment] = useState<string>('');
-  const [newReviewAuthor, setNewReviewAuthor] = useState<string>('');
 
   // Checkout form state
   const [checkoutName, setCheckoutName] = useState<string>('Dharanidhar Pradhan');
@@ -70,27 +61,14 @@ export const KrushiStore: React.FC<KrushiStoreProps> = ({
   useEffect(() => {
     loadData();
     refreshCart();
-  }, [selectedCategory, selectedPest, selectedCrop, organicOnly, selectedDistrict]);
+  }, []);
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const cats = await MarketplaceService.getCategories();
       setCategories(cats);
-
-      const prods = await MarketplaceService.listProducts({
-        category_id: selectedCategory === 'all' ? undefined : selectedCategory,
-        pest_id: selectedPest === 'all' ? undefined : selectedPest,
-        crop_id: selectedCrop === 'all' ? undefined : selectedCrop,
-        is_organic: organicOnly ? true : undefined,
-        district: selectedDistrict === 'all' ? undefined : selectedDistrict,
-        search: searchQuery.trim() || undefined
-      });
-      setProducts(prods);
     } catch (e) {
-      console.error('Failed to load store catalog:', e);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load store categories:', e);
     }
   };
 
@@ -100,17 +78,6 @@ export const KrushiStore: React.FC<KrushiStoreProps> = ({
       setCart(c);
     } catch (e) {
       console.error('Error fetching cart:', e);
-    }
-  };
-
-  const handleAddToCart = async (product: Product, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    try {
-      const updated = await MarketplaceService.addToCart(product.id, 1);
-      setCart(updated);
-      setIsCartOpen(true);
-    } catch (err: any) {
-      alert(err.message || 'Could not add to cart');
     }
   };
 
@@ -129,27 +96,6 @@ export const KrushiStore: React.FC<KrushiStoreProps> = ({
       setCart(updated);
     } catch (err: any) {
       alert(err.message);
-    }
-  };
-
-  const handleOpenProduct = async (product: Product) => {
-    setSelectedProduct(product);
-    const revs = await MarketplaceService.getProductReviews(product.id);
-    setProductReviews(revs);
-  };
-
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProduct || !newReviewComment.trim()) return;
-    const author = newReviewAuthor.trim() || (lang === 'or' ? 'ପ୍ରମାଣିତ ଚାଷୀ' : 'Verified Farmer');
-    const created = await MarketplaceService.submitReview(selectedProduct.id, {
-      rating: newReviewRating,
-      comment: newReviewComment.trim(),
-      farmer_name: author
-    });
-    if (created) {
-      setProductReviews([created, ...productReviews]);
-      setNewReviewComment('');
     }
   };
 
@@ -265,7 +211,6 @@ export const KrushiStore: React.FC<KrushiStoreProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadData()}
               placeholder={lang === 'or' ? 'ଉତ୍ପାଦ କିମ୍ବା ଔଷଧ ନାମ ଖୋଜନ୍ତୁ (ଯଥା: MTU-1010, Neem Oil, Traps)...' : 'Search seeds, biopesticides, traps, tools...'}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-agri-500 bg-slate-50"
             />
@@ -363,289 +308,6 @@ export const KrushiStore: React.FC<KrushiStoreProps> = ({
           >
             {lang === 'or' ? 'ସମସ୍ତ ଉତ୍ପାଦ ଦେଖନ୍ତୁ' : 'Clear Filter'}
           </button>
-        </div>
-      )}
-
-      {/* Product Grid / Empty State */}
-      {loading ? (
-        <div className="p-12 text-center text-slate-400">
-          <div className="animate-spin w-8 h-8 border-2 border-agri-700 border-t-transparent rounded-full mx-auto mb-2"></div>
-          <p className="text-xs">{lang === 'or' ? 'ଉତ୍ପାଦ ତାଲିକା ଲୋଡ୍ ହେଉଛି...' : 'Loading verified agri catalog...'}</p>
-        </div>
-      ) : products.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
-          <Package className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-slate-800">
-            {lang === 'or' ? 'କୌଣସି ଉତ୍ପାଦ ମିଳିଲା ନାହିଁ' : 'No Products Match Selected Filters'}
-          </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            {lang === 'or'
-              ? 'ଏହି ବର୍ଗରେ ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଉତ୍ପାଦ ପଞ୍ଜୀକୃତ ହୋଇନାହିଁ। ଆପଣ ଏକ କୃଷି ଡିଲର କିମ୍ବା FPO ହୋଇଥିଲେ ଏଠାରେ ବିକ୍ରେତା ଭାବେ ଉତ୍ପାଦ ଯୋଡିପାରିବେ।'
-              : 'No verified products are currently listed under this selection. Are you an agricultural supplier or cooperative? Register as an authorized seller today.'}
-          </p>
-          <button
-            onClick={() => setIsSellerModalOpen(true)}
-            className="px-4 py-2 bg-agri-800 hover:bg-agri-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
-          >
-            {lang === 'or' ? 'ବିକ୍ରେତା ପଞ୍ଜୀକରଣ କରନ୍ତୁ' : 'Register as Seller'}
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {products.map((product) => {
-            const hasDiscount = product.original_price && product.original_price > product.price;
-            const discountPct = hasDiscount
-              ? Math.round(((product.original_price! - product.price) / product.original_price!) * 100)
-              : 0;
-
-            return (
-              <div
-                key={product.id}
-                onClick={() => handleOpenProduct(product)}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col cursor-pointer group"
-              >
-                {/* Product Image */}
-                <div className="relative h-44 w-full bg-slate-100 overflow-hidden">
-                  <img
-                    src={product.image_urls[0] || 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=600&auto=format&fit=crop'}
-                    alt={product.title_en}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {product.is_organic && (
-                    <span className="absolute top-2.5 left-2.5 bg-emerald-700/90 backdrop-blur-sm text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-sm">
-                      🌿 {lang === 'or' ? 'ଜୈବିକ' : 'Organic'}
-                    </span>
-                  )}
-                  {hasDiscount && (
-                    <span className="absolute top-2.5 right-2.5 bg-rose-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-sm">
-                      {discountPct}% OFF
-                    </span>
-                  )}
-                  <span className="absolute bottom-2 left-2.5 bg-black/60 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-0.5 rounded-md">
-                    {product.unit}
-                  </span>
-                </div>
-
-                {/* Content */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
-                      <span className="truncate max-w-[150px] font-medium">
-                        {product.seller_name}
-                      </span>
-                      <div className="flex items-center text-amber-500 font-bold space-x-0.5">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span>{product.rating.toFixed(1)}</span>
-                        <span className="text-slate-400 font-normal">({product.total_reviews})</span>
-                      </div>
-                    </div>
-
-                    <h3 className="font-bold text-slate-900 text-sm line-clamp-2 group-hover:text-agri-800 transition-colors">
-                      {lang === 'or' ? product.title_or : product.title_en}
-                    </h3>
-                  </div>
-
-                  {/* Stock & Target Pest Pills */}
-                  <div className="flex flex-wrap gap-1">
-                    {product.target_pests.length > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-bold uppercase">
-                        {product.target_pests.join(', ')}
-                      </span>
-                    )}
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                      product.stock_quantity > 10 ? 'bg-lime-50 text-lime-900' : 'bg-rose-50 text-rose-900'
-                    }`}>
-                      {product.stock_quantity > 0 
-                        ? `${lang === 'or' ? 'ମହଜୁଦ:' : 'Stock:'} ${product.stock_quantity}` 
-                        : (lang === 'or' ? 'ଶେଷ ହୋଇଛି' : 'Out of Stock')}
-                    </span>
-                  </div>
-
-                  {/* Pricing & Add to Cart */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-baseline space-x-1.5">
-                        <span className="text-lg font-black text-slate-900">
-                          ₹{product.price.toFixed(2)}
-                        </span>
-                        {hasDiscount && (
-                          <span className="text-xs text-slate-400 line-through">
-                            ₹{product.original_price!.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={(e) => handleAddToCart(product, e)}
-                      disabled={product.stock_quantity <= 0}
-                      className="px-3 py-1.5 rounded-xl bg-agri-800 hover:bg-agri-900 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold flex items-center space-x-1 transition-all shadow-sm active:scale-95"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{lang === 'or' ? 'ଯୋଡନ୍ତୁ' : 'Add'}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Product Detail Modal */}
-      {selectedProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 flex flex-col animate-scaleUp">
-            <div className="relative h-60 w-full bg-slate-100 flex-shrink-0">
-              <img
-                src={selectedProduct.image_urls[0]}
-                alt={selectedProduct.title_en}
-                className="w-full h-full object-cover"
-              />
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white text-slate-800 rounded-full shadow-md backdrop-blur-sm"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="text-xs font-bold text-agri-800 uppercase tracking-wider block">
-                    {selectedProduct.category_id.toUpperCase()}
-                  </span>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-                    {lang === 'or' ? selectedProduct.title_or : selectedProduct.title_en}
-                  </h2>
-                </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-slate-900 block">
-                    ₹{selectedProduct.price.toFixed(2)}
-                  </span>
-                  <span className="text-xs text-slate-500 font-medium">per {selectedProduct.unit}</span>
-                </div>
-              </div>
-
-              {/* Verified Seller Box */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between text-xs">
-                <div>
-                  <span className="text-slate-500 block">{lang === 'or' ? 'ପ୍ରମାଣିତ ବିକ୍ରେତା:' : 'Verified Supplier:'}</span>
-                  <span className="font-bold text-slate-900">{selectedProduct.seller_name}</span>
-                  <span className="text-slate-500 block text-[11px] capitalize">{selectedProduct.seller_district} District</span>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-lime-100 text-lime-900 font-extrabold flex items-center space-x-1 text-[11px]">
-                  <ShieldCheck className="w-3.5 h-3.5 text-lime-700" />
-                  <span>{lang === 'or' ? 'ସତ୍ୟାପିତ' : 'Verified'}</span>
-                </span>
-              </div>
-
-              {/* Description */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  {lang === 'or' ? 'ବିବରଣୀ' : 'Description'}
-                </h4>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                  {lang === 'or' ? selectedProduct.description_or : selectedProduct.description_en}
-                </p>
-              </div>
-
-              {/* Chemical Regulation Notice */}
-              {selectedProduct.is_chemical_regulated && (
-                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 text-xs text-amber-900 flex items-start space-x-2">
-                  <AlertCircle className="w-4 h-4 text-amber-700 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <span className="font-bold">CIBRC Regulated Agrochemical:</span>
-                    <p className="text-[11px] mt-0.5">
-                      Registration: {selectedProduct.cibrc_registration_number || 'Official CIBRC Approval'}. Follow strict PPE safety protocols and post-harvest interval (PHI) periods.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Reviews Section */}
-              <div className="border-t border-slate-200 pt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    {lang === 'or' ? 'ଚାଷୀ ମତାମତ ଓ ରେଟିଂ' : 'Farmer Reviews'} ({productReviews.length})
-                  </h4>
-                  <div className="flex items-center text-amber-500 text-xs font-bold space-x-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span>{selectedProduct.rating.toFixed(1)} / 5.0</span>
-                  </div>
-                </div>
-
-                {/* Review Form */}
-                <form onSubmit={handleSubmitReview} className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs text-slate-600">{lang === 'or' ? 'ରେଟିଂ ଦିଅନ୍ତୁ:' : 'Rating:'}</span>
-                    <div className="flex space-x-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setNewReviewRating(star)}
-                          className={`w-6 h-6 text-sm font-bold rounded ${
-                            newReviewRating >= star ? 'text-amber-500' : 'text-slate-300'
-                          }`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    value={newReviewComment}
-                    onChange={(e) => setNewReviewComment(e.target.value)}
-                    placeholder={lang === 'or' ? 'ଏହି ଉତ୍ପାଦ ବିଷୟରେ ନିଜର ଅନୁଭୂତି ଲେଖନ୍ତୁ...' : 'Write your review here...'}
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-agri-600"
-                  />
-                  <button
-                    type="submit"
-                    className="px-3 py-1 bg-agri-800 text-white rounded-lg text-xs font-bold hover:bg-agri-900"
-                  >
-                    {lang === 'or' ? 'ଦାଖଲ କରନ୍ତୁ' : 'Submit Review'}
-                  </button>
-                </form>
-
-                {/* Reviews List */}
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {productReviews.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">No reviews yet for this product.</p>
-                  ) : (
-                    productReviews.map((r) => (
-                      <div key={r.id} className="bg-white p-2.5 rounded-xl border border-slate-100 text-xs">
-                        <div className="flex justify-between items-center text-[11px] text-slate-500 mb-0.5">
-                          <span className="font-bold text-slate-800">{r.farmer_name}</span>
-                          <span className="text-amber-500 font-bold">★ {r.rating}</span>
-                        </div>
-                        <p className="text-slate-700 text-xs">{r.comment}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">
-                  {selectedProduct.stock_quantity > 0 ? `${selectedProduct.stock_quantity} units available` : 'Out of Stock'}
-                </span>
-                <button
-                  onClick={() => {
-                    handleAddToCart(selectedProduct);
-                    setSelectedProduct(null);
-                  }}
-                  disabled={selectedProduct.stock_quantity <= 0}
-                  className="px-6 py-2.5 rounded-2xl bg-agri-800 hover:bg-agri-900 disabled:bg-slate-200 text-white font-bold text-sm shadow-md"
-                >
-                  {lang === 'or' ? 'କ୍ରୟ ଥଳିରେ ଯୋଡନ୍ତୁ' : 'Add to Cart'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
