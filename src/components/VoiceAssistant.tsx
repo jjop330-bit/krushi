@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Sprout,
   AlertCircle,
-  Square
+  Square,
+  X
 } from 'lucide-react';
 import { ChatMessage } from '../types/chat';
 import { ScanReport } from '../types/pest';
@@ -36,6 +37,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [playbackState, setPlaybackState] = useState<AudioPlaybackState>('idle');
@@ -94,19 +96,32 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       return;
     }
 
+    setVoiceError(null);
     setIsListening(true);
-    voiceService.startListening(
-      (transcript) => {
-        setIsListening(false);
-        setInputText(transcript);
-        handleSendQuery(transcript, true);
+
+    voiceService.startListening({
+      lang,
+      continuous: true,
+      interimResults: true,
+      silenceTimeoutMs: 2500,
+      onStart: () => {
+        setIsListening(true);
       },
-      (error) => {
-        setIsListening(false);
-        console.warn('Speech recognition error', error);
+      onTranscriptChange: (_interim, _final, complete) => {
+        setInputText(complete);
       },
-      lang
-    );
+      onFinalResult: (complete) => {
+        setInputText(complete);
+        setIsListening(false);
+      },
+      onError: (errorMsg) => {
+        setIsListening(false);
+        setVoiceError(errorMsg);
+      },
+      onEnd: () => {
+        setIsListening(false);
+      }
+    });
   };
 
   const handleSpeechOutput = (msgId: string, text: string, speechLang: 'or' | 'en' = 'or') => {
@@ -856,6 +871,48 @@ Respond ONLY in valid JSON matching:
 
         {/* Input Controls Bar */}
         <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 w-full">
+          {/* Active Voice Listening Banner */}
+          {isListening && (
+            <div className="flex items-center justify-between px-3 sm:px-4 py-2 mb-2.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold animate-pulse shadow-sm">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                <span>
+                  {lang === 'or' 
+                    ? 'ଶୁଣୁଛି... ଆପଣଙ୍କ ସମ୍ପୂର୍ଣ୍ଣ ପ୍ରଶ୍ନ ଓଡ଼ିଆରେ କୁହନ୍ତୁ (ଶେଷ କରିବାକୁ ମାଇକ୍ ଦବାନ୍ତୁ)' 
+                    : 'Listening... Speak your complete question (tap mic when done)'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  voiceService.stopListening();
+                  setIsListening(false);
+                }}
+                className="px-2.5 py-1 rounded-xl bg-rose-200/80 hover:bg-rose-200 text-rose-900 text-[11px] font-bold transition-colors"
+              >
+                {lang === 'or' ? 'ସମାପ୍ତ' : 'Done'}
+              </button>
+            </div>
+          )}
+
+          {/* Voice Error Notification Banner */}
+          {voiceError && (
+            <div className="flex items-center justify-between px-3 sm:px-4 py-2 mb-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium shadow-sm">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>{voiceError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVoiceError(null)}
+                className="p-1 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <form 
             onSubmit={(e) => { e.preventDefault(); handleSendQuery(); }}
             className="flex items-center space-x-2 w-full"
@@ -866,10 +923,10 @@ Respond ONLY in valid JSON matching:
               onClick={handleVoiceInput}
               className={`min-h-[48px] min-w-[48px] p-3 rounded-2xl flex items-center justify-center transition-all shadow-sm ${
                 isListening 
-                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-200' 
+                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-200 ring-2 ring-rose-400' 
                   : 'bg-agri-800 hover:bg-agri-700 text-lime-300'
               }`}
-              title={isListening ? 'Stop listening' : 'Speak query in Odia or English'}
+              title={isListening ? (lang === 'or' ? 'ଅଟକାନ୍ତୁ' : 'Stop listening') : (lang === 'or' ? 'ମାଇକ୍ ବଟନ୍ ଦବାଇ କୁହନ୍ତୁ' : 'Speak query in Odia or English')}
             >
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>

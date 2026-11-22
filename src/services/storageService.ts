@@ -18,33 +18,92 @@ export interface AppSettings {
 
 export const PRODUCTION_BACKEND_URL = 'https://krushi-mitra-ai-production.up.railway.app/api/v1';
 
-export const normalizeBackendUrl = (url?: string): string => {
-  if (!url || typeof url !== 'string') return PRODUCTION_BACKEND_URL;
-  let cleaned = url.trim().replace(/\/+$/, '');
-  if (!cleaned) return PRODUCTION_BACKEND_URL;
+const KNOWN_PLACEHOLDER_SUBSTRINGS = [
+  'your-railway',
+  'railway-domain',
+  'your-domain',
+  'your-krushi-mitra',
+  'your-api',
+  'your-service',
+  'your-backend',
+  '<your-',
+  'placeholder',
+  'example.com',
+  'onrender.com',
+  'undefined',
+  'null'
+];
 
-  // In production deployments (e.g. Vercel), override any localhost, 127.0.0.1, or stale/dead prototype URLs
-  if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    if (cleaned.includes('localhost') || cleaned.includes('127.0.0.1') || cleaned.includes('onrender.com') || cleaned.includes('your-krushi-mitra')) {
+export const isPlaceholderBackendUrl = (url?: string): boolean => {
+  if (!url || typeof url !== 'string') return true;
+  const trimmed = url.trim().toLowerCase();
+  if (trimmed.length === 0) return true;
+  if (trimmed.includes('<') || trimmed.includes('>')) return true;
+  return KNOWN_PLACEHOLDER_SUBSTRINGS.some(pattern => trimmed.includes(pattern));
+};
+
+export const normalizeBackendUrl = (url?: string): string => {
+  if (!url || typeof url !== 'string' || isPlaceholderBackendUrl(url)) {
+    return PRODUCTION_BACKEND_URL;
+  }
+  let cleaned = url.trim().replace(/\/+$/, '');
+  if (!cleaned || isPlaceholderBackendUrl(cleaned)) {
+    return PRODUCTION_BACKEND_URL;
+  }
+
+  // Ensure protocol is present
+  if (!/^https?:\/\//i.test(cleaned)) {
+    if (/^(localhost|127\.0\.0\.1)(:\d+)?/i.test(cleaned)) {
+      cleaned = `http://${cleaned}`;
+    } else {
+      cleaned = `https://${cleaned}`;
+    }
+  }
+
+  // Structure and hostname validation
+  try {
+    const parsed = new URL(cleaned);
+    const host = parsed.hostname.toLowerCase();
+
+    // Catch unresolvable single-label non-localhost hostnames like "your-railway-domain"
+    if (host !== 'localhost' && !host.includes('.')) {
       return PRODUCTION_BACKEND_URL;
     }
-  }
-
-  // Ensure clean /api/v1 pathing
-  if (!cleaned.endsWith('/api/v1')) {
-    if (cleaned.endsWith('/api')) {
-      cleaned = `${cleaned}/v1`;
-    } else {
-      cleaned = `${cleaned}/api/v1`;
+    if (isPlaceholderBackendUrl(host)) {
+      return PRODUCTION_BACKEND_URL;
     }
+
+    // In production deployments (e.g. Vercel / non-local hostnames), override any localhost/127.0.0.1
+    if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      if (host === 'localhost' || host === '127.0.0.1') {
+        return PRODUCTION_BACKEND_URL;
+      }
+    }
+
+    // Ensure clean /api/v1 pathing
+    let pathname = parsed.pathname.replace(/\/+$/, '');
+    if (!pathname.endsWith('/api/v1')) {
+      if (pathname.endsWith('/api')) {
+        pathname = `${pathname}/v1`;
+      } else if (pathname === '' || pathname === '/') {
+        pathname = '/api/v1';
+      } else {
+        pathname = `${pathname}/api/v1`;
+      }
+    }
+
+    return `${parsed.protocol}//${parsed.host}${pathname}`;
+  } catch {
+    return PRODUCTION_BACKEND_URL;
   }
-  return cleaned;
 };
 
 const getInitialBackendUrl = (): string => {
   if (typeof import.meta !== 'undefined' && import.meta && import.meta.env && import.meta.env.VITE_API_URL) {
     const envUrl = String(import.meta.env.VITE_API_URL).trim();
-    if (envUrl.length > 0) return normalizeBackendUrl(envUrl);
+    if (envUrl.length > 0 && !isPlaceholderBackendUrl(envUrl)) {
+      return normalizeBackendUrl(envUrl);
+    }
   }
   return PRODUCTION_BACKEND_URL;
 };
@@ -69,8 +128,17 @@ export class StorageService {
       const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (stored) {
         const parsed = JSON.parse(stored);
-        parsed.backendUrl = normalizeBackendUrl(parsed.backendUrl || defaultBackendUrl);
-        return { ...effectiveDefaults, ...parsed };
+        const resolvedBackendUrl = normalizeBackendUrl(parsed.backendUrl || defaultBackendUrl);
+        // Self-heal localStorage if stored backendUrl was invalid or a placeholder
+        if (parsed.backendUrl !== resolvedBackendUrl) {
+          parsed.backendUrl = resolvedBackendUrl;
+          try {
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...effectiveDefaults, ...parsed, backendUrl: resolvedBackendUrl }));
+          } catch {
+            // ignore localStorage quota errors
+          }
+        }
+        return { ...effectiveDefaults, ...parsed, backendUrl: resolvedBackendUrl };
       }
       return effectiveDefaults;
     } catch {
