@@ -13,9 +13,14 @@ import {
   Volume2, 
   PhoneCall,
   UserCheck,
-  Wheat
+  Wheat,
+  ShoppingBag,
+  Store,
+  Shield,
+  Package
 } from 'lucide-react';
 import { ODIA_TRANSLATIONS } from '../data/odiaTranslations';
+import { NotificationBell } from './NotificationBell';
 
 interface NavbarProps {
   currentTab: string;
@@ -25,6 +30,8 @@ interface NavbarProps {
   onOpenSettings: () => void;
   hasActiveReport: boolean;
   onQuickVoice: () => void;
+  userRole?: 'farmer' | 'seller' | 'expert' | 'admin';
+  setUserRole?: (role: 'farmer' | 'seller' | 'expert' | 'admin') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,7 +41,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   setLang,
   onOpenSettings,
   hasActiveReport,
-  onQuickVoice
+  onQuickVoice,
+  userRole = 'farmer',
+  setUserRole
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const t = ODIA_TRANSLATIONS[lang];
@@ -44,11 +53,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'scanner', label: t.navScanner, shortLabel: lang === 'or' ? 'ସ୍କାନର' : 'Scanner', icon: Scan, highlight: true },
     { id: 'report', label: t.navReport, shortLabel: lang === 'or' ? 'ରିପୋର୍ଟ' : 'Report', icon: FileText, disabled: !hasActiveReport },
     { id: 'treatment', label: t.navTreatment, shortLabel: lang === 'or' ? 'ଉପଚାର' : 'Treatment', icon: ShieldAlert, disabled: !hasActiveReport },
+    { id: 'store', label: t.navStore, shortLabel: lang === 'or' ? 'ଷ୍ଟୋର' : 'Store', icon: ShoppingBag },
+    { id: 'talk_expert', label: t.navTalkExpert, shortLabel: lang === 'or' ? 'ବିଶେଷଜ୍ଞ' : 'Expert', icon: UserCheck },
     { id: 'assistant', label: t.navAssistant, shortLabel: lang === 'or' ? 'ଭଏସ୍' : 'Voice', icon: Mic },
     { id: 'map', label: t.navMap, shortLabel: lang === 'or' ? 'ମାନଚିତ୍ର' : 'Map', icon: MapPin },
     { id: 'followup', label: t.navFollowUp, shortLabel: lang === 'or' ? 'ଯାଞ୍ଚ' : 'Follow-Up', icon: CalendarCheck },
-    { id: 'crops', label: t.navCropLibrary, shortLabel: lang === 'or' ? 'ଫସଲ' : 'Crops', icon: Wheat },
-    { id: 'expert', label: t.navExpertPortal, shortLabel: lang === 'or' ? 'ବିଶେଷଜ୍ଞ' : 'Expert', icon: UserCheck }
+    { id: 'crops', label: t.navCropLibrary, shortLabel: lang === 'or' ? 'ଫସଲ' : 'Crops', icon: Wheat }
   ];
 
   const handleNavClick = (id: string) => {
@@ -59,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-50 bg-[#0F3822] text-white shadow-md border-b border-agri-800 w-full overflow-hidden">
       {/* Top Advisory & Emergency Banner */}
-      <div className="bg-[#092516] px-3 sm:px-4 py-1.5 text-xs flex justify-between items-center text-agri-200 border-b border-agri-900 w-full">
+      <div className="bg-[#092516] px-3 sm:px-4 py-1 text-xs flex justify-between items-center text-agri-200 border-b border-agri-900 w-full">
         <div className="flex items-center space-x-2 min-w-0 flex-1 overflow-hidden">
           <span className="inline-block w-2 h-2 rounded-full bg-lime-400 animate-pulse flex-shrink-0"></span>
           <span className="font-semibold text-lime-300 flex-shrink-0">
@@ -70,6 +80,30 @@ export const Navbar: React.FC<NavbarProps> = ({
           </span>
         </div>
         <div className="hidden sm:flex items-center space-x-3 text-xs flex-shrink-0 ml-3">
+          {/* Active Workspace / Role Mode Pill */}
+          {setUserRole && (
+            <div className="flex items-center space-x-1 bg-white/10 px-2 py-0.5 rounded-lg border border-white/10 text-[11px]">
+              <span className="text-agri-300">Role:</span>
+              <select
+                value={userRole}
+                onChange={(e) => {
+                  const r = e.target.value as any;
+                  setUserRole(r);
+                  if (r === 'seller') setCurrentTab('seller_dashboard');
+                  else if (r === 'expert') setCurrentTab('expert_dashboard');
+                  else if (r === 'admin') setCurrentTab('admin_dashboard');
+                  else setCurrentTab('dashboard');
+                }}
+                className="bg-transparent text-lime-300 font-bold focus:outline-none cursor-pointer"
+              >
+                <option value="farmer" className="text-slate-900">Farmer View (ଚାଷୀ)</option>
+                <option value="seller" className="text-slate-900">Agri Seller (ବିକ୍ରେତା)</option>
+                <option value="expert" className="text-slate-900">OUAT/KVK Expert (ବିଶେଷଜ୍ଞ)</option>
+                <option value="admin" className="text-slate-900">Platform Admin (ପ୍ରଶାସକ)</option>
+              </select>
+            </div>
+          )}
+
           <a 
             href="tel:18001801551" 
             className="flex items-center space-x-1 text-lime-300 hover:text-white transition-colors"
@@ -127,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   disabled={item.disabled}
                   className={`px-1 xl:px-1.5 2xl:px-2 py-1 xl:py-1.5 rounded-lg text-[9px] md:text-[9.2px] lg:text-[10px] xl:text-[10.5px] 2xl:text-xs font-medium transition-all flex items-center gap-0.5 xl:gap-1 whitespace-nowrap flex-shrink-0 ${
                     isActive 
-                      ? 'bg-agri-800 text-lime-300 shadow-sm border border-agri-700' 
+                      ? 'bg-agri-800 text-lime-300 shadow-sm border border-agri-700 font-bold' 
                       : item.highlight
                       ? 'bg-lime-500 text-agri-950 font-bold hover:bg-lime-400 shadow-md'
                       : item.disabled
@@ -140,11 +174,54 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               );
             })}
+
+            {/* Quick Portal Switcher Pills depending on Role */}
+            {userRole === 'seller' && (
+              <button
+                onClick={() => handleNavClick('seller_dashboard')}
+                className={`px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center space-x-1 ${
+                  currentTab === 'seller_dashboard' ? 'bg-amber-400 text-slate-950' : 'bg-white/10 text-amber-300 hover:bg-white/20'
+                }`}
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>Seller Portal</span>
+              </button>
+            )}
+
+            {userRole === 'expert' && (
+              <button
+                onClick={() => handleNavClick('expert_dashboard')}
+                className={`px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center space-x-1 ${
+                  currentTab === 'expert_dashboard' ? 'bg-lime-400 text-slate-950' : 'bg-white/10 text-lime-300 hover:bg-white/20'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Expert Portal</span>
+              </button>
+            )}
+
+            {userRole === 'admin' && (
+              <button
+                onClick={() => handleNavClick('admin_dashboard')}
+                className={`px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap flex items-center space-x-1 ${
+                  currentTab === 'admin_dashboard' ? 'bg-rose-500 text-white' : 'bg-white/10 text-rose-300 hover:bg-white/20'
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Admin Console</span>
+              </button>
+            )}
           </nav>
 
-          {/* Right Controls: Quick Voice + Language Toggle + Menu */}
+          {/* Right Controls: Notification Bell + Quick Voice + Language Toggle + Menu */}
           <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0 order-2 xl:order-3">
-            {/* Quick Odia Voice Button (Desktop & Tablet only; mobile has prominent voice button in bottom bar) */}
+            {/* Notification Bell */}
+            <NotificationBell
+              lang={lang}
+              onNavigateTab={handleNavClick}
+            />
+
+            {/* Quick Odia Voice Button */}
             <button
               onClick={onQuickVoice}
               className="hidden sm:flex xl:hidden 2xl:flex p-2 rounded-full bg-agri-800 hover:bg-agri-700 text-lime-300 border border-agri-700 hover:scale-105 transition-all shadow items-center justify-center"
@@ -178,7 +255,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Mobile Menu Hamburger (touch target strictly >= 44x44px) */}
+            {/* Mobile Menu Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 min-h-[44px] min-w-[44px] rounded-lg text-agri-200 hover:text-white hover:bg-agri-800 flex items-center justify-center transition-colors"
@@ -216,6 +293,42 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             );
           })}
+
+          {/* Quick Orders & Role Switcher on Mobile */}
+          <div className="pt-2 border-t border-agri-800 space-y-1">
+            <button
+              onClick={() => handleNavClick('my_orders')}
+              className="w-full min-h-[44px] flex items-center space-x-3 px-3 py-2 text-agri-200 hover:text-white text-xs font-semibold"
+            >
+              <Package className="w-4 h-4 text-lime-400" />
+              <span>{lang === 'or' ? 'ମୋର କ୍ରୟ ଅର୍ଡର' : 'My Store Orders'}</span>
+            </button>
+
+            {setUserRole && (
+              <div className="flex items-center justify-between p-2 bg-agri-950/60 rounded-xl text-xs text-agri-200">
+                <span>View Workspace:</span>
+                <select
+                  value={userRole}
+                  onChange={(e) => {
+                    const r = e.target.value as any;
+                    setUserRole(r);
+                    if (r === 'seller') setCurrentTab('seller_dashboard');
+                    else if (r === 'expert') setCurrentTab('expert_dashboard');
+                    else if (r === 'admin') setCurrentTab('admin_dashboard');
+                    else setCurrentTab('dashboard');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="bg-agri-900 text-lime-300 font-bold rounded px-2 py-1"
+                >
+                  <option value="farmer">Farmer</option>
+                  <option value="seller">Agri Seller</option>
+                  <option value="expert">OUAT Expert</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            )}
+          </div>
+
           <div className="pt-3 border-t border-agri-800 flex justify-between items-center text-xs text-agri-300">
             <button 
               onClick={() => { onOpenSettings(); setMobileMenuOpen(false); }}

@@ -23,7 +23,8 @@ import {
   Eye,
   Check,
   Flag,
-  MessageSquare
+  MessageSquare,
+  ShoppingBag
 } from 'lucide-react';
 import { ScanReport } from '../types/pest';
 import { PEST_KNOWLEDGE_BASE } from '../data/pestsData';
@@ -42,6 +43,8 @@ interface PestReportProps {
   onNavigateAssistant?: () => void;
   onEscalate: () => void;
   onRetakeScan?: () => void;
+  onFindProducts?: (cropId?: string, pestId?: string) => void;
+  onDiscussWithExpert?: (report: ScanReport) => void;
 }
 
 export const PestReport: React.FC<PestReportProps> = ({
@@ -50,7 +53,9 @@ export const PestReport: React.FC<PestReportProps> = ({
   onNavigateTreatments,
   onNavigateAssistant,
   onEscalate,
-  onRetakeScan
+  onRetakeScan,
+  onFindProducts,
+  onDiscussWithExpert
 }) => {
   const [audioState, setAudioState] = useState<AudioPlaybackState>('idle');
   const [audioError, setAudioError] = useState<string | null>(null);
@@ -601,6 +606,40 @@ export const PestReport: React.FC<PestReportProps> = ({
             <Flag className="w-4 h-4 text-rose-600" />
             <span>{reportFlagged ? (lang === 'or' ? 'ଅଭିଯୋଗ ଦାଖଲ ହେଲା' : 'Flagged') : (lang === 'or' ? 'ଭୁଲ ଚିହ୍ନଟ ଜଣାନ୍ତୁ' : 'Report Wrong Pest')}</span>
           </button>
+        </div>
+
+        {/* Contextual Cross-Module Actions: Krushi Store & Expert Support */}
+        <div className="bg-gradient-to-r from-emerald-50 to-lime-50 rounded-2xl p-4 border border-lime-200 flex flex-col sm:flex-row items-center justify-between gap-3 mt-3">
+          <div>
+            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm">
+              {lang === 'or' ? 'ନିରୀକ୍ଷଣ ପରବର୍ତ୍ତୀ ଉପଚାର ଓ ସହାୟତା ପଦକ୍ଷେପ:' : 'Post-Diagnosis Procurement & Scientist Consultation:'}
+            </h4>
+            <p className="text-[11px] text-slate-600">
+              {lang === 'or'
+                ? 'ଏହି ଫସଲ ସମସ୍ୟା ପାଇଁ ପ୍ରମାଣିତ ଜୈବିକ ଔଷଧ/ଫାନ୍ଦ ଅର୍ଡର କରନ୍ତୁ କିମ୍ବା ବୈଜ୍ଞାନିକଙ୍କ ସହ ସିଧାସଳଖ ଆଲୋଚନା କରନ୍ତୁ।'
+                : 'Order verified inputs for this diagnosis or consult directly with an agricultural scientist.'}
+            </p>
+          </div>
+          <div className="flex items-center space-x-2 w-full sm:w-auto flex-shrink-0">
+            {onFindProducts && (
+              <button
+                onClick={() => onFindProducts(report.cropId, report.identification?.pestId)}
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-agri-800 hover:bg-agri-900 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm active:scale-95 transition-all"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 text-lime-300" />
+                <span>{lang === 'or' ? 'ଅନୁକୂଳ ଉତ୍ପାଦ ଖୋଜନ୍ତୁ' : 'Find Relevant Products'}</span>
+              </button>
+            )}
+            {onDiscussWithExpert && (
+              <button
+                onClick={() => onDiscussWithExpert(report)}
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-lime-500 hover:bg-lime-400 text-agri-950 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm active:scale-95 transition-all"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>{lang === 'or' ? 'ବିଶେଷଜ୍ଞଙ୍କ ସହ କଥା ହୁଅନ୍ତୁ' : 'Discuss With an Expert'}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

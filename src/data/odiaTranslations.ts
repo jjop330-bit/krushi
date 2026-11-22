@@ -26,6 +26,18 @@ export interface TranslationDictionary {
   disclaimerText: string;
   emergencyHelpline: string;
   kvkTitle: string;
+  // New Marketplace & Expert Modules
+  navStore: string;
+  navTalkExpert: string;
+  navSellerPortal: string;
+  navAdminDashboard: string;
+  navMyOrders: string;
+  navMyRequests: string;
+  ctaFindProducts: string;
+  ctaDiscussExpert: string;
+  cartTitle: string;
+  checkoutTitle: string;
+  sellerRegisterTitle: string;
 }
 
 export const ODIA_TRANSLATIONS: Record<'en' | 'or', TranslationDictionary> = {
@@ -56,7 +68,18 @@ export const ODIA_TRANSLATIONS: Record<'en' | 'or', TranslationDictionary> = {
     chemicalTab: '3. Regulated Chemical (CIBRC)',
     disclaimerText: 'Krushi Mitra AI is an independent AI research project developed for Odisha AI Hackathon 2026. It is NOT officially affiliated with ICAR, OUAT, or the Government of Odisha. Always verify serious outbreaks with your local KVK or Agriculture Officer.',
     emergencyHelpline: 'Kisan Call Centre Toll-Free: 1800-180-1551 (6 AM - 10 PM)',
-    kvkTitle: 'Krishi Vigyan Kendra (KVK) Escalation Network'
+    kvkTitle: 'Krishi Vigyan Kendra (KVK) Escalation Network',
+    navStore: 'Krushi Store',
+    navTalkExpert: 'Talk to an Expert',
+    navSellerPortal: 'Seller Portal',
+    navAdminDashboard: 'Admin Control',
+    navMyOrders: 'My Orders',
+    navMyRequests: 'My Support Requests',
+    ctaFindProducts: 'Find Relevant Products',
+    ctaDiscussExpert: 'Discuss With an Expert',
+    cartTitle: 'Shopping Cart',
+    checkoutTitle: 'Checkout & Delivery',
+    sellerRegisterTitle: 'Register as Agri Seller'
   },
   or: {
     appName: 'କୃଷି ମିତ୍ର AI',
@@ -85,6 +108,17 @@ export const ODIA_TRANSLATIONS: Record<'en' | 'or', TranslationDictionary> = {
     chemicalTab: '୩. ଅନୁମୋଦିତ ରାସାୟନିକ (CIBRC)',
     disclaimerText: 'କୃଷି ମିତ୍ର AI ଓଡ଼ିଶା AI ହ୍ୟାକାଥନ୍ ୨୦୨୬ ପାଇଁ ପ୍ରସ୍ତୁତ ଏକ ସ୍ୱତନ୍ତ୍ର AI ଅନୁସନ୍ଧାନ ମଞ୍ଚ। ଏହା ICAR, OUAT କିମ୍ବା ଓଡ଼ିଶା ସରକାରଙ୍କ ସହିତ ସରକାରୀ ଭାବେ ଅନୁବନ୍ଧିତ ନୁହେଁ। ବଡ଼ ଧରଣର ଆକ୍ରମଣ ବେଳେ ସ୍ଥାନୀୟ କୃଷି ଅଧିକାରୀଙ୍କ ପରାମର୍ଶ ନିଅନ୍ତୁ।',
     emergencyHelpline: 'କିଷାନ କଲ୍ ସେଣ୍ଟର୍ ନିଃଶୁଳ୍କ ନମ୍ବର: ୧୮୦୦-୧୮୦-୧୫୫୧ (ସକାଳ ୬ ରୁ ରାତି ୧୦)',
-    kvkTitle: 'କୃଷି ବିଜ୍ଞାନ କେନ୍ଦ୍ର (KVK) ସହାୟତା ନେଟୱାର୍କ'
+    kvkTitle: 'କୃଷି ବିଜ୍ଞାନ କେନ୍ଦ୍ର (KVK) ସହାୟତା ନେଟୱାର୍କ',
+    navStore: 'କୃଷି ଷ୍ଟୋର',
+    navTalkExpert: 'ବିଶେଷଜ୍ଞଙ୍କ ସହ କଥା ହୁଅନ୍ତୁ',
+    navSellerPortal: 'ବିକ୍ରେତା ପୋର୍ଟାଲ',
+    navAdminDashboard: 'ପ୍ରଶାସନିକ ନିୟନ୍ତ୍ରଣ',
+    navMyOrders: 'ମୋର ଅର୍ଡର',
+    navMyRequests: 'ମୋର ପରାମର୍ଶ ଅନୁରୋଧ',
+    ctaFindProducts: 'ଅନୁକୂଳ ଉତ୍ପାଦ ଖୋଜନ୍ତୁ',
+    ctaDiscussExpert: 'ବିଶେଷଜ୍ଞଙ୍କ ସହ କଥା ହୁଅନ୍ତୁ',
+    cartTitle: 'କ୍ରୟ ଥଳି (Cart)',
+    checkoutTitle: 'ଚେକ୍‌ଆଉଟ୍ ଓ ଠିକଣା',
+    sellerRegisterTitle: 'ବିକ୍ରେତା ଭାବେ ଯୋଗଦିଅନ୍ତୁ'
   }
 };

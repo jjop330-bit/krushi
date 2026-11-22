@@ -9,6 +9,12 @@ import { DistrictMap } from './components/DistrictMap';
 import { FollowUpTracker } from './components/FollowUpTracker';
 import { CropLibrary } from './components/CropLibrary';
 import { ExpertPortal } from './components/ExpertPortal';
+import { KrushiStore } from './components/KrushiStore';
+import { TalkToExpert } from './components/TalkToExpert';
+import { SellerDashboard } from './components/SellerDashboard';
+import { ExpertDashboard } from './components/ExpertDashboard';
+import { AdminDashboard } from './components/AdminDashboard';
+import { FarmerOrders } from './components/FarmerOrders';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { Footer } from './components/Footer';
 
@@ -24,7 +30,9 @@ import {
   ShieldAlert, 
   Mic, 
   MapPin, 
-  CalendarCheck 
+  CalendarCheck,
+  ShoppingBag,
+  UserCheck
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -34,6 +42,11 @@ export const App: React.FC = () => {
   const [reportsHistory, setReportsHistory] = useState<ScanReport[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [selectedSample, setSelectedSample] = useState<SamplePestImage | null>(null);
+
+  // New modules state
+  const [userRole, setUserRole] = useState<'farmer' | 'seller' | 'expert' | 'admin'>('farmer');
+  const [storeFilterPest, setStoreFilterPest] = useState<string | undefined>(undefined);
+  const [storeFilterCrop, setStoreFilterCrop] = useState<string | undefined>(undefined);
 
   // Load existing reports and settings from local persistence on mount
   useEffect(() => {
@@ -75,6 +88,17 @@ export const App: React.FC = () => {
     setCurrentTab('scanner');
   };
 
+  const handleFindProductsFromReport = (cropId?: string, pestId?: string) => {
+    setStoreFilterCrop(cropId);
+    setStoreFilterPest(pestId);
+    setCurrentTab('store');
+  };
+
+  const handleDiscussWithExpert = (report: ScanReport) => {
+    setActiveReport(report);
+    setCurrentTab('talk_expert');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FBFBF7] text-slate-900 font-sans selection:bg-lime-200 w-full overflow-x-hidden">
       {/* Top Main Navigation */}
@@ -86,6 +110,8 @@ export const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
         hasActiveReport={!!activeReport}
         onQuickVoice={() => setCurrentTab('assistant')}
+        userRole={userRole}
+        setUserRole={setUserRole}
       />
 
       {/* Main Page Body */}
@@ -115,7 +141,9 @@ export const App: React.FC = () => {
             lang={lang}
             onNavigateTreatments={() => setCurrentTab('treatment')}
             onFollowUpSchedule={() => setCurrentTab('followup')}
-            onEscalate={() => setCurrentTab('expert')}
+            onEscalate={() => setCurrentTab('talk_expert')}
+            onFindProducts={handleFindProductsFromReport}
+            onDiscussWithExpert={handleDiscussWithExpert}
           />
         )}
 
@@ -156,10 +184,60 @@ export const App: React.FC = () => {
           />
         )}
 
+        {/* Krushi Store (Multi-vendor Marketplace) */}
+        {currentTab === 'store' && (
+          <KrushiStore
+            lang={lang}
+            onNavigateOrders={() => setCurrentTab('my_orders')}
+            onNavigateSellerPortal={() => setCurrentTab('seller_dashboard')}
+            initialFilterPest={storeFilterPest}
+            initialFilterCrop={storeFilterCrop}
+          />
+        )}
+
+        {/* Talk to an Expert (Farmer-facing hub) */}
+        {currentTab === 'talk_expert' && (
+          <TalkToExpert
+            lang={lang}
+            activeReport={activeReport}
+            onOpenReport={() => setCurrentTab('report')}
+          />
+        )}
+
+        {/* Seller Dashboard */}
+        {currentTab === 'seller_dashboard' && (
+          <SellerDashboard
+            lang={lang}
+          />
+        )}
+
+        {/* Expert Dashboard */}
+        {currentTab === 'expert_dashboard' && (
+          <ExpertDashboard
+            lang={lang}
+          />
+        )}
+
+        {/* Legacy Expert Review Queue */}
         {currentTab === 'expert' && (
           <ExpertPortal
             lang={lang}
             reports={reportsHistory}
+          />
+        )}
+
+        {/* Admin Dashboard */}
+        {currentTab === 'admin_dashboard' && (
+          <AdminDashboard
+            lang={lang}
+          />
+        )}
+
+        {/* My Orders History */}
+        {currentTab === 'my_orders' && (
+          <FarmerOrders
+            lang={lang}
+            onNavigateStore={() => setCurrentTab('store')}
           />
         )}
       </main>
@@ -189,13 +267,23 @@ export const App: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setCurrentTab(activeReport ? 'report' : 'crops')}
+          onClick={() => setCurrentTab('store')}
           className={`min-h-[44px] flex flex-col items-center justify-center py-1 text-[11px] font-bold ${
-            currentTab === 'report' || currentTab === 'treatment' ? 'text-agri-800' : 'text-slate-400'
+            currentTab === 'store' ? 'text-agri-800' : 'text-slate-400'
           }`}
         >
-          <ShieldAlert className="w-5 h-5 mb-0.5" />
-          <span>{lang === 'or' ? 'ଉପଚାର' : 'Treatments'}</span>
+          <ShoppingBag className="w-5 h-5 mb-0.5" />
+          <span>{lang === 'or' ? 'ଷ୍ଟୋର' : 'Store'}</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('talk_expert')}
+          className={`min-h-[44px] flex flex-col items-center justify-center py-1 text-[11px] font-bold ${
+            currentTab === 'talk_expert' ? 'text-agri-800' : 'text-slate-400'
+          }`}
+        >
+          <UserCheck className="w-5 h-5 mb-0.5" />
+          <span>{lang === 'or' ? 'ପରାମର୍ଶ' : 'Expert'}</span>
         </button>
 
         <button
